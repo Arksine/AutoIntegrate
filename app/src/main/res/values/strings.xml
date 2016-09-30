@@ -1,0 +1,41 @@
+<resources>
+    <string name="app_name">AutoIntegrate</string>
+    <string name="service_notification_title">AutoIntegrate</string>
+    <string name="title_activity_main">AutoIntegrate</string>
+
+    <string name="ACTION_STOP_SERVICE">com.arksine.autointegrate.ACTION_STOP_SERVICE</string>
+    <string name="ACTION_SEND_DATA">com.arksine.autointegrate.ACTION_SEND_DATA</string>
+    <string name="EXTRA_COMMAND">com.arksine.autointegrate.EXTRA_COMMAND</string>
+    <string name="EXTRA_DATA">com.arksine.autointegrate.EXTRA_DATA</string>
+    <string name="ACTION_DEVICE_CHANGED">com.arksine.autointegrate.ACTION_DEVICE_CHANGED</string>
+    <string name="ACTION_DEVICE_DISCONNECTED">com.arksine.autointegrate.ACTION_DEVICE_DISCONNECTED</string>
+
+
+    <string name="pref_arduino_settings">Arduino</string>
+
+    <!-- Strings related to Arduino Settings -->
+    <string name="pref_select_device_type">Select Device Type</string>
+    <string-array name="pref_select_device_type_entries">
+        <item>Bluetooth</item>
+        <item>Usb</item>
+    </string-array>
+    <string-array name="pref_select_device_type_values">
+        <item>BLUETOOTH</item>
+        <item>USB</item>
+    </string-array>
+    <string name="pref_select_device_type_default">BLUETOOTH</string>
+
+    <string name="pref_select_device">Select Device</string>
+    <string-array name="pref_select_device_entries">
+        <item>No Device Selected</item>
+    </string-array>
+    <string-array name="pref_select_device_values">
+        <item>NO_DEVICE</item>
+    </string-array>
+    <string name="pref_select_device_summary">No Device Selected</string>
+    <string name="pref_select_device_default">NO_DEVICE</string>
+
+    <string name="pref_start_service">Start Service</string>
+    <string name="pref_stop_service">Stop Service</string>
+
+</resources>

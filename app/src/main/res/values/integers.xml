@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Integers used to identify intents -->
+    <integer name="REQUEST_ENABLE_BT">7001</integer>
+    <integer name="ONGOING_NOTIFICATION_ID">7002</integer>
+    <integer name="REQUEST_STOP_SERVICE">6703</integer>
+    <integer name="REQUEST_START_AUTOINTEGRATE_ACTIVITY">6704</integer>
+
+    <!-- Integers used for arduino_preferences -->
+</resources>
