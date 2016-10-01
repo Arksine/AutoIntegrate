@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <SwitchPreference
+        android:defaultValue="false"
+        android:title="@string/status_pref_toggle_service"
+        android:key="status_pref_key_toggle_service"
+        android:summaryOn="@string/status_pref_toggle_service_summ_on"
+        android:summaryOff="@string/status_pref_toggle_service_summ_off"/>
+</PreferenceScreen>
