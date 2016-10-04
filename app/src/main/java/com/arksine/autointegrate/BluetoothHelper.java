@@ -3,11 +3,8 @@ package com.arksine.autointegrate;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
-import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -32,6 +29,7 @@ class BluetoothHelper implements SerialHelper {
 
     private BluetoothAdapter mBluetoothAdapter;
     private BluetoothSocket mSocket;
+    private volatile BluetoothDevice mBtDevice;
 
     private boolean deviceConnected = false;
     private InputStream serialIn;
@@ -39,33 +37,6 @@ class BluetoothHelper implements SerialHelper {
 
     private final UUID MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
 
-    private boolean isBtRecrRegistered = false;
-    private final BroadcastReceiver mBtReceiver = new BroadcastReceiver() {
-
-        public void onReceive(Context context, Intent intent) {
-            String action = intent.getAction();
-
-            if (BluetoothAdapter.ACTION_STATE_CHANGED.equals(action)) {
-                synchronized (this) {
-                    int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE,
-                            BluetoothAdapter.STATE_OFF);
-
-                    if (state == BluetoothAdapter.STATE_ON || state == BluetoothAdapter.STATE_TURNING_OFF) {
-
-                        Intent devChanged = new Intent(ACTION_DEVICE_CHANGED);
-                        LocalBroadcastManager.getInstance(mContext).sendBroadcast(devChanged);
-                    }
-
-                }
-            } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
-                Intent devChanged = new Intent(ACTION_DEVICE_CHANGED);
-                LocalBroadcastManager.getInstance(mContext).sendBroadcast(devChanged);
-            }
-
-        }
-    };
-
-    //TODO:  need a broacast receiver to gracefully handle a device disconnection
 
     BluetoothHelper(Context context){
         mContext = context;
@@ -78,13 +49,6 @@ class BluetoothHelper implements SerialHelper {
      * user to turn it on if it isn't on.
      */
     private void initBluetooth() {
-
-        // If we need to turn on the device, this broadcast reciever will listen
-        // for changes and set initialized to true when the device is on.
-        IntentFilter filter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
-        mContext.registerReceiver(mBtReceiver, filter);
-        isBtRecrRegistered = true;
-
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         if (mBluetoothAdapter == null) {
             // Device does not support Bluetooth, return an empty list
@@ -106,10 +70,6 @@ class BluetoothHelper implements SerialHelper {
      */
     public void disconnect() {
 
-        if (isBtRecrRegistered) {
-            isBtRecrRegistered = false;
-            mContext.unregisterReceiver(mBtReceiver);
-        }
         closeBluetoothSocket();
     }
 
@@ -181,6 +141,10 @@ class BluetoothHelper implements SerialHelper {
         }
     }
 
+    public void publishConnection(HardwareReceiver.UsbDeviceType type) {
+        HardwareReceiver.setConnectedDevice(mBtDevice);
+    }
+
     public boolean isDeviceConnected() {
 
         return deviceConnected;
@@ -247,8 +211,8 @@ class BluetoothHelper implements SerialHelper {
         @Override
         public void run() {
 
-            BluetoothDevice mDevice = mBluetoothAdapter.getRemoteDevice(macAddr);
-            if (mDevice == null) {
+            mBtDevice = mBluetoothAdapter.getRemoteDevice(macAddr);
+            if (mBtDevice == null) {
                 // device does not exist
                 Log.e(TAG, "Unable to open bluetooth device at " + macAddr);
                 deviceConnected = false;
@@ -260,7 +224,7 @@ class BluetoothHelper implements SerialHelper {
             // add an option for a secure connection, as this is subject to a man
             // in the middle attack.
             try {
-                mSocket = mDevice.createInsecureRfcommSocketToServiceRecord(MY_UUID);
+                mSocket = mBtDevice.createInsecureRfcommSocketToServiceRecord(MY_UUID);
             }
             catch (IOException e) {
                 Log.e (TAG, "Unable to retrieve bluetooth socket for device " + macAddr);

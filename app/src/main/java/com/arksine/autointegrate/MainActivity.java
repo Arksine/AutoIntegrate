@@ -1,10 +1,15 @@
 package com.arksine.autointegrate;
 
+import android.app.ActivityManager;
 import android.app.FragmentManager;
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.graphics.Point;
 import android.os.Bundle;
 import android.preference.PreferenceFragment;
+import android.preference.PreferenceManager;
 import android.support.v4.app.Fragment;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v4.widget.DrawerLayout;
@@ -19,7 +24,7 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
-
+import android.widget.Toast;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -85,12 +90,20 @@ public class MainActivity extends AppCompatActivity {
             selectItem(0);
         }
 
-
-        // TODO: Start service if not started?
-        // TODO: Add navigation drawer
-        // TODO: Add other screens (status, hdradio, power)
+        // Start the service if it isn't started
+        if (!isServiceRunning(MainService.class)) {
+            Intent startIntent = new Intent(this, MainService.class);
+            this.startService(startIntent);
+        }
 
     }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // TODO: refresh service...refresh service in each preferencefragment's onDestroy as well
+    }
+
 
     @Override
     protected void onPostCreate(Bundle savedInstanceState) {
@@ -170,30 +183,62 @@ public class MainActivity extends AppCompatActivity {
     private void selectItem(int position) {
         CharSequence title = "";
         PreferenceFragment fragment = null;
+
+        SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(this);
         switch (position) {
-            case 0:
+            case 0:     // Service Settings
                 fragment = new StatusFragment();
                 title = "Service Status";
                 break;
-            case 1:     // TODO: Power Settings
+            case 1:     // Power Settings
+                if (sharedPrefs.getBoolean("status_pref_key_toggle_power", false)) {
+                    fragment = new PowerSettings();
+                    title = "Power Settings";
+                } else {
+                    Toast.makeText(this, "Power Management Integration Disabled",
+                            Toast.LENGTH_SHORT).show();
+                    return;
+                }
                 break;
             case 2:     // Arduino Settings
-                fragment = new ArduinoSettings();
-                title = "Arduino Settings";
-                Log.i(TAG, "Arduino Settings Selected");
+                if (sharedPrefs.getBoolean("status_pref_key_toggle_arduino", false)) {
+                    fragment = new ArduinoSettings();
+                    title = "Arduino Settings";
+                    Log.i(TAG, "Arduino Settings Selected");
+                } else {
+                    Toast.makeText(this, "Arduino Integration Disabled",
+                            Toast.LENGTH_SHORT).show();
+                    return;
+                }
                 break;
-            case 3:     // TODO: Camera Settings
+            case 3:     // Camera Settings
+                if (sharedPrefs.getBoolean("status_pref_key_toggle_camera", false)) {
+                    fragment = new CameraSettings();
+                    title = "Camera Settings";
+                } else {
+                    Toast.makeText(this, "Camera Integration Disabled",
+                            Toast.LENGTH_SHORT).show();
+                    return;
+                }
                 break;
-            case 4:     // TODO: HD Radio Settings
+            case 4:     // HD Radio Settings
+                if (sharedPrefs.getBoolean("status_pref_key_toggle_radio", false)) {
+                    fragment = new RadioSettings();
+                    title = "HD Radio Settings";
+                } else {
+                    Toast.makeText(this, "HD Radio Integration Disabled",
+                            Toast.LENGTH_SHORT).show();
+                    return;
+                }
                 break;
             default:
-                // TODO: not supported, log and send toast
+                // not supported, log and send toast
+                Log.e(TAG, "Unsupported navigation selection: " + position);
+                Toast.makeText(this, "Selection not supported",
+                        Toast.LENGTH_SHORT).show();
                 return;
 
         }
-
-        if (fragment == null)
-            return;
 
         // Insert the fragment by replacing any existing fragment
         FragmentManager fragmentManager = getFragmentManager();
@@ -212,8 +257,17 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void setTitle(CharSequence title) {
         mTitle = title;
-        getSupportActionBar().setTitle(title);
+        getSupportActionBar().setTitle(mTitle);
     }
 
+    private boolean isServiceRunning(Class<?> serviceClass) {
+        ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+        for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
+            if (serviceClass.getName().equals(service.service.getClassName())) {
+                return true;
+            }
+        }
+        return false;
+    }
 
 }

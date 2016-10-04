@@ -5,11 +5,17 @@
 
     <!-- Intents -->
     <string name="ACTION_STOP_SERVICE">com.arksine.autointegrate.ACTION_STOP_SERVICE</string>
+    <string name="ACTION_WAKE_SERVICE_THREAD">com.arksine.autointegrate.ACTION_WAKE_SERVICE_THREAD</string>
+    <string name="ACTION_REFRESH_SERVICE_THREAD">com.arksine.autointegrate.ACTION_REFRESH_SERVICE_THREAD</string>
+    <string name="ACTION_SUSPEND_SERVICE_THREAD">com.arksine.autointegrate.ACTION_SUSPEND_SERVICE_THREAD</string>
     <string name="ACTION_SEND_DATA">com.arksine.autointegrate.ACTION_SEND_DATA</string>
     <string name="EXTRA_COMMAND">com.arksine.autointegrate.EXTRA_COMMAND</string>
     <string name="EXTRA_DATA">com.arksine.autointegrate.EXTRA_DATA</string>
     <string name="ACTION_DEVICE_CHANGED">com.arksine.autointegrate.ACTION_DEVICE_CHANGED</string>
     <string name="ACTION_DEVICE_DISCONNECTED">com.arksine.autointegrate.ACTION_DEVICE_DISCONNECTED</string>
+    <string name="ACTION_USB_PERMISSION">com.arksine.autointegrate.USB_PERMISSION</string>
+    <string name="ACTION_USB_ATTACHED">android.hardware.usb.action.USB_DEVICE_ATTACHED</string>
+    <string name="ACTION_USB_DETACHED">android.hardware.usb.action.USB_DEVICE_DETACHED</string>
 
     <string-array name="drawer_setting_titles">
         <item>Service Status</item>
@@ -25,18 +31,34 @@
 
     <!-- Strings related to Service Status Settings -->
     <string name="status_pref_toggle_service">Toggle Service</string>
-    <string name="status_pref_toggle_service_summ_on">Service is ON</string>
-    <string name="status_pref_toggle_service_summ_off">Service is OFF</string>
+    <string name="status_pref_toggle_service_summ_on">AutoIntegrate Service is ON</string>
+    <string name="status_pref_toggle_service_summ_off">AutoIntegrate Service is OFF</string>
+
+    <string name="status_pref_toggle_power">Power Management</string>
+    <string name="status_pref_toggle_power_summ_on">Power Management Integration ENABLED</string>
+    <string name="status_pref_toggle_power_summ_off">Power Management Integration DISABLED</string>
+
+    <string name="status_pref_toggle_arduino">Arduino Integration</string>
+    <string name="status_pref_toggle_arduino_summ_on">Arduino Integration ENABLED</string>
+    <string name="status_pref_toggle_arduino_summ_off">Arduino Integration DISABLED</string>
+
+    <string name="status_pref_toggle_camera">Camera Integration</string>
+    <string name="status_pref_toggle_camera_summ_on">Camera Integration ENABLED</string>
+    <string name="status_pref_toggle_camera_summ_off">Camera Integration DISABLED</string>
+
+    <string name="status_pref_toggle_radio">HD Radio Integration</string>
+    <string name="status_pref_toggle_radio_summ_on">HD Radio Integration ENABLED</string>
+    <string name="status_pref_toggle_radio_summ_off">HD Radio Integration DISABLED</string>
 
     <!-- Strings related to Arduino Settings -->
     <string name="arduino_pref_select_device_type">Select Device Type</string>
     <string-array name="arduino_pref_select_device_type_entries">
-        <item>Bluetooth</item>
         <item>Usb</item>
+        <item>Bluetooth</item>
     </string-array>
     <string-array name="arduino_pref_select_device_type_values">
-        <item>BLUETOOTH</item>
         <item>USB</item>
+        <item>BLUETOOTH</item>
     </string-array>
     <string name="arduino_pref_select_device_type_default">BLUETOOTH</string>
 

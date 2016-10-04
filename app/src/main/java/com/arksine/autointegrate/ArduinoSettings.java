@@ -21,6 +21,8 @@ import java.util.ArrayList;
 public class ArduinoSettings extends PreferenceFragment {
 
     private static String TAG = "ArduinoSettings";
+    // TODO: need to implement an intent filter rather than go through with enumerating and requesting
+    //       permission on each device.  Just too many pitfalls.
 
     // TODO: Use localbroadcast to restart service in button learning mode
     // TODO: Add button learning activity
@@ -35,6 +37,7 @@ public class ArduinoSettings extends PreferenceFragment {
 
     SerialHelper mSerialHelper;
     private String mDeviceType;
+
 
     private final BroadcastReceiver deviceListReciever = new BroadcastReceiver() {
         @Override
@@ -77,6 +80,7 @@ public class ArduinoSettings extends PreferenceFragment {
                 return true;
             }
         });
+
         selectDevice.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
             @Override
             public boolean onPreferenceChange(Preference preference, Object newValue) {
@@ -100,14 +104,20 @@ public class ArduinoSettings extends PreferenceFragment {
             }
         });
 
+
         IntentFilter filter = new IntentFilter(ACTION_DEVICE_CHANGED);
         LocalBroadcastManager.getInstance(getActivity()).registerReceiver(deviceListReciever, filter);
+
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
-        LocalBroadcastManager.getInstance(getActivity()).unregisterReceiver(deviceListReciever);
+        mSerialHelper.disconnect(); // disconnect to clean up registered broadcast receivers
+        LocalBroadcastManager localBM = LocalBroadcastManager.getInstance(getActivity());
+        Intent refreshService = new Intent(getString(R.string.ACTION_REFRESH_SERVICE_THREAD));
+        localBM.sendBroadcast(refreshService);
+        localBM.unregisterReceiver(deviceListReciever);
     }
 
     private void populateDeviceListView() {
@@ -152,9 +162,17 @@ public class ArduinoSettings extends PreferenceFragment {
 
                 String[] deviceInfo = mAdapterList.get(i).split("\n");
 
-                entries[i] = mAdapterList.get(i);
-                entryValues[i] = deviceInfo[1];
+                if (mDeviceType.equals("BLUETOOTH")) {
+                    entries[i] = mAdapterList.get(i);
+                } else {
+                    // TODO: something isn't working right here
+                    String[] ids = deviceInfo[1].split(":");
+                    String vid = Integer.toHexString(Integer.parseInt(ids[0]));
+                    String pid = Integer.toHexString(Integer.parseInt(ids[1]));
+                    entries[i] = deviceInfo[0] + "\nVID:0x" + vid + " PID:0x" + pid + "\n" + ids[2];
+                }
 
+                entryValues[i] = deviceInfo[1];
             }
         }
 

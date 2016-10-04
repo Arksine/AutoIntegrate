@@ -1,15 +1,14 @@
 package com.arksine.autointegrate;
 
 import android.app.PendingIntent;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
 import android.os.Build;
-import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
 import com.felhr.deviceids.CH34xIds;
@@ -21,6 +20,7 @@ import com.felhr.usbserial.CDCSerialDevice;
 import com.felhr.usbserial.UsbSerialDevice;
 import com.felhr.usbserial.UsbSerialInterface;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -34,71 +34,23 @@ class UsbHelper implements SerialHelper {
 
     private static final String TAG = "UsbHelper";
 
-    private static final String ACTION_USB_PERMISSION = "com.android.example.USB_PERMISSION";
-    public static final String ACTION_USB_ATTACHED = "android.hardware.usb.action.USB_DEVICE_ATTACHED";
-    public static final String ACTION_USB_DETACHED = "android.hardware.usb.action.USB_DEVICE_DETACHED";
-    public static final String ACTION_DEVICE_CHANGED = "com.arksine.autointegrate.ACTION_DEVICE_CHANGED";
+
+    private static final String ACTION_USB_PERMISSION = "com.arksine.autointegrate.USB_PERMISSION";
     private static final int BAUD_RATE = 9600; // BaudRate. Change this value if you need
 
     private Context mContext;
     private UsbManager mUsbManager;
     private volatile UsbDevice mUsbDevice;
-    private UsbDeviceConnection mUsbConnection;
     private UsbSerialDevice mSerialPort;
 
     private volatile boolean serialPortConnected = false;
 
-    private volatile boolean requestApproved = false;
-    private volatile boolean requestFinished = false;
-    private boolean usbReceiverRegistered = false;
-
-    // TODO: Should probably move this to service, or its own class instantiated in the service.
-    //
-    private final BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            String action = intent.getAction();
-            if (action.equals(ACTION_USB_PERMISSION)) {
-                synchronized (this) {
-                    UsbDevice uDev = (UsbDevice) intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
-                    boolean accessGranted = intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false);
-                    if (accessGranted) {
-                        if (uDev != null) {
-                            requestApproved = true;
-                        } else {
-                            Log.d(TAG, "USB Device not valid");
-                        }
-                    } else {
-                        Log.d(TAG, "permission denied for device " + uDev);
-                    }
-                    requestFinished = true;
-                }
-            } else if (action.equals(ACTION_USB_ATTACHED)) {
-                // send a broadcast for the main activity to repopulate the device list if a device
-                // is connected or disconnected
-                Intent devChanged = new Intent(ACTION_DEVICE_CHANGED);
-                LocalBroadcastManager.getInstance(mContext).sendBroadcast(devChanged);
-                Log.i(TAG, "Usb device attached");
-            } else if (action.equals(ACTION_USB_DETACHED)) {
-                // send a broadcast for the main activity to repopulate the device list if a device
-                // is connected or disconnected
-                Intent devChanged = new Intent(ACTION_DEVICE_CHANGED);
-                LocalBroadcastManager.getInstance(mContext).sendBroadcast(devChanged);
-                Log.i(TAG, "Usb device removed");
-
-                // If this device is the device we are working with, we need to disconnect
-                synchronized (this) {
-                    UsbDevice uDev = (UsbDevice) intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
-                    if (uDev.equals(mUsbDevice)) {
-                        serialPortConnected = false;
-                    }
-                }
-            }
-        }
-    };
 
     private LinkedBlockingQueue<Byte> serialBuffer;
 
+    // TODO: rather than read to a buffer, parse the incoming data into a string.  When the byte is a "<"
+    //       it is a new string so clear it.  When it is a ">", the packet is complete, so callback
+    //       to arduinocom to set the incoming command:data and notify the arduinocom thread.
     private UsbSerialInterface.UsbReadCallback mCallback = new UsbSerialInterface.UsbReadCallback() {
 
         @Override
@@ -122,11 +74,6 @@ class UsbHelper implements SerialHelper {
 
         serialBuffer = new LinkedBlockingQueue<>(128);
 
-        IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
-        filter.addAction(ACTION_USB_ATTACHED);
-        filter.addAction(ACTION_USB_DETACHED);
-        mContext.registerReceiver(mUsbReceiver, filter);
-        usbReceiverRegistered = true;
     }
 
     public ArrayList<String> enumerateDevices() {
@@ -138,33 +85,29 @@ class UsbHelper implements SerialHelper {
         for (UsbDevice uDevice : usbDeviceList.values()) {
 
             String name;
-            if (UsbSerialDevice.isCdcDevice(uDevice)) {
-                name = "CDC serial device";
-            }
-            else if (CH34xIds.isDeviceSupported(uDevice.getVendorId(), uDevice.getProductId())){
-                name = "CH34x serial device";
-            }
-            else if (CP210xIds.isDeviceSupported(uDevice.getVendorId(), uDevice.getProductId())) {
-                name = "CP210X serial device";
-            }
-            else if (FTDISioIds.isDeviceSupported(uDevice.getVendorId(), uDevice.getProductId())) {
-                name = "FTDI serial device";
-            }
-            else if (PL2303Ids.isDeviceSupported(uDevice.getVendorId(), uDevice.getProductId())) {
-                name = "PL2303 serial device";
-            }
-            else if (XdcVcpIds.isDeviceSupported(uDevice.getVendorId(), uDevice.getProductId())) {
-                name = "Virtual serial device";
-            }
-            else {
-                // not supported
-                break;
-            }
-
             // replace the name with the real name if android supports it
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 name = uDevice.getProductName();
+            } else {
+                if (UsbSerialDevice.isCdcDevice(uDevice)) {
+                    name = "CDC serial device";
+                } else if (CH34xIds.isDeviceSupported(uDevice.getVendorId(), uDevice.getProductId())) {
+                    name = "CH34x serial device";
+                } else if (CP210xIds.isDeviceSupported(uDevice.getVendorId(), uDevice.getProductId())) {
+                    name = "CP210X serial device";
+                } else if (FTDISioIds.isDeviceSupported(uDevice.getVendorId(), uDevice.getProductId())) {
+                    name = "FTDI serial device";
+                } else if (PL2303Ids.isDeviceSupported(uDevice.getVendorId(), uDevice.getProductId())) {
+                    name = "PL2303 serial device";
+                } else if (XdcVcpIds.isDeviceSupported(uDevice.getVendorId(), uDevice.getProductId())) {
+                    name = "Virtual serial device";
+                } else {
+                    // not supported
+                    name = "Unknown USB Device";
+                }
             }
+
+
 
             Log.i(TAG, "usb device found: " + name);
             Log.i(TAG, "Device ID: " + uDevice.getDeviceId());
@@ -172,27 +115,62 @@ class UsbHelper implements SerialHelper {
             Log.i(TAG, "Vendor: ID " + uDevice.getVendorId());
             Log.i(TAG, "Product ID: " + uDevice.getProductId());
 
-            String entry = name + "\n" +  uDevice.getDeviceName();
+            // TODO: add device name?
+            String id = uDevice.getVendorId() + ":" + uDevice.getProductId() + ":"
+                    + uDevice.getDeviceName();
+
+            String entry = name + "\n" +  id;
             deviceList.add(entry);
         }
 
         return deviceList;
     }
 
-    public void connectDevice(String usbName, SerialHelper.DeviceReadyListener readyListener ) {
+    public void connectDevice(String id, SerialHelper.DeviceReadyListener readyListener ) {
 
         HashMap<String, UsbDevice> usbDeviceList = mUsbManager.getDeviceList();
-        mUsbDevice = usbDeviceList.get(usbName);
+        String[] ids = id.split(":");
+
+        // Make sure the entry value is formatted correctly
+        if (ids.length != 3) {
+            Log.e(TAG, "Invalid USB entry: " + id);
+            readyListener.OnDeviceReady(false);
+            return;
+        }
+
+        mUsbDevice = usbDeviceList.get(ids[2]);
+
+        // if we have can't find the device by its USBFS location, attempt to find it by VID/PID
+        if (mUsbDevice == null) {
+            // Because UsbIDs don't persist across disconnects, we store the VID/PID if each USB device
+            // and iterate though the list for matches
+            for (UsbDevice dev : usbDeviceList.values()) {
+
+                if (dev.getVendorId() == Integer.parseInt(ids[0]) &&
+                        dev.getProductId() == Integer.parseInt(ids[1])) {
+                    mUsbDevice = dev;
+                    break;
+                }
+            }
+        }
 
         if (mUsbDevice != null) {
             // valid device, request permission to use
-            new ConnectionThread(readyListener).start();
+            ConnectionThread mConnectionThread = new ConnectionThread(readyListener);
+            mConnectionThread.start();
 
         } else {
-            Log.i(TAG, "Invalid usb device: " + usbName);
+
+            Log.i(TAG, "Invalid usb device: " + id);
             readyListener.OnDeviceReady(false);
         }
 
+    }
+
+    // Publishes the connection to the HardwareReciever so it can properly respond to connect and
+    // disconnect events
+    public void publishConnection(HardwareReceiver.UsbDeviceType type) {
+        HardwareReceiver.setConnectedDevice(mUsbDevice, type);
     }
 
     public void disconnect() {
@@ -203,10 +181,6 @@ class UsbHelper implements SerialHelper {
         }
         serialPortConnected = false;
 
-        if (usbReceiverRegistered) {
-            mContext.unregisterReceiver(mUsbReceiver);
-            usbReceiverRegistered = false;
-        }
     }
 
     public boolean writeString(String data) {
@@ -255,35 +229,95 @@ class UsbHelper implements SerialHelper {
         return serialPortConnected;
     }
 
+    // The purpose of this function is to bypass the standard usb permission model and grant permission
+    // without requesting it from the user
+    private boolean grantAutomaticPermission(UsbDevice usbDevice)
+    {
+        try
+        {
+
+            PackageManager pkgManager=mContext.getPackageManager();
+            ApplicationInfo appInfo=pkgManager.getApplicationInfo(mContext.getPackageName(), PackageManager.GET_META_DATA);
+
+            Class serviceManagerClass=Class.forName("android.os.ServiceManager");
+            Method getServiceMethod=serviceManagerClass.getDeclaredMethod("getService",String.class);
+            getServiceMethod.setAccessible(true);
+            android.os.IBinder binder=(android.os.IBinder)getServiceMethod.invoke(null, Context.USB_SERVICE);
+
+            Class iUsbManagerClass=Class.forName("android.hardware.usb.IUsbManager");
+            Class stubClass=Class.forName("android.hardware.usb.IUsbManager$Stub");
+            Method asInterfaceMethod=stubClass.getDeclaredMethod("asInterface", android.os.IBinder.class);
+            asInterfaceMethod.setAccessible(true);
+            Object iUsbManager=asInterfaceMethod.invoke(null, binder);
+
+
+            System.out.println("UID : " + appInfo.uid + " " + appInfo.processName + " " + appInfo.permission);
+            final Method grantDevicePermissionMethod = iUsbManagerClass.getDeclaredMethod("grantDevicePermission", UsbDevice.class,int.class);
+            grantDevicePermissionMethod.setAccessible(true);
+            grantDevicePermissionMethod.invoke(iUsbManager, usbDevice,appInfo.uid);
+
+
+            Log.i(TAG, "Method OK : " + binder + "  " + iUsbManager);
+            return true;
+        }
+        catch(Exception e)
+        {
+            Log.e(TAG, "Error trying to assign automatic usb permission : ");
+            e.printStackTrace();
+            return false;
+        }
+    }
+
     // This thread opens a usb serial connection on the specified device
     private class ConnectionThread extends Thread {
 
         private SerialHelper.DeviceReadyListener mReadyListener;
+        private volatile boolean requestApproved = false;
 
         ConnectionThread(SerialHelper.DeviceReadyListener readyListener) {
             mReadyListener = readyListener;
         }
 
+        public synchronized void resumeConnectionThread() {
+            notify();
+        }
+
         @Override
         public void run() {
-            PendingIntent mPendingIntent = PendingIntent.getBroadcast(mContext, 0, new Intent(ACTION_USB_PERMISSION), 0);
-            mUsbManager.requestPermission(mUsbDevice, mPendingIntent);
 
-            while(!requestFinished) {
-                // wait for the request to finish
-                try {
-                    Thread.sleep(10);
-                } catch (InterruptedException e) {
-                    Log.i(TAG, "Sleep interrupted", e);
+            // check to see if we have permission, if not request it
+            if(!mUsbManager.hasPermission(mUsbDevice)) {
+
+                // Attempt to grant permission automatically (will only work if installed as system app)
+                // If it fails, request permission the old fashioned way
+                if(!grantAutomaticPermission(mUsbDevice)) {
+                    HardwareReceiver.UsbCallback callback = new HardwareReceiver.UsbCallback() {
+                        @Override
+                        public void onUsbPermissionRequestComplete(boolean requestStatus) {
+                            requestApproved = requestStatus;
+                            resumeConnectionThread();
+                        }
+                    };
+                    HardwareReceiver.setUsbPermissionCallback(mUsbDevice, callback);
+                    PendingIntent mPendingIntent = PendingIntent.getBroadcast(mContext, 0, new Intent(ACTION_USB_PERMISSION), 0);
+                    mUsbManager.requestPermission(mUsbDevice, mPendingIntent);
+
+                    synchronized (this) {
+                        try {
+                            wait();
+                        } catch (InterruptedException e) {
+                            Log.e(TAG, e.getMessage());
+                        }
+                    }
+
+                    if (!requestApproved) {
+                        mReadyListener.OnDeviceReady(false);
+                        return;
+                    }
                 }
             }
 
-            if (!requestApproved) {
-                mReadyListener.OnDeviceReady(false);
-                return;
-            }
-
-            mUsbConnection = mUsbManager.openDevice(mUsbDevice);
+            UsbDeviceConnection mUsbConnection = mUsbManager.openDevice(mUsbDevice);
 
             mSerialPort = UsbSerialDevice.createUsbSerialDevice(mUsbDevice, mUsbConnection);
             if (mSerialPort != null) {

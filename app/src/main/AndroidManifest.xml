@@ -2,6 +2,7 @@
 <manifest package="com.arksine.autointegrate"
           xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <uses-permission android:name="android.permission.MANAGE_USB"/>
     <uses-permission android:name="android.permission.BLUETOOTH"/>
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
 
@@ -28,6 +29,17 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+
+        <receiver android:name=".HardwareReceiver"
+                  android:exported="false">
+
+            <intent-filter>
+                <action android:name="com.arksine.autointegrate.USB_PERMISSION"/>
+                <action android:name="android.hardware.usb.action.USB_DEVICE_DETACHED"/>
+                <action android:name="android.bluetooth.device.action.ACL_DISCONNECTED"/>
+            </intent-filter>
+
+        </receiver>
     </application>
 
 </manifest>

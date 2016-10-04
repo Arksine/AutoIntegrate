@@ -8,6 +8,7 @@ import android.preference.Preference;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceScreen;
 import android.preference.SwitchPreference;
+import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
 /**
@@ -18,34 +19,34 @@ public class StatusFragment extends PreferenceFragment {
 
     private static String TAG = "StatusFragment";
 
+    // TODO:  Need broadcastreceiver for service status, if its off status should be notified.
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         addPreferencesFromResource(R.xml.status_preferences);
         PreferenceScreen root = this.getPreferenceScreen();
-        SwitchPreference toggleService = (SwitchPreference) root.findPreference("status_pref_key_toggle_service");
-
+        PreferenceScreen serviceStatus = (PreferenceScreen) root.findPreference("status_pref_key_service_status");
+        //SwitchPreference togglePower = (SwitchPreference) root.findPreference("status_pref_key_toggle_power");
+        SwitchPreference toggleArduino = (SwitchPreference) root.findPreference("status_pref_key_toggle_arduino");
+        //SwitchPreference toggleCamera = (SwitchPreference) root.findPreference("status_pref_key_toggle_camera");
+        //SwitchPreference toggleRadio = (SwitchPreference) root.findPreference("status_pref_key_toggle_radio");
         // Check to see if the service is on and set the toggleService preferences value accordingly
+
         if (isServiceRunning(MainService.class)) {
-            toggleService.setChecked(true);
+            serviceStatus.setTitle("AutoIntegrate Service is ON");
             Log.i(TAG, "Service is running");
         } else {
-            toggleService.setChecked(false);
+            serviceStatus.setTitle("AutoIntegrate Service is OFF");
             Log.i(TAG, "Service is not running");
         }
 
-        toggleService.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
+        toggleArduino.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
             @Override
             public boolean onPreferenceChange(Preference preference, Object newValue) {
-                if ((boolean)newValue) {
-                    Context mContext = getActivity();
-                    Intent startIntent = new Intent(mContext, MainService.class);
-                    mContext.startService(startIntent);
-                } else {
-                    Context mContext = getActivity();
-                    Intent stopIntent = new Intent(getString(R.string.ACTION_STOP_SERVICE));
-                    mContext.sendBroadcast(stopIntent);
-                }
+                // wake the service
+                Intent wakeIntent = new Intent(getString(R.string.ACTION_WAKE_SERVICE_THREAD));
+                LocalBroadcastManager.getInstance(getActivity()).sendBroadcast(wakeIntent);
                 return true;
             }
         });

@@ -34,7 +34,6 @@ class ArduinoCom implements Runnable {
     private static final String TAG = "ArduinoCom";
 
     private volatile boolean mConnected = false;
-    private volatile boolean mConnectionFinished = false;
     private Context mContext;
 
     private volatile boolean mRunning = false;
@@ -57,6 +56,7 @@ class ArduinoCom implements Runnable {
         public void handleMessage(Message msg) {
             ArduinoMessage message = (ArduinoMessage) msg.obj;
 
+            Log.i(TAG, message.command);
             // TODO: parse message and execute command.  We will need a new class for this.
         }
     }
@@ -110,12 +110,16 @@ class ArduinoCom implements Runnable {
             @Override
             public void OnDeviceReady(boolean deviceReadyStatus) {
                 mConnected = deviceReadyStatus;
-                mConnectionFinished = true;
+                resumeThread();
             }
         };
 
         connect();
 
+    }
+
+    public synchronized void resumeThread() {
+        notify();
     }
 
     public boolean connect() {
@@ -124,12 +128,12 @@ class ArduinoCom implements Runnable {
                 PreferenceManager.getDefaultSharedPreferences(mContext);
 
         // No device selected, exit
-        final String devId = sharedPrefs.getString("pref_key_select_device", "NO_DEVICE");
+        final String devId = sharedPrefs.getString("arduino_pref_key_select_device", "NO_DEVICE");
         if (devId.equals("NO_DEVICE")){
             return false;
         }
 
-        String deviceType = sharedPrefs.getString("pref_key_select_device_type", "BLUETOOTH");
+        String deviceType = sharedPrefs.getString("arduino_pref_key_select_device_type", "BLUETOOTH");
         if (deviceType.equals("BLUETOOTH")) {
             // user selected bluetooth device
             mSerialHelper = new BluetoothHelper(mContext);
@@ -144,7 +148,13 @@ class ArduinoCom implements Runnable {
 
         // wait until the connection is finished.  The readyListener is a callback that will
         // set the variable below and set mConnected to the connection status
-        while(!mConnectionFinished);
+        synchronized (this) {
+            try {
+                wait(30000);
+            } catch (InterruptedException e) {
+                Log.e(TAG, e.getMessage());
+            }
+        }
 
         if (mConnected) {
             //Register write data receiver
@@ -156,8 +166,12 @@ class ArduinoCom implements Runnable {
             if (!mSerialHelper.writeString("<START>")) {
                 // unable to write start command
                 Log.e(TAG, "Unable to start arduino");
+                mSerialHelper.disconnect();
                 mConnected = false;
                 mSerialHelper = null;
+            } else {
+                mSerialHelper.publishConnection(HardwareReceiver.UsbDeviceType.ARDUINO);
+                Log.i(TAG, "Sucessfully connected to Arduino");
             }
         } else {
             mSerialHelper = null;
@@ -206,6 +220,10 @@ class ArduinoCom implements Runnable {
         int bytes = 0;
         byte[] buffer = new byte[256];
         byte ch;
+
+        //TODO: rather than polling and reading each byte, should I implement wait()/notify()
+        //      functionality?  I should be able to do this easily with USB, as it relies on a callback.
+        //      Need to check bluetooth.
 
         // get the first byte, anything other than a '<' is trash and will be ignored
         while(mRunning && (mSerialHelper.readByte() != '<')) {
@@ -256,7 +274,6 @@ class ArduinoCom implements Runnable {
             mSerialHelper.writeString("<STOP>");
             mSerialHelper.disconnect();
             mConnected = false;
-            mConnectionFinished = false;
             mSerialHelper = null;
         }
 

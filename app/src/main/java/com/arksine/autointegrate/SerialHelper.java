@@ -13,6 +13,7 @@ interface SerialHelper {
 
     ArrayList<String> enumerateDevices();
     void connectDevice(String id, DeviceReadyListener deviceReadyListener);
+    void publishConnection(HardwareReceiver.UsbDeviceType type);
     void disconnect();
     boolean isDeviceConnected();
     boolean writeString(String data);
