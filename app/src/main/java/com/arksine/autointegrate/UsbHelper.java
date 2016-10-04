@@ -23,9 +23,6 @@ import com.felhr.usbserial.UsbSerialInterface;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
-
 
 /**
  *  Helper class to enumerate usb devices and establish a connection
@@ -45,25 +42,15 @@ class UsbHelper implements SerialHelper {
 
     private volatile boolean serialPortConnected = false;
 
+    private SerialHelper.DataReceivedListener dataReceivedListener;
 
-    private LinkedBlockingQueue<Byte> serialBuffer;
-
-    // TODO: rather than read to a buffer, parse the incoming data into a string.  When the byte is a "<"
-    //       it is a new string so clear it.  When it is a ">", the packet is complete, so callback
-    //       to arduinocom to set the incoming command:data and notify the arduinocom thread.
     private UsbSerialInterface.UsbReadCallback mCallback = new UsbSerialInterface.UsbReadCallback() {
 
         @Override
         public void onReceivedData(byte[] arg0)
         {
-            // add the incoming bytes to a buffer
-            for (byte ch : arg0) {
-                try {
-                    serialBuffer.put(ch);
-                } catch (InterruptedException e) {
-                    Log.e(TAG, "Unable to add incoming byte to queue", e);
-                }
-            }
+            // Send the data back to the instantiating class via callback
+            dataReceivedListener.OnDataReceived(arg0);
         }
     };
 
@@ -71,8 +58,6 @@ class UsbHelper implements SerialHelper {
     UsbHelper(Context context) {
         this.mContext = context;
         mUsbManager = (UsbManager) mContext.getSystemService(Context.USB_SERVICE);
-
-        serialBuffer = new LinkedBlockingQueue<>(128);
 
     }
 
@@ -126,8 +111,9 @@ class UsbHelper implements SerialHelper {
         return deviceList;
     }
 
-    public void connectDevice(String id, SerialHelper.DeviceReadyListener readyListener ) {
-
+    public void connectDevice(String id, SerialHelper.DeviceReadyListener readyListener,
+                              DataReceivedListener rcdListener) {
+        dataReceivedListener = rcdListener;
         HashMap<String, UsbDevice> usbDeviceList = mUsbManager.getDeviceList();
         String[] ids = id.split(":");
 
@@ -135,6 +121,7 @@ class UsbHelper implements SerialHelper {
         if (ids.length != 3) {
             Log.e(TAG, "Invalid USB entry: " + id);
             readyListener.OnDeviceReady(false);
+
             return;
         }
 
@@ -149,6 +136,7 @@ class UsbHelper implements SerialHelper {
                 if (dev.getVendorId() == Integer.parseInt(ids[0]) &&
                         dev.getProductId() == Integer.parseInt(ids[1])) {
                     mUsbDevice = dev;
+                    // TODO: update globalsharedpref here so settingsactivity knows the device has changed
                     break;
                 }
             }
@@ -200,29 +188,6 @@ class UsbHelper implements SerialHelper {
         }
 
         return false;
-    }
-
-    public byte readByte() {
-
-        if (mSerialPort != null) {
-            Byte ch;
-
-            try {
-                // blocks until something is received, but there should always be something
-                ch = serialBuffer.poll(100, TimeUnit.MILLISECONDS);
-                if (ch == null) {
-                    // timeout occured, return null byte
-                    return 0;
-                }
-            } catch (InterruptedException e) {
-                Log.e(TAG, "Unable to retrieve byte", e);
-                return 0;
-            }
-
-            return ch;
-        }
-
-        return 0;
     }
 
     public boolean isDeviceConnected() {

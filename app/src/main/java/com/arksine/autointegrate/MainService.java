@@ -40,7 +40,9 @@ public class MainService extends Service {
             if (getString(R.string.ACTION_STOP_SERVICE).equals(action)) {
                 mServiceThread.stopServiceThread();
                 // stops all queued services
-                stopSelf();
+
+                // TODO: Do we need to stopself?
+                //stopSelf();
             }
         }
     }

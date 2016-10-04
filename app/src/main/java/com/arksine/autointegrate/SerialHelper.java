@@ -11,13 +11,17 @@ interface SerialHelper {
         void OnDeviceReady(boolean deviceReadyStatus);
     }
 
+    interface DataReceivedListener{
+        void OnDataReceived(byte[] data);
+    }
+
     ArrayList<String> enumerateDevices();
-    void connectDevice(String id, DeviceReadyListener deviceReadyListener);
+    void connectDevice(String id, DeviceReadyListener deviceReadyListener,
+                       DataReceivedListener rcdListener);
     void publishConnection(HardwareReceiver.UsbDeviceType type);
     void disconnect();
     boolean isDeviceConnected();
     boolean writeString(String data);
     boolean writeBytes(byte[] data);
-    byte readByte();
 }
 

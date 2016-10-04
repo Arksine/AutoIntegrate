@@ -5,8 +5,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
-import android.graphics.Point;
-import android.hardware.display.DisplayManager;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
@@ -14,9 +12,6 @@ import android.os.Message;
 import android.os.Process;
 import android.preference.PreferenceManager;
 import android.util.Log;
-import android.view.Display;
-import android.view.OrientationEventListener;
-import android.view.Surface;
 import android.widget.Toast;
 
 // TODO:  Need to make this a base class (SerialCom).  Then ArduinoCom and HDRadioCom can both
@@ -40,6 +35,8 @@ class ArduinoCom implements Runnable {
 
     private SerialHelper mSerialHelper;
     private SerialHelper.DeviceReadyListener readyListener;
+    private SerialHelper.DataReceivedListener receivedListener;
+    private volatile String receivedBuffer = "";
 
     private InputHandler mInputHandler;
     private Looper mInputLooper;
@@ -114,6 +111,22 @@ class ArduinoCom implements Runnable {
             }
         };
 
+        receivedListener = new SerialHelper.DataReceivedListener() {
+            @Override
+            public void OnDataReceived(byte[] data) {
+                // add the incoming bytes to a buffer
+                for (byte ch : data) {
+                    if (ch == '<') {
+                        receivedBuffer = "";
+                    } else if (ch == '>') {
+                        resumeThread();
+                    } else {
+                        receivedBuffer += ch;
+                    }
+                }
+            }
+        };
+
         connect();
 
     }
@@ -144,7 +157,7 @@ class ArduinoCom implements Runnable {
 
         }
 
-        mSerialHelper.connectDevice(devId, readyListener);
+        mSerialHelper.connectDevice(devId, readyListener, receivedListener);
 
         // wait until the connection is finished.  The readyListener is a callback that will
         // set the variable below and set mConnected to the connection status
@@ -194,9 +207,25 @@ class ArduinoCom implements Runnable {
 
         mRunning = true;
 
+        // Don't start if not connected
+        if (!mConnected) {
+            Log.e(TAG, "Arduino not connected, thread cannot start");
+            return;
+        }
+
         while (mRunning) {
 
-            ArduinoMessage message = readMessage();
+            // Wait until we are notified that data has been received
+            synchronized (this) {
+                try {
+                    wait();
+                } catch (InterruptedException e) {
+                    Log.e(TAG, e.getMessage());
+                }
+            }
+
+
+            ArduinoMessage message = parseMessage();
             if (message != null) {
                 if (message.command.equals("LOG")) {
                     Log.i("Arduino", message.data);
@@ -215,35 +244,10 @@ class ArduinoCom implements Runnable {
     }
 
     // Reads a message from the arduino and parses it
-    private ArduinoMessage readMessage() {
-
-        int bytes = 0;
-        byte[] buffer = new byte[256];
-        byte ch;
-
-        //TODO: rather than polling and reading each byte, should I implement wait()/notify()
-        //      functionality?  I should be able to do this easily with USB, as it relies on a callback.
-        //      Need to check bluetooth.
-
-        // get the first byte, anything other than a '<' is trash and will be ignored
-        while(mRunning && (mSerialHelper.readByte() != '<')) {
-            // sleep for 50ms between polling
-            try {
-                Thread.sleep(5);
-            } catch (InterruptedException e) {
-                Log.e(TAG, e.getMessage());
-            }
-        }
-
-        // First byte is good, capture the rest until we get to the end of the message
-        while (mRunning && ((ch = mSerialHelper.readByte()) != '>')) {
-            buffer[bytes] = ch;
-            bytes++;
-        }
+    private ArduinoMessage parseMessage() {
 
         ArduinoMessage ardMsg;
-        String message = new String(buffer, 0, bytes);
-        String[] tokens = message.split(":");
+        String[] tokens = receivedBuffer.split(":");
 
         if (tokens.length == 2) {
             // command received or log message
@@ -276,6 +280,9 @@ class ArduinoCom implements Runnable {
             mConnected = false;
             mSerialHelper = null;
         }
+
+        // Notify the thread to resume so it can finish
+        resumeThread();
 
         if (isWriteReceiverRegistered) {
             mContext.unregisterReceiver(writeReciever);

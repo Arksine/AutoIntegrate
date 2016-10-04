@@ -5,6 +5,7 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Process;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -12,6 +13,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Set;
 import java.util.UUID;
 
@@ -31,13 +33,17 @@ class BluetoothHelper implements SerialHelper {
     private BluetoothSocket mSocket;
     private volatile BluetoothDevice mBtDevice;
 
-    private boolean deviceConnected = false;
-    private InputStream serialIn;
+    private volatile boolean deviceConnected = false;
+    private volatile InputStream serialIn;
     private OutputStream serialOut;
+    private Thread readerThread;
+
+    private SerialHelper.DataReceivedListener dataReceivedListener;
 
     private final UUID MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
 
-
+    // TODO: May want to redo this using BTWiz library
+    
     BluetoothHelper(Context context){
         mContext = context;
         deviceConnected = false;
@@ -70,7 +76,13 @@ class BluetoothHelper implements SerialHelper {
      */
     public void disconnect() {
 
+        deviceConnected = false;
         closeBluetoothSocket();
+
+        // stop the readerthread if closing the socket didn't kill it
+        if(readerThread.isAlive()) {
+            readerThread.interrupt();
+        }
     }
 
     public boolean isBluetoothOn() {
@@ -110,20 +122,19 @@ class BluetoothHelper implements SerialHelper {
         return mAdapterList;
     }
 
-
-
     /**
      * Retrieves a bluetooth socket from a specified device.  WARNING: This function is blocking, do
      * not call from the UI thread!
      * @param macAddr - The mac address of the device to connect
      */
-    public void connectDevice (String macAddr, SerialHelper.DeviceReadyListener readyListener) {
+    public void connectDevice (String macAddr, SerialHelper.DeviceReadyListener readyListener,
+                               DataReceivedListener rcdListener) {
 
         if (!isBluetoothOn()) {
             readyListener.OnDeviceReady(false);
             return;
         }
-
+        dataReceivedListener = rcdListener;
         ConnectionThread btConnectThread = new ConnectionThread(macAddr, readyListener);
         btConnectThread.start();
 
@@ -271,6 +282,29 @@ class BluetoothHelper implements SerialHelper {
             }
 
             deviceConnected = serialOut != null && serialIn != null;
+
+            // start reader thread if connection is established
+            if (deviceConnected) {
+                readerThread = new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        int available = 0;
+                        byte[] buffer = new byte[256];
+                        while (deviceConnected) {
+                            try {
+                                available = serialIn.read(buffer);
+                                dataReceivedListener.OnDataReceived(Arrays.copyOfRange(buffer, 0, available));
+
+                            } catch (IOException e) {
+                                Log.d(TAG, "Error reading from bluetooth device", e);
+                                return;
+                            }
+                        }
+                    }
+                });
+                readerThread.setPriority(Process.THREAD_PRIORITY_BACKGROUND);
+                readerThread.start();
+            }
 
             readyListener.OnDeviceReady(deviceConnected);
         }
