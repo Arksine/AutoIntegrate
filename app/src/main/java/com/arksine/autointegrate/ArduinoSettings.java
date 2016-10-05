@@ -8,6 +8,7 @@ import android.os.Bundle;
 import android.preference.ListPreference;
 import android.preference.Preference;
 import android.preference.PreferenceFragment;
+import android.preference.PreferenceManager;
 import android.preference.PreferenceScreen;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
@@ -29,9 +30,6 @@ public class ArduinoSettings extends PreferenceFragment {
     // TODO: Add dimmer learning activity
     // TODO: add preferences to set dimmer and reverse(camera)
 
-
-    // TODO:  Bluetooth Broadcast Receiver was leaked.  Best for it to move somewhere in the service
-    //        So it is instantiated only once.
 
     public static final String ACTION_DEVICE_CHANGED = "com.arksine.autointegrate.ACTION_DEVICE_CHANGED";
 
@@ -64,6 +62,31 @@ public class ArduinoSettings extends PreferenceFragment {
         mDeviceType = selectDeviceType.getValue();
         populateDeviceListView();
 
+        // Check to see if the most recently connected device is the same as the one we are using,
+        // but with a different location (USB only) TODO: this needs testing!
+        if(mDeviceType.equals("USB")) {
+            String connectedVal = PreferenceManager.getDefaultSharedPreferences(getActivity())
+                    .getString("arduino_pref_key_connected_id", "");
+            String currentVal = selectDevice.getValue();
+
+            // Check to see if a valid change has been made
+            if (!connectedVal.equals(currentVal)
+                    && !connectedVal.equals("") &&  !currentVal.equals("NO_DEVICE")) {
+                String[] connectedIds = connectedVal.split(":");
+                CharSequence[] entryVals = selectDevice.getEntryValues();
+                for(CharSequence cs : entryVals) {
+                    String[] entryIds = cs.toString().split(":");
+                    if (connectedIds[0].equals(entryIds[0]) && connectedIds[1].equals(entryIds[1])){
+                        // this is the connected device
+                        selectDevice.setValue(cs.toString());
+                        selectDevice.setSummary(cs);
+                        Log.d(TAG, "Select device preference reset");
+                        break;
+                    }
+                }
+            }
+        }
+
         selectDeviceType.setSummary(selectDeviceType.getEntry());
 
         selectDeviceType.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
@@ -73,7 +96,6 @@ public class ArduinoSettings extends PreferenceFragment {
                 CharSequence[] entries = list.getEntries();
                 int index = list.findIndexOfValue((String)newValue);
                 preference.setSummary(entries[index]);
-
                 mDeviceType = (String)newValue;
                 populateDeviceListView();
 
@@ -113,16 +135,13 @@ public class ArduinoSettings extends PreferenceFragment {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        mSerialHelper.disconnect(); // disconnect to clean up registered broadcast receivers
         LocalBroadcastManager localBM = LocalBroadcastManager.getInstance(getActivity());
-        Intent refreshService = new Intent(getString(R.string.ACTION_REFRESH_SERVICE_THREAD));
-        localBM.sendBroadcast(refreshService);
+        Intent refreshArduinoIntent = new Intent(getString(R.string.ACTION_REFRESH_ARDUINO_THREAD));
+        localBM.sendBroadcast(refreshArduinoIntent);
         localBM.unregisterReceiver(deviceListReciever);
     }
 
     private void populateDeviceListView() {
-
-        // TODO: Filter out MJS cable from this list
 
         PreferenceScreen root = this.getPreferenceScreen();
         ListPreference selectDevicePref =
@@ -164,15 +183,23 @@ public class ArduinoSettings extends PreferenceFragment {
 
                 if (mDeviceType.equals("BLUETOOTH")) {
                     entries[i] = mAdapterList.get(i);
+                    entryValues[i] = deviceInfo[1];
                 } else {
-                    // TODO: something isn't working right here
                     String[] ids = deviceInfo[1].split(":");
-                    String vid = Integer.toHexString(Integer.parseInt(ids[0]));
-                    String pid = Integer.toHexString(Integer.parseInt(ids[1]));
-                    entries[i] = deviceInfo[0] + "\nVID:0x" + vid + " PID:0x" + pid + "\n" + ids[2];
-                }
 
-                entryValues[i] = deviceInfo[1];
+                    // Make sure that we don't enumerate the MJS HD Radio Cable,
+                    // VID 0x0403 (1027), PID 0x937C (37756)
+                    //TODO: instead of excluding this ID, perhaps we should create an .xml
+                    //      resource file with supported arduino/avr Id's and check against it.
+                    if (!(ids[0].equals("1027") && ids[1].equals("37756"))) {
+                        String vid = Integer.toHexString(Integer.parseInt(ids[0]));
+                        String pid = Integer.toHexString(Integer.parseInt(ids[1]));
+                        entries[i] = ids[0] + "\nVID:0x" + vid + " PID:0x" + pid + "\n" + ids[2];
+                        entryValues[i] = deviceInfo[1];
+                    } else {
+                        Log.d(TAG, "Skipped enumerating MJS cable");
+                    }
+                }
             }
         }
 

@@ -43,7 +43,7 @@ class BluetoothHelper implements SerialHelper {
     private final UUID MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
 
     // TODO: May want to redo this using BTWiz library
-    
+
     BluetoothHelper(Context context){
         mContext = context;
         deviceConnected = false;
@@ -138,6 +138,14 @@ class BluetoothHelper implements SerialHelper {
         ConnectionThread btConnectThread = new ConnectionThread(macAddr, readyListener);
         btConnectThread.start();
 
+    }
+
+    public String getConnectedId() {
+        if (deviceConnected) {
+            return mBtDevice.getAddress();
+        }
+
+        return "";
     }
 
     public void closeBluetoothSocket() {

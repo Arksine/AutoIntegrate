@@ -20,6 +20,7 @@ interface SerialHelper {
                        DataReceivedListener rcdListener);
     void publishConnection(HardwareReceiver.UsbDeviceType type);
     void disconnect();
+    String getConnectedId();
     boolean isDeviceConnected();
     boolean writeString(String data);
     boolean writeBytes(byte[] data);

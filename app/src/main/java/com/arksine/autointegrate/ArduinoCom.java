@@ -184,6 +184,11 @@ class ArduinoCom implements Runnable {
                 mSerialHelper = null;
             } else {
                 mSerialHelper.publishConnection(HardwareReceiver.UsbDeviceType.ARDUINO);
+                // Its possible that usb device location changes, so we will put the most recently
+                // connected Id in a preference that the Arudino Settings fragment can check
+                PreferenceManager.getDefaultSharedPreferences(mContext).edit()
+                        .putString("arduino_pref_key_connected_id", mSerialHelper.getConnectedId())
+                        .apply();
                 Log.i(TAG, "Sucessfully connected to Arduino");
             }
         } else {
@@ -229,8 +234,7 @@ class ArduinoCom implements Runnable {
             if (message != null) {
                 if (message.command.equals("LOG")) {
                     Log.i("Arduino", message.data);
-                    // TODO: add a preference for this toasts like this and only show if the pref is selected
-                    Toast.makeText(mContext, "Arduino Info, check logcat", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(mContext, "Arduino Log Info, check logcat", Toast.LENGTH_SHORT).show();
 
                 } else {
 

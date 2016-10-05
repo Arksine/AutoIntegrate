@@ -23,7 +23,6 @@ public class ServiceThread implements Runnable {
     private Thread mArduinoThread = null;
     private volatile boolean serviceSuspended = false;
     private volatile boolean serviceRunning = false;
-    private volatile boolean refresh = false;
 
     ServiceThread(Context context) {
         mContext = context;
@@ -44,10 +43,15 @@ public class ServiceThread implements Runnable {
             if (mContext.getString(R.string.ACTION_WAKE_SERVICE_THREAD).equals(action)) {
                 serviceSuspended = false;
                 notifyServiceThread();
-            } else if (mContext.getString(R.string.ACTION_REFRESH_SERVICE_THREAD).equals(action)) {
-                refreshServiceThread();
             } else if (mContext.getString(R.string.ACTION_SUSPEND_SERVICE_THREAD).equals(action)) {
                 suspendServiceThread();
+            } else if (mContext.getString(R.string.ACTION_REFRESH_ARDUINO_THREAD).equals(action)) {
+                stopArduinoThread();
+                notifyServiceThread();
+
+            } else if (mContext.getString(R.string.ACTION_REFRESH_RADIO_THREAD).equals(action)) {
+                //TODO: stopRadioThread();
+                notifyServiceThread();
             }
         }
     };
@@ -95,9 +99,6 @@ public class ServiceThread implements Runnable {
                 }
             }
 
-
-
-
             // Pause execution of this thread until some event requires it to wake up (ie:
             // someone changed a setting or the device has had power applied
             synchronized (this) {
@@ -110,11 +111,10 @@ public class ServiceThread implements Runnable {
                 }
             }
 
-
             // If we are suspending or refreshing the service, we want to cleanup all threads.
             // In the case if refreshing, they will be relaunched
-            if (serviceSuspended || refresh) {
-                refresh = false;
+            if (serviceSuspended) {
+                // TODO: stop all threads
                 stopArduinoThread();
             }
         }
@@ -154,12 +154,6 @@ public class ServiceThread implements Runnable {
         serviceSuspended = true;
         notifyServiceThread();
     }
-
-    public void refreshServiceThread() {
-        refresh = true;
-        notifyServiceThread();
-    }
-
 
     public synchronized void notifyServiceThread() {
         notify();

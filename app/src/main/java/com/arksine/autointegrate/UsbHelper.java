@@ -9,6 +9,7 @@ import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
 import android.os.Build;
+import android.preference.PreferenceManager;
 import android.util.Log;
 
 import com.felhr.deviceids.CH34xIds;
@@ -100,7 +101,6 @@ class UsbHelper implements SerialHelper {
             Log.i(TAG, "Vendor: ID " + uDevice.getVendorId());
             Log.i(TAG, "Product ID: " + uDevice.getProductId());
 
-            // TODO: add device name?
             String id = uDevice.getVendorId() + ":" + uDevice.getProductId() + ":"
                     + uDevice.getDeviceName();
 
@@ -136,7 +136,6 @@ class UsbHelper implements SerialHelper {
                 if (dev.getVendorId() == Integer.parseInt(ids[0]) &&
                         dev.getProductId() == Integer.parseInt(ids[1])) {
                     mUsbDevice = dev;
-                    // TODO: update globalsharedpref here so settingsactivity knows the device has changed
                     break;
                 }
             }
@@ -159,6 +158,14 @@ class UsbHelper implements SerialHelper {
     // disconnect events
     public void publishConnection(HardwareReceiver.UsbDeviceType type) {
         HardwareReceiver.setConnectedDevice(mUsbDevice, type);
+    }
+
+    public String getConnectedId() {
+        if (serialPortConnected) {
+            return (mUsbDevice.getVendorId() + ":" + mUsbDevice.getProductId()
+                    + mUsbDevice.getDeviceName());
+        }
+        return "";
     }
 
     public void disconnect() {

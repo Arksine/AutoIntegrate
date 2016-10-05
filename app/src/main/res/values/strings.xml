@@ -7,6 +7,8 @@
     <string name="ACTION_STOP_SERVICE">com.arksine.autointegrate.ACTION_STOP_SERVICE</string>
     <string name="ACTION_WAKE_SERVICE_THREAD">com.arksine.autointegrate.ACTION_WAKE_SERVICE_THREAD</string>
     <string name="ACTION_REFRESH_SERVICE_THREAD">com.arksine.autointegrate.ACTION_REFRESH_SERVICE_THREAD</string>
+    <string name="ACTION_REFRESH_ARDUINO_THREAD">com.arksine.autointegrate.ACTION_REFRESH_ARDUINO_THREAD</string>
+    <string name="ACTION_REFRESH_RADIO_THREAD">com.arksine.autointegrate.ACTION_REFRESH_RADIO_THREAD</string>
     <string name="ACTION_SUSPEND_SERVICE_THREAD">com.arksine.autointegrate.ACTION_SUSPEND_SERVICE_THREAD</string>
     <string name="ACTION_SEND_DATA">com.arksine.autointegrate.ACTION_SEND_DATA</string>
     <string name="EXTRA_COMMAND">com.arksine.autointegrate.EXTRA_COMMAND</string>
