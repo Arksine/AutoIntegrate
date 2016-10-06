@@ -5,10 +5,14 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
-import android.os.Process;
 import android.preference.PreferenceManager;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created by Eric on 10/2/2016.
@@ -17,41 +21,58 @@ import android.util.Log;
 public class ServiceThread implements Runnable {
     private static String TAG = "ServiceThread";
 
-    private Thread mThread;
     private Context mContext;
-    private ArduinoCom arduino = null;
-    private Thread mArduinoThread = null;
+    private ExecutorService EXECUTOR = Executors.newCachedThreadPool(new BackgroundThreadFactory());
+
+    // TODO: IfI ever want to change runnables to callables, we need to change the type of
+    //       Future declarations using the template types Future<Type>
+    private Future mMainThreadFuture = null;
+
+    private ArduinoCom mArduino = null;
+
     private volatile boolean serviceSuspended = false;
-    private volatile boolean serviceRunning = false;
+    private volatile boolean serviceThreadRunning = false;
+    private volatile boolean isWaiting = false;
+
+    private LocalBroadcastManager mLocalBM;
 
     ServiceThread(Context context) {
         mContext = context;
+        mLocalBM = LocalBroadcastManager.getInstance(mContext);
     }
 
-    // Stop Reciever cleans up and stops the service when the stop button is pressed on
-    // the service notification
-    public class WakeThreadReceiver extends BroadcastReceiver {
-        public WakeThreadReceiver() {
+
+
+    // Broadcast Receiver that responds to events sent to alter the service thread
+    public class ServiceThreadReceiver extends BroadcastReceiver {
+        public ServiceThreadReceiver() {
         }
 
-        // TODO: Instead of "REFRESH_SERVICE_THREAD, we need intent's to refresh individual items/
-        //       threads (arduino, radio, power).  This involves shutting down those threads and deleting them.
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
 
             if (mContext.getString(R.string.ACTION_WAKE_SERVICE_THREAD).equals(action)) {
-                serviceSuspended = false;
-                notifyServiceThread();
+                EXECUTOR.execute(wakeServiceThread);
             } else if (mContext.getString(R.string.ACTION_SUSPEND_SERVICE_THREAD).equals(action)) {
-                suspendServiceThread();
-            } else if (mContext.getString(R.string.ACTION_REFRESH_ARDUINO_THREAD).equals(action)) {
-                stopArduinoThread();
-                notifyServiceThread();
+                // Stop the main thread, but do not destroy the the ExecutorService so the thread
+                // can be restarted
+                EXECUTOR.execute(stopMainThread);
 
-            } else if (mContext.getString(R.string.ACTION_REFRESH_RADIO_THREAD).equals(action)) {
+                // TODO: Do I really need to send an intent when the service status changes?
+                // Send intent to status fragment so it knows service status has changed
+                PreferenceManager.getDefaultSharedPreferences(mContext).edit()
+                        .putBoolean("service_suspended", true).apply();
+                Intent statusChangedIntent = new Intent(mContext.getString(R.string.ACTION_SERVICE_STATUS_CHANGED));
+                mLocalBM.sendBroadcast(statusChangedIntent);
+
+            } else if (mContext.getString(R.string.ACTION_REFRESH_ARDUINO_CONNECTION).equals(action)) {
+                Log.i(TAG, "Refresh Arduino Thread");
+                EXECUTOR.execute(stopArduinoConnection);
+
+            } else if (mContext.getString(R.string.ACTION_REFRESH_RADIO_CONNECTION).equals(action)) {
+                Log.i(TAG, "Refresh Radio Thread");
                 //TODO: stopRadioThread();
-                notifyServiceThread();
             }
         }
     };
@@ -60,128 +81,213 @@ public class ServiceThread implements Runnable {
     public void run() {
         SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(mContext);
 
+
         // Register the receiver for local broadcasts, dont want other apps screwing with this
-        WakeThreadReceiver wakeRecvr = new WakeThreadReceiver();
+        ServiceThreadReceiver wakeRecvr = new ServiceThreadReceiver();
         IntentFilter filter = new IntentFilter(mContext.getString(R.string.ACTION_WAKE_SERVICE_THREAD));
-        filter.addAction(mContext.getString(R.string.ACTION_REFRESH_SERVICE_THREAD));
+        filter.addAction(mContext.getString(R.string.ACTION_REFRESH_ARDUINO_CONNECTION));
+        filter.addAction(mContext.getString(R.string.ACTION_REFRESH_RADIO_CONNECTION));
         filter.addAction(mContext.getString(R.string.ACTION_SUSPEND_SERVICE_THREAD));
-        LocalBroadcastManager.getInstance(mContext).registerReceiver(wakeRecvr, filter);
 
-        serviceRunning = true;
+        mLocalBM.registerReceiver(wakeRecvr, filter);
 
-        while (serviceRunning) {
+        while (serviceThreadRunning) {
 
-            // TODO: Add/Start thread for Radio.  Camera nor power management should need a thread
+            // TODO: Add thread for Radio.  Camera nor power management should need a thread
             //       We do need to check to see if Power Mangement is enabled.  If so, we will
             //       Instantiate it so we can listen for Power Management events.  When device
-            //       is put into sleep mode we should kill arduino and radio threads, and
+            //       is put into sleep mode we should kill mArduino and radio threads, and
             //       pause this thread using wait() until a broadcast is recieved to wake up
 
-            if (!serviceSuspended) {
-                // Check to see if Arduino Integration is enabled
-                if (sharedPrefs.getBoolean("status_pref_key_toggle_arduino", false)) {
 
-                    // If the thread hasn't been started and isn't running then start it
-                    if (mArduinoThread == null || !mArduinoThread.isAlive()) {
-                        arduino = new ArduinoCom(mContext);
-                        if (arduino.connect()) {
-                            mArduinoThread = new Thread(arduino);
-                            mArduinoThread.setPriority(Process.THREAD_PRIORITY_BACKGROUND);
-                            mArduinoThread.start();
-                            Log.i(TAG, "Arduino Thread Started");
-                        } else {
-                            Log.e(TAG, "Error connecting to Arduino");
-                        }
+            // Check to see if Arduino Integration is enabled
+            if (sharedPrefs.getBoolean("status_pref_key_toggle_arduino", false)) {
+
+                // If the arduino connection hasn't been established, do so.
+                if (mArduino == null || !mArduino.isConnected()) {
+                    mArduino = new ArduinoCom(mContext);
+                    if (mArduino.connect()) {
+                        Log.i(TAG, "Arduino Thread Started");
+                    } else {
+                        Log.e(TAG, "Error connecting to Arduino");
                     }
-                } else {
-                    Log.i(TAG, "Arduino Integration is Disabled");
-                    stopArduinoThread();
                 }
+            } else {
+                Log.i(TAG, "Arduino Integration Disabled");
             }
 
-            // Pause execution of this thread until some event requires it to wake up (ie:
-            // someone changed a setting or the device has had power applied
-            synchronized (this) {
+
+            if (allConnected()) {
+                // Pause execution of this thread until some event requires it to wake up (ie:
+                // someone changed a setting or the device has had power applied
+                synchronized (this) {
+                    try {
+                        isWaiting = true;
+                        wait();
+                        // sleep for 100ms to make sure settings and vars are updated
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        isWaiting = false;
+                        Log.i(TAG, e.getMessage());
+                    }
+                }
+            } else {
+                // sleep for 500 ms between connection attempts
                 try {
-                    wait();
-                    // sleep for 100ms to make sure settings and vars are updated
-                    Thread.sleep(100);
+                    Thread.sleep(500);
                 } catch (InterruptedException e) {
                     Log.i(TAG, e.getMessage());
                 }
             }
 
-            // If we are suspending or refreshing the service, we want to cleanup all threads.
-            // In the case if refreshing, they will be relaunched
-            if (serviceSuspended) {
-                // TODO: stop all threads
-                stopArduinoThread();
-            }
         }
 
-        // Clean up spawned threads
-        stopArduinoThread();
+        // Clean up all spawned threads.
+        stopArduinoConnection.run();
 
 
-        serviceRunning = false;
-        LocalBroadcastManager.getInstance(mContext).unregisterReceiver(wakeRecvr);
+        serviceThreadRunning = false;
+        mLocalBM.unregisterReceiver(wakeRecvr);
         Log.i(TAG, "Service Thread finished executing");
 
     }
 
     private boolean allConnected() {
-        // TODO: as more threads are added, add them to statement below
-        return(arduino != null && arduino.isConnected());
+        // TODO: as more connections are added, add them to statement below, but ONLY if they
+        //       are enabled in settings
+        boolean connected = true;
+        SharedPreferences globalPrefs = PreferenceManager.getDefaultSharedPreferences(mContext);
+        if (globalPrefs.getBoolean("status_pref_key_toggle_arduino", false)) {
+            connected = (connected && (mArduino != null && mArduino.isConnected()));
+        }
+
+        return connected;
+    }
+
+    public boolean isServiceThreadRunning() {
+        return serviceThreadRunning;
     }
 
 
     public void startServiceThread() {
-        if (mThread != null && mThread.isAlive()) {
-            stopServiceThread();
+        // Just in case, make sure the executor is active
+        if (EXECUTOR == null || EXECUTOR.isShutdown()) {
+            EXECUTOR = Executors.newCachedThreadPool(new BackgroundThreadFactory());
         }
 
-        mThread = new Thread(this);
-        mThread.setPriority(Process.THREAD_PRIORITY_BACKGROUND);
-        mThread.start();
+        // Make sure that the mainthread isn't running
+        if (mMainThreadFuture != null && !mMainThreadFuture.isDone()) {
+            // Stop the main thread.  Because it is a blocking call, do it from another thread
+            EXECUTOR.execute(stopMainThread);
+        }
+
+
+        serviceSuspended = false;
+        isWaiting = false;
+        serviceThreadRunning = true;
+        mMainThreadFuture = EXECUTOR.submit(this);
+
+        // TODO: Do I really need to send an intent when the service status changes?
+        // Send intent to status fragment so it knows service status has changed
+        PreferenceManager.getDefaultSharedPreferences(mContext).edit()
+                .putBoolean("service_suspended", false).apply();
+        Intent statusChangedIntent = new Intent(mContext.getString(R.string.ACTION_SERVICE_STATUS_CHANGED));
+        mLocalBM.sendBroadcast(statusChangedIntent);
     }
 
-    public void stopServiceThread() {
-        serviceRunning = false;
+    // Only call this when you are ready to go out of scope, it shuts down the executor.  DO NOT
+    // call on the UI thread, as it is blocking.
+    public void destroyServiceThread() {
+        serviceThreadRunning = false;
         notifyServiceThread();
-    }
+        EXECUTOR.shutdown();
+        try {
+            EXECUTOR.awaitTermination(10, TimeUnit.SECONDS);
+        } catch (InterruptedException e){
+            // Thread interrupted, return
+            Log.e(TAG, e.getMessage());
+            return;
+        }
 
-    public void suspendServiceThread() {
-        serviceSuspended = true;
-        notifyServiceThread();
+        // Thread is still alive, forcibly terminate it
+        if (!EXECUTOR.isTerminated()) {
+            EXECUTOR.shutdownNow();
+        }
+
+        mMainThreadFuture = null;
+
+        // TODO: Do I really need to send an intent when the service status changes?
+        // Send intent to status fragment so it knows service status has changed
+        Intent statusChangedIntent = new Intent(mContext.getString(R.string.ACTION_SERVICE_STATUS_CHANGED));
+        mLocalBM.sendBroadcast(statusChangedIntent);
     }
 
     public synchronized void notifyServiceThread() {
-        notify();
-    }
-
-
-    private void stopArduinoThread() {
-        // Disconnect from Arduino if connected
-        if (mArduinoThread != null ) {
-            arduino.disconnect();
-
-            // Make sure the thread dies
-            try {
-                mArduinoThread.join(10000);
-            } catch (InterruptedException e) {
-                Log.i(TAG, e.getMessage());
-            }
-
-            // if the thread is still alive, kill it
-            if (mArduinoThread.isAlive()) {
-                Log.i(TAG, "Arduino Thread did not properly shut down.");
-                mArduinoThread.interrupt();
-            }
-
-            arduino = null;
-            mArduinoThread = null;
-
-            Log.i(TAG, "Arduino Thread Disconnected");
+        if (isWaiting) {
+            isWaiting = false;
+            notify();
         }
     }
+
+    // *** The code below to stop threads are blocking, so they are implemented as runnables
+    //     rather than as functions.  This makes it harder to accidentally call one on the UI thread
+
+    private Runnable stopMainThread = new Runnable() {
+        @Override
+        public void run() {
+            if (mMainThreadFuture != null ) {
+                serviceThreadRunning = false;
+
+                // Make sure the service thread isn't waiting
+                notifyServiceThread();
+
+                // Make sure the thread dies
+                try {
+                    // Use get with a timeout to see if the thread dies
+                    mMainThreadFuture.get(10, TimeUnit.SECONDS);
+                } catch (Exception e) {
+                    Log.i(TAG, e.getMessage());
+                }
+
+                // if the thread is still alive, kill it
+                if (!mMainThreadFuture.isDone()) {
+                    Log.i(TAG, "Arduino Thread did not properly shut down.");
+                    mMainThreadFuture.cancel(true);
+                }
+
+                mMainThreadFuture = null;
+
+                Log.i(TAG, "Main Thead Stopped");
+            }
+        }
+    };
+
+    private Runnable stopArduinoConnection = new Runnable() {
+        @Override
+        public void run() {
+            // Disconnect from Arduino if connected
+            if (mArduino != null ) {
+                mArduino.disconnect();
+
+                // make sure the service thread isn't waiting
+                notifyServiceThread();
+
+                Log.i(TAG, "Arduino Thread Disconnected");
+            }
+        }
+    };
+
+    private Runnable wakeServiceThread = new Runnable() {
+        @Override
+        public void run() {
+            // since the device is waking up, sleep for 2 seconds before attempting to start
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException e) {
+                Log.e(TAG, e.getMessage());
+            }
+            startServiceThread();
+        }
+    };
+
 }

@@ -6,23 +6,21 @@ import java.util.ArrayList;
  * Interface for basic serial device functionality
  */
 interface SerialHelper {
+    //TODO: put all the interfaces below into one callback
 
-    interface DeviceReadyListener{
+    interface Callbacks {
         void OnDeviceReady(boolean deviceReadyStatus);
+        void OnDataReceived(byte[] data);
+        void OnDeviceError();
     }
 
-    interface DataReceivedListener{
-        void OnDataReceived(byte[] data);
-    }
 
     ArrayList<String> enumerateDevices();
-    void connectDevice(String id, DeviceReadyListener deviceReadyListener,
-                       DataReceivedListener rcdListener);
-    void publishConnection(HardwareReceiver.UsbDeviceType type);
+    void connectDevice(String id, Callbacks cbs);
     void disconnect();
     String getConnectedId();
     boolean isDeviceConnected();
-    boolean writeString(String data);
-    boolean writeBytes(byte[] data);
+    boolean writeString(final String data);
+    boolean writeBytes(final byte[] data);
 }
 

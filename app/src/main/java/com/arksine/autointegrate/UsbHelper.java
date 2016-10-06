@@ -1,8 +1,11 @@
 package com.arksine.autointegrate;
 
+import android.app.Notification;
 import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.hardware.usb.UsbDevice;
@@ -10,6 +13,7 @@ import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
 import android.os.Build;
 import android.preference.PreferenceManager;
+import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
 import com.felhr.deviceids.CH34xIds;
@@ -24,6 +28,10 @@ import com.felhr.usbserial.UsbSerialInterface;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
+
+//TODO: The USBSerial library doesnt seem to have any way to handle errors.  Temporarily handle disconnections
+//      with a broadcast receiver.Will have to research
+//      mik3y's library, or just settle for handling disconnect event's via android intents
 
 /**
  *  Helper class to enumerate usb devices and establish a connection
@@ -42,8 +50,32 @@ class UsbHelper implements SerialHelper {
     private UsbSerialDevice mSerialPort;
 
     private volatile boolean serialPortConnected = false;
+    private SerialHelper.Callbacks mSerialHelperCallbacks;
 
-    private SerialHelper.DataReceivedListener dataReceivedListener;
+    // Broadcast Reciever to handle disconnections (this is temporary)
+    private BroadcastReceiver mDisconnectReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            if (action.equals(context.getString(R.string.ACTION_DEVICE_DISCONNECTED))) {
+                synchronized (this) {
+                    UsbDevice uDev = (UsbDevice) intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
+                    if (uDev.equals(mUsbDevice)) {
+                        // TODO: send a toast
+                        // Disconnect from a new thread so we don't block the UI thread
+                        Thread errorThread = new Thread(new Runnable() {
+                            @Override
+                            public void run() {
+                                mSerialHelperCallbacks.OnDeviceError();
+                            }
+                        });
+                        errorThread.start();
+                    }
+                }
+            }
+        }
+    };
+    private volatile boolean mIsDisconnectReceiverRegistered = false;
 
     private UsbSerialInterface.UsbReadCallback mCallback = new UsbSerialInterface.UsbReadCallback() {
 
@@ -51,7 +83,7 @@ class UsbHelper implements SerialHelper {
         public void onReceivedData(byte[] arg0)
         {
             // Send the data back to the instantiating class via callback
-            dataReceivedListener.OnDataReceived(arg0);
+            mSerialHelperCallbacks.OnDataReceived(arg0);
         }
     };
 
@@ -111,16 +143,20 @@ class UsbHelper implements SerialHelper {
         return deviceList;
     }
 
-    public void connectDevice(String id, SerialHelper.DeviceReadyListener readyListener,
-                              DataReceivedListener rcdListener) {
-        dataReceivedListener = rcdListener;
+    public void connectDevice(String id, SerialHelper.Callbacks cbs) {
+
+        if (serialPortConnected) {
+            disconnect();
+        }
+
+        mSerialHelperCallbacks = cbs;
         HashMap<String, UsbDevice> usbDeviceList = mUsbManager.getDeviceList();
         String[] ids = id.split(":");
 
         // Make sure the entry value is formatted correctly
         if (ids.length != 3) {
             Log.e(TAG, "Invalid USB entry: " + id);
-            readyListener.OnDeviceReady(false);
+            mSerialHelperCallbacks.OnDeviceReady(false);
 
             return;
         }
@@ -143,21 +179,15 @@ class UsbHelper implements SerialHelper {
 
         if (mUsbDevice != null) {
             // valid device, request permission to use
-            ConnectionThread mConnectionThread = new ConnectionThread(readyListener);
+            ConnectionThread mConnectionThread = new ConnectionThread();
             mConnectionThread.start();
 
         } else {
 
             Log.i(TAG, "Invalid usb device: " + id);
-            readyListener.OnDeviceReady(false);
+            mSerialHelperCallbacks.OnDeviceReady(false);
         }
 
-    }
-
-    // Publishes the connection to the HardwareReciever so it can properly respond to connect and
-    // disconnect events
-    public void publishConnection(HardwareReceiver.UsbDeviceType type) {
-        HardwareReceiver.setConnectedDevice(mUsbDevice, type);
     }
 
     public String getConnectedId() {
@@ -176,9 +206,14 @@ class UsbHelper implements SerialHelper {
         }
         serialPortConnected = false;
 
+        if (mIsDisconnectReceiverRegistered) {
+            LocalBroadcastManager.getInstance(mContext).unregisterReceiver(mDisconnectReceiver);
+            mIsDisconnectReceiverRegistered = false;
+        }
+
     }
 
-    public boolean writeString(String data) {
+    public boolean writeString(final String data) {
 
         if (mSerialPort != null) {
             mSerialPort.write(data.getBytes());
@@ -188,7 +223,7 @@ class UsbHelper implements SerialHelper {
         return false;
     }
 
-    public boolean writeBytes(byte[] data) {
+    public boolean writeBytes(final byte[] data) {
         if (mSerialPort != null) {
             mSerialPort.write(data);
             return true;
@@ -243,12 +278,8 @@ class UsbHelper implements SerialHelper {
     // This thread opens a usb serial connection on the specified device
     private class ConnectionThread extends Thread {
 
-        private SerialHelper.DeviceReadyListener mReadyListener;
         private volatile boolean requestApproved = false;
 
-        ConnectionThread(SerialHelper.DeviceReadyListener readyListener) {
-            mReadyListener = readyListener;
-        }
 
         public synchronized void resumeConnectionThread() {
             notify();
@@ -283,7 +314,7 @@ class UsbHelper implements SerialHelper {
                     }
 
                     if (!requestApproved) {
-                        mReadyListener.OnDeviceReady(false);
+                        mSerialHelperCallbacks.OnDeviceReady(false);
                         return;
                     }
                 }
@@ -301,24 +332,38 @@ class UsbHelper implements SerialHelper {
                     mSerialPort.setFlowControl(UsbSerialInterface.FLOW_CONTROL_OFF);
                     mSerialPort.read(mCallback);
 
+                    // since connection is successful, register the receiver
+                    IntentFilter filter = new IntentFilter(mContext.getString(R.string.ACTION_DEVICE_DISCONNECTED));
+                    LocalBroadcastManager.getInstance(mContext).registerReceiver(mDisconnectReceiver, filter);
+                    mIsDisconnectReceiverRegistered = true;
+
+                    // TODO: seems like CH34x need this, need to test cdc and ftdi.  If they dont
+                    //       need it, then use an if statement here
+                    // give arduino a chance to make sure we aren't uploading a sketch
+                    try {
+                        Thread.sleep(2000);
+                    } catch (InterruptedException e) {
+                        Log.e(TAG, e.getMessage());
+                    }
+
                     // Device is open and ready
                     serialPortConnected = true;
-                    mReadyListener.OnDeviceReady(true);
+                    mSerialHelperCallbacks.OnDeviceReady(true);
                  } else {
                     // Serial port could not be opened, maybe an I/O error or if CDC driver was chosen, it does not really fit
                     // Send an Intent to Main Activity
                     if (mSerialPort instanceof CDCSerialDevice) {
                         Log.i(TAG, "Unable to open CDC Serial device");
-                        mReadyListener.OnDeviceReady(false);
+                        mSerialHelperCallbacks.OnDeviceReady(false);
                     } else {
                         Log.i(TAG, "Unable to open serial device");
-                        mReadyListener.OnDeviceReady(false);
+                        mSerialHelperCallbacks.OnDeviceReady(false);
                     }
                 }
             } else {
                 // No driver for given device, even generic CDC driver could not be loaded
                 Log.i(TAG, "Serial Device not supported");
-                mReadyListener.OnDeviceReady(false);
+                mSerialHelperCallbacks.OnDeviceReady(false);
             }
         }
     }

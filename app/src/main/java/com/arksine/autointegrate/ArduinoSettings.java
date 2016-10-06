@@ -22,16 +22,11 @@ import java.util.ArrayList;
 public class ArduinoSettings extends PreferenceFragment {
 
     private static String TAG = "ArduinoSettings";
-    // TODO: need to implement an intent filter rather than go through with enumerating and requesting
-    //       permission on each device.  Just too many pitfalls.
 
     // TODO: Use localbroadcast to restart service in button learning mode
     // TODO: Add button learning activity
     // TODO: Add dimmer learning activity
     // TODO: add preferences to set dimmer and reverse(camera)
-
-
-    public static final String ACTION_DEVICE_CHANGED = "com.arksine.autointegrate.ACTION_DEVICE_CHANGED";
 
     SerialHelper mSerialHelper;
     private String mDeviceType;
@@ -41,7 +36,7 @@ public class ArduinoSettings extends PreferenceFragment {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
-            if (action.equals(ACTION_DEVICE_CHANGED)) {
+            if (action.equals(context.getString(R.string.ACTION_DEVICE_CHANGED))) {
                 populateDeviceListView();
             }
         }
@@ -127,7 +122,7 @@ public class ArduinoSettings extends PreferenceFragment {
         });
 
 
-        IntentFilter filter = new IntentFilter(ACTION_DEVICE_CHANGED);
+        IntentFilter filter = new IntentFilter(getActivity().getString(R.string.ACTION_DEVICE_CHANGED));
         LocalBroadcastManager.getInstance(getActivity()).registerReceiver(deviceListReciever, filter);
 
     }
@@ -136,9 +131,17 @@ public class ArduinoSettings extends PreferenceFragment {
     public void onDestroy() {
         super.onDestroy();
         LocalBroadcastManager localBM = LocalBroadcastManager.getInstance(getActivity());
-        Intent refreshArduinoIntent = new Intent(getString(R.string.ACTION_REFRESH_ARDUINO_THREAD));
+        Intent refreshArduinoIntent = new Intent(getString(R.string.ACTION_REFRESH_ARDUINO_CONNECTION));
         localBM.sendBroadcast(refreshArduinoIntent);
         localBM.unregisterReceiver(deviceListReciever);
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        LocalBroadcastManager localBM = LocalBroadcastManager.getInstance(getActivity());
+        Intent refreshArduinoIntent = new Intent(getString(R.string.ACTION_REFRESH_ARDUINO_CONNECTION));
+        localBM.sendBroadcast(refreshArduinoIntent);
     }
 
     private void populateDeviceListView() {

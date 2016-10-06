@@ -16,16 +16,21 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 
 /**
- * Class BluetoothHelper - Handles basic bluetooth tasks needed for this app.
+ * Class BluetoothHelper - Handles basic bluetooth tasks, implements async read/write
  */
 class BluetoothHelper implements SerialHelper {
 
     private static String TAG = "BluetoothHelper";
 
-    private static final String ACTION_DEVICE_CHANGED = "com.arksine.autointegrate.ACTION_DEVICE_CHANGED";
+    private ExecutorService EXECUTOR = null;
+    private Future mReaderThreadFuture = null;
 
     private Context mContext = null;
 
@@ -36,9 +41,9 @@ class BluetoothHelper implements SerialHelper {
     private volatile boolean deviceConnected = false;
     private volatile InputStream serialIn;
     private OutputStream serialOut;
-    private Thread readerThread;
 
-    private SerialHelper.DataReceivedListener dataReceivedListener;
+
+    private SerialHelper.Callbacks mSerialHelperCallbacks;
 
     private final UUID MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
 
@@ -79,10 +84,22 @@ class BluetoothHelper implements SerialHelper {
         deviceConnected = false;
         closeBluetoothSocket();
 
-        // stop the readerthread if closing the socket didn't kill it
-        if(readerThread.isAlive()) {
-            readerThread.interrupt();
+        if (EXECUTOR != null) {
+            EXECUTOR.shutdown();
+
+            try {
+               EXECUTOR.awaitTermination(10, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                Log.e(TAG, e.getMessage());
+            }
+
+            if (!EXECUTOR.isTerminated()) {
+                EXECUTOR.shutdownNow();
+            }
+
+            EXECUTOR = null;
         }
+
     }
 
     public boolean isBluetoothOn() {
@@ -127,16 +144,27 @@ class BluetoothHelper implements SerialHelper {
      * not call from the UI thread!
      * @param macAddr - The mac address of the device to connect
      */
-    public void connectDevice (String macAddr, SerialHelper.DeviceReadyListener readyListener,
-                               DataReceivedListener rcdListener) {
+    public void connectDevice (String macAddr, SerialHelper.Callbacks cbs) {
+        if (deviceConnected) {
+            disconnect();
+        }
+
+        EXECUTOR = Executors.newCachedThreadPool(new BackgroundThreadFactory());
+        mSerialHelperCallbacks = cbs;
+
+        //TODO: If state is turning_on then we should wait until it is on, or just let the servicethread
+        //      continue connection attempts until its turned on
 
         if (!isBluetoothOn()) {
-            readyListener.OnDeviceReady(false);
+            mSerialHelperCallbacks.OnDeviceReady(false);
             return;
         }
-        dataReceivedListener = rcdListener;
-        ConnectionThread btConnectThread = new ConnectionThread(macAddr, readyListener);
-        btConnectThread.start();
+
+
+
+
+        ConnectionThread btConnectThread = new ConnectionThread(macAddr);
+        EXECUTOR.execute(btConnectThread);
 
     }
 
@@ -160,58 +188,50 @@ class BluetoothHelper implements SerialHelper {
         }
     }
 
-    public void publishConnection(HardwareReceiver.UsbDeviceType type) {
-        HardwareReceiver.setConnectedDevice(mBtDevice);
-    }
-
     public boolean isDeviceConnected() {
-
         return deviceConnected;
     }
 
-    public boolean writeString(String data) {
+    public boolean writeString(final String data) {
 
         if (mSocket == null) return false;
 
+        // TODO: needs to be synchronized?
+        EXECUTOR.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    serialOut.write(data.getBytes());
+                } catch (IOException e) {
+                    Log.e(TAG, "Error writing to device\n", e);
+                    mSerialHelperCallbacks.OnDeviceError();
+                }
+            }
+        });
 
-        try {
-            serialOut.write(data.getBytes());
-        } catch(IOException e) {
-            Log.e(TAG, "Error writing to device", e);
-            // Error sending the start command to the arduino
-            return false;
-        }
+
         return true;
     }
 
-    public boolean writeBytes(byte[] data) {
+    public boolean writeBytes(final byte[] data) {
 
         if (mSocket == null) return false;
 
-        try {
-            serialOut.write(data);
-        } catch(IOException e) {
-            Log.e(TAG, "Error writing to device", e);
-            // Error sending the start command to the arduino
-            return false;
-        }
+        // TODO: needs to be synchronized?
+        EXECUTOR.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    serialOut.write(data);
+                } catch (IOException e) {
+                    Log.e(TAG, "Error writing to device\n", e);
+                    mSerialHelperCallbacks.OnDeviceError();
+                }
+            }
+        });
+
+
         return true;
-    }
-
-    public byte readByte() {
-
-        if (mSocket == null) return 0;
-
-        byte input;
-        try {
-            input = (byte)serialIn.read();
-        }
-        catch (IOException e){
-            Log.d(TAG, "Error reading from device", e);
-            input = 0;
-        }
-
-        return input;
     }
 
     /**
@@ -220,11 +240,9 @@ class BluetoothHelper implements SerialHelper {
     private class ConnectionThread extends Thread {
 
         private String macAddr;
-        private SerialHelper.DeviceReadyListener readyListener;
 
-        ConnectionThread(String macAddr, SerialHelper.DeviceReadyListener readyListener) {
+        ConnectionThread(String macAddr) {
             this.macAddr = macAddr;
-            this.readyListener = readyListener;
         }
 
         @Override
@@ -235,7 +253,7 @@ class BluetoothHelper implements SerialHelper {
                 // device does not exist
                 Log.e(TAG, "Unable to open bluetooth device at " + macAddr);
                 deviceConnected = false;
-                readyListener.OnDeviceReady(false);
+                mSerialHelperCallbacks.OnDeviceReady(false);
                 return;
             }
 
@@ -249,7 +267,7 @@ class BluetoothHelper implements SerialHelper {
                 Log.e (TAG, "Unable to retrieve bluetooth socket for device " + macAddr);
                 mSocket = null;
                 deviceConnected = false;
-                readyListener.OnDeviceReady(false);
+                mSerialHelperCallbacks.OnDeviceReady(false);
                 return;
             }
 
@@ -271,7 +289,7 @@ class BluetoothHelper implements SerialHelper {
 
                 mSocket = null;
                 deviceConnected = false;
-                readyListener.OnDeviceReady(false);
+                mSerialHelperCallbacks.OnDeviceReady(false);
                 return;
             }
 
@@ -293,7 +311,7 @@ class BluetoothHelper implements SerialHelper {
 
             // start reader thread if connection is established
             if (deviceConnected) {
-                readerThread = new Thread(new Runnable() {
+                mReaderThreadFuture = EXECUTOR.submit(new Runnable() {
                     @Override
                     public void run() {
                         int available = 0;
@@ -301,20 +319,22 @@ class BluetoothHelper implements SerialHelper {
                         while (deviceConnected) {
                             try {
                                 available = serialIn.read(buffer);
-                                dataReceivedListener.OnDataReceived(Arrays.copyOfRange(buffer, 0, available));
+                                mSerialHelperCallbacks.OnDataReceived(Arrays.copyOfRange(buffer, 0, available));
 
                             } catch (IOException e) {
-                                Log.d(TAG, "Error reading from bluetooth device", e);
+                                // connection was closed before the device was disconnected
+                                if (deviceConnected) {
+                                    Log.d(TAG, "Error reading from bluetooth device", e);
+                                    mSerialHelperCallbacks.OnDeviceError();
+                                }
                                 return;
                             }
                         }
                     }
                 });
-                readerThread.setPriority(Process.THREAD_PRIORITY_BACKGROUND);
-                readerThread.start();
             }
 
-            readyListener.OnDeviceReady(deviceConnected);
+            mSerialHelperCallbacks.OnDeviceReady(deviceConnected);
         }
     }
 }

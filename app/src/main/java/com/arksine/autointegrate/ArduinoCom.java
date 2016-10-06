@@ -24,7 +24,7 @@ import android.widget.Toast;
  * for resistive touch screen events from the arudino and send them to the NativeInput class
  * where they can be handled by the uinput driver in the NDK.
  */
-class ArduinoCom implements Runnable {
+class ArduinoCom  {
 
     private static final String TAG = "ArduinoCom";
 
@@ -32,17 +32,19 @@ class ArduinoCom implements Runnable {
     private Context mContext;
 
     private volatile boolean mRunning = false;
+    private volatile boolean mIsWaiting = false;
+    private volatile boolean mDeviceError = false;
 
     private SerialHelper mSerialHelper;
-    private SerialHelper.DeviceReadyListener readyListener;
-    private SerialHelper.DataReceivedListener receivedListener;
-    private volatile String receivedBuffer = "";
+    private SerialHelper.Callbacks mCallbacks;
+
+    private volatile byte[] mReceivedBuffer = new byte[256];
+    private volatile int mReceivedBytes = 0;
 
     private InputHandler mInputHandler;
     private Looper mInputLooper;
 
-    // Handler that receives messages from arudino and sends them
-    // to NativeInput
+    // Handler that receives messages from arudino, parses them, and processes them
     private final class InputHandler extends Handler {
 
         InputHandler(Looper looper) {
@@ -51,15 +53,22 @@ class ArduinoCom implements Runnable {
 
         @Override
         public void handleMessage(Message msg) {
-            ArduinoMessage message = (ArduinoMessage) msg.obj;
+            String message = (String) msg.obj;
+            ArduinoMessage ardMsg =  parseMessage(message);
 
-            Log.i(TAG, message.command);
-            // TODO: parse message and execute command.  We will need a new class for this.
+            if (ardMsg != null) {
+                if (ardMsg.command.equals("LOG")) {
+                    Log.i("Arduino", ardMsg.data);
+                    Toast.makeText(mContext, "Arduino Log Info, check logcat", Toast.LENGTH_SHORT).show();
+
+                } else {
+                    Log.i(TAG, ardMsg.command);
+                    // TODO: process/execute command.  We will need a new class for this.
+                }
+            }
+
         }
     }
-
-    // TODO: need a broadcast receiver that disconnects when the selected device in arduino_preferences is
-    //       changed.
 
     // Broadcast reciever to listen for write commands.
     public class WriteReciever extends BroadcastReceiver {
@@ -88,11 +97,6 @@ class ArduinoCom implements Runnable {
         public String data;
     }
 
-    @Override
-    public void run() {
-        listenForInput();
-    }
-
     ArduinoCom(Context context) {
 
         mContext = context;
@@ -103,39 +107,54 @@ class ArduinoCom implements Runnable {
         mInputLooper = thread.getLooper();
         mInputHandler = new InputHandler(mInputLooper);
 
-        readyListener = new SerialHelper.DeviceReadyListener() {
+        mCallbacks = new SerialHelper.Callbacks() {
             @Override
             public void OnDeviceReady(boolean deviceReadyStatus) {
                 mConnected = deviceReadyStatus;
                 resumeThread();
             }
-        };
 
-        receivedListener = new SerialHelper.DataReceivedListener() {
             @Override
             public void OnDataReceived(byte[] data) {
                 // add the incoming bytes to a buffer
                 for (byte ch : data) {
                     if (ch == '<') {
-                        receivedBuffer = "";
+                        mReceivedBuffer = new byte[256];
+                        mReceivedBytes =  0;
                     } else if (ch == '>') {
-                        resumeThread();
+                        Message msg = mInputHandler.obtainMessage();
+                        msg.obj = new String (mReceivedBuffer, 0 ,mReceivedBytes);
+                        mInputHandler.sendMessage(msg);
+
                     } else {
-                        receivedBuffer += ch;
+                        mReceivedBuffer[mReceivedBytes] = ch;
+                        mReceivedBytes++;
                     }
                 }
             }
-        };
 
-        connect();
+            @Override
+            public void OnDeviceError() {
+                mDeviceError = true;
+                disconnect();
+            }
+        };
 
     }
 
     public synchronized void resumeThread() {
-        notify();
+        if (mIsWaiting) {
+            mIsWaiting = false;
+            notify();
+        }
     }
 
     public boolean connect() {
+
+        // If we are currently connected to a device, we need to disconnect.
+        if (mSerialHelper != null && mSerialHelper.isDeviceConnected()) {
+            disconnect();
+        }
 
         final SharedPreferences sharedPrefs =
                 PreferenceManager.getDefaultSharedPreferences(mContext);
@@ -157,12 +176,13 @@ class ArduinoCom implements Runnable {
 
         }
 
-        mSerialHelper.connectDevice(devId, readyListener, receivedListener);
+        mSerialHelper.connectDevice(devId, mCallbacks);
 
-        // wait until the connection is finished.  The readyListener is a callback that will
-        // set the variable below and set mConnected to the connection status
+        // wait until the connection is finished.  The onDeviceReady callback will
+        // set mConnected to the connection status
         synchronized (this) {
             try {
+                mIsWaiting = true;
                 wait(30000);
             } catch (InterruptedException e) {
                 Log.e(TAG, e.getMessage());
@@ -175,6 +195,8 @@ class ArduinoCom implements Runnable {
             mContext.registerReceiver(writeReciever, sendDataFilter);
             isWriteReceiverRegistered = true;
 
+            mDeviceError = false;
+
             // Tell the Arudino that it is time to start
             if (!mSerialHelper.writeString("<START>")) {
                 // unable to write start command
@@ -183,7 +205,6 @@ class ArduinoCom implements Runnable {
                 mConnected = false;
                 mSerialHelper = null;
             } else {
-                mSerialHelper.publishConnection(HardwareReceiver.UsbDeviceType.ARDUINO);
                 // Its possible that usb device location changes, so we will put the most recently
                 // connected Id in a preference that the Arudino Settings fragment can check
                 PreferenceManager.getDefaultSharedPreferences(mContext).edit()
@@ -203,55 +224,44 @@ class ArduinoCom implements Runnable {
         return mConnected;
     }
 
-	/**
-     * This function listens for input until the running loop is broken.  It is only
-     * called from the Objects run() function, which should never be called from
-     * the main thread, as it is blocking
-     */
-    private void listenForInput() {
+    void disconnect() {
+        mRunning = false;
+        mConnected = false;
 
-        mRunning = true;
+        if (mSerialHelper!= null) {
+            // If there was a device error then we cannot write to it
+            if (!mDeviceError) {
+                mSerialHelper.writeString("<STOP>");
 
-        // Don't start if not connected
-        if (!mConnected) {
-            Log.e(TAG, "Arduino not connected, thread cannot start");
-            return;
-        }
-
-        while (mRunning) {
-
-            // Wait until we are notified that data has been received
-            synchronized (this) {
+                // If we disconnect too soon after writing "stop", an exception will be thrown
                 try {
-                    wait();
+                    Thread.sleep(500);
                 } catch (InterruptedException e) {
                     Log.e(TAG, e.getMessage());
                 }
+
+                mSerialHelper.disconnect();
             }
+            mSerialHelper = null;
+        }
 
+        // TODO: if we decide to remove the run() thus the arduinothread then we need to remove the
+        // command below
+        // Notify the thread to resume so it can finish
+        resumeThread();
 
-            ArduinoMessage message = parseMessage();
-            if (message != null) {
-                if (message.command.equals("LOG")) {
-                    Log.i("Arduino", message.data);
-                    Toast.makeText(mContext, "Arduino Log Info, check logcat", Toast.LENGTH_SHORT).show();
-
-                } else {
-
-                    Message msg = mInputHandler.obtainMessage();
-                    msg.obj = message;
-                    mInputHandler.sendMessage(msg);
-                }
-            }
-
+        if (isWriteReceiverRegistered) {
+            mContext.unregisterReceiver(writeReciever);
+            isWriteReceiverRegistered = false;
         }
     }
 
     // Reads a message from the arduino and parses it
-    private ArduinoMessage parseMessage() {
+    private ArduinoMessage parseMessage(String msg) {
 
         ArduinoMessage ardMsg;
-        String[] tokens = receivedBuffer.split(":");
+
+        String[] tokens = msg.split(":");
 
         if (tokens.length == 2) {
             // command received or log message
@@ -265,33 +275,11 @@ class ArduinoCom implements Runnable {
             if (mRunning) {
                 // Only log an error if the device has been shut down, it always throws an
                 // IOExeception when the socket is closed
-                Log.e(TAG, "Issue parsing string, invalid data recd");
+                Log.e(TAG, "Issue parsing string, invalid data recd: " + msg);
             }
-
             ardMsg = null;
-
         }
-
         return ardMsg;
-    }
-
-    void disconnect() {
-        mRunning = false;
-
-        if (mSerialHelper!= null) {
-            mSerialHelper.writeString("<STOP>");
-            mSerialHelper.disconnect();
-            mConnected = false;
-            mSerialHelper = null;
-        }
-
-        // Notify the thread to resume so it can finish
-        resumeThread();
-
-        if (isWriteReceiverRegistered) {
-            mContext.unregisterReceiver(writeReciever);
-            isWriteReceiverRegistered = false;
-        }
     }
 
 }

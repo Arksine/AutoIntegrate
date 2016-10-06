@@ -7,26 +7,19 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.Icon;
 import android.os.Build;
-import android.os.Handler;
-import android.os.HandlerThread;
 import android.os.IBinder;
-import android.os.Looper;
-import android.os.Message;
-import android.os.Process;
-import android.preference.PreferenceManager;
-import android.support.v4.content.LocalBroadcastManager;
-import android.util.Log;
 
 
 public class MainService extends Service {
 
     private static String TAG = "MainService";
 
+
+    // TODO: add pause action to this receiver?  Then add a pause button to notification
 
     // Stop Reciever cleans up and stops the service when the stop button is pressed on
     // the service notification
@@ -38,11 +31,16 @@ public class MainService extends Service {
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
             if (getString(R.string.ACTION_STOP_SERVICE).equals(action)) {
-                mServiceThread.stopServiceThread();
-                // stops all queued services
-
-                // TODO: Do we need to stopself?
-                //stopSelf();
+                // Because the call to destroyServiceThread blocks, we need to create
+                // a thread to stop the service so we don't block the ui thread
+                Thread stopThread = new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        mServiceThread.destroyServiceThread();
+                        stopSelf();
+                    }
+                });
+                stopThread.start();
             }
         }
     }
@@ -101,7 +99,11 @@ public class MainService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        mServiceThread.startServiceThread();
+
+        // Start the service thread if it isnt running
+        if (!mServiceThread.isServiceThreadRunning()) {
+            mServiceThread.startServiceThread();
+        }
 
         // If we get killed, after returning from here, restart
         return START_STICKY;

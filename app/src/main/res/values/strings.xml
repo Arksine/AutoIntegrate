@@ -7,9 +7,11 @@
     <string name="ACTION_STOP_SERVICE">com.arksine.autointegrate.ACTION_STOP_SERVICE</string>
     <string name="ACTION_WAKE_SERVICE_THREAD">com.arksine.autointegrate.ACTION_WAKE_SERVICE_THREAD</string>
     <string name="ACTION_REFRESH_SERVICE_THREAD">com.arksine.autointegrate.ACTION_REFRESH_SERVICE_THREAD</string>
-    <string name="ACTION_REFRESH_ARDUINO_THREAD">com.arksine.autointegrate.ACTION_REFRESH_ARDUINO_THREAD</string>
-    <string name="ACTION_REFRESH_RADIO_THREAD">com.arksine.autointegrate.ACTION_REFRESH_RADIO_THREAD</string>
+    <string name="ACTION_REFRESH_ARDUINO_CONNECTION">com.arksine.autointegrate.ACTION_REFRESH_ARDUINO_CONNECTION</string>
+    <string name="ACTION_REFRESH_RADIO_CONNECTION">com.arksine.autointegrate.ACTION_REFRESH_RADIO_CONNECTION</string>
     <string name="ACTION_SUSPEND_SERVICE_THREAD">com.arksine.autointegrate.ACTION_SUSPEND_SERVICE_THREAD</string>
+    <string name="ACTION_STATUS_TOGGLE_CHANGED">com.arksine.autointegrate.ACTION_STATUS_TOGGLE_CHANGED</string>
+    <string name="ACTION_SERVICE_STATUS_CHANGED">com.arksine.autointegrate.ACTION_SERVER_STATUS_CHANGED</string>
     <string name="ACTION_SEND_DATA">com.arksine.autointegrate.ACTION_SEND_DATA</string>
     <string name="EXTRA_COMMAND">com.arksine.autointegrate.EXTRA_COMMAND</string>
     <string name="EXTRA_DATA">com.arksine.autointegrate.EXTRA_DATA</string>
