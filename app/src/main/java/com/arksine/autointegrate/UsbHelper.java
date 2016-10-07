@@ -41,8 +41,8 @@ class UsbHelper implements SerialHelper {
     private static final String TAG = "UsbHelper";
 
 
+    // TODO: add preference to retrieve baudrate
     private static final String ACTION_USB_PERMISSION = "com.arksine.autointegrate.USB_PERMISSION";
-    private static final int BAUD_RATE = 9600; // BaudRate. Change this value if you need
 
     private Context mContext;
     private UsbManager mUsbManager;
@@ -192,7 +192,7 @@ class UsbHelper implements SerialHelper {
 
     public String getConnectedId() {
         if (serialPortConnected) {
-            return (mUsbDevice.getVendorId() + ":" + mUsbDevice.getProductId()
+            return (mUsbDevice.getVendorId() + ":" + mUsbDevice.getProductId() + ":"
                     + mUsbDevice.getDeviceName());
         }
         return "";
@@ -325,7 +325,9 @@ class UsbHelper implements SerialHelper {
             mSerialPort = UsbSerialDevice.createUsbSerialDevice(mUsbDevice, mUsbConnection);
             if (mSerialPort != null) {
                 if (mSerialPort.open()) {
-                    mSerialPort.setBaudRate(BAUD_RATE);
+                    int baudrate = PreferenceManager.getDefaultSharedPreferences(mContext)
+                            .getInt("arduino_pref_key_select_baud", 9600);
+                    mSerialPort.setBaudRate(baudrate);
                     mSerialPort.setDataBits(UsbSerialInterface.DATA_BITS_8);
                     mSerialPort.setStopBits(UsbSerialInterface.STOP_BITS_1);
                     mSerialPort.setParity(UsbSerialInterface.PARITY_NONE);
@@ -337,13 +339,14 @@ class UsbHelper implements SerialHelper {
                     LocalBroadcastManager.getInstance(mContext).registerReceiver(mDisconnectReceiver, filter);
                     mIsDisconnectReceiverRegistered = true;
 
-                    // TODO: seems like CH34x need this, need to test cdc and ftdi.  If they dont
-                    //       need it, then use an if statement here
-                    // give arduino a chance to make sure we aren't uploading a sketch
-                    try {
-                        Thread.sleep(2000);
-                    } catch (InterruptedException e) {
-                        Log.e(TAG, e.getMessage());
+                    // Some arduinos need time to initialize before you can communicate.  CH34x is
+                    // one such device, others need to be tested.
+                    if (CH34xIds.isDeviceSupported(mUsbDevice.getVendorId(), mUsbDevice.getProductId())) {
+                        try {
+                            Thread.sleep(2000);
+                        } catch (InterruptedException e) {
+                            Log.e(TAG, e.getMessage());
+                        }
                     }
 
                     // Device is open and ready

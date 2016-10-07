@@ -16,7 +16,7 @@ import android.util.Log;
 import java.util.ArrayList;
 
 /**
- * Created by Eric on 9/30/2016.
+ * Preference Fragment containing Settings for Arduino Serial Connection
  */
 
 public class ArduinoSettings extends PreferenceFragment {
@@ -53,9 +53,14 @@ public class ArduinoSettings extends PreferenceFragment {
         PreferenceScreen editButtons = (PreferenceScreen) root.findPreference("arduino_pref_key_edit_buttons");
         ListPreference selectDeviceType = (ListPreference) root.findPreference("arduino_pref_key_select_device_type");
         ListPreference selectDevice = (ListPreference) root.findPreference("arduino_pref_key_select_device");
+        ListPreference selectBaudPref = (ListPreference) root.findPreference("arduino_pref_key_select_baud");
 
         mDeviceType = selectDeviceType.getValue();
+        toggleBaudSelection();
         populateDeviceListView();
+
+        selectBaudPref.setSummary(selectBaudPref.getEntry());
+
 
         // Check to see if the most recently connected device is the same as the one we are using,
         // but with a different location (USB only) TODO: this needs testing!
@@ -92,6 +97,7 @@ public class ArduinoSettings extends PreferenceFragment {
                 int index = list.findIndexOfValue((String)newValue);
                 preference.setSummary(entries[index]);
                 mDeviceType = (String)newValue;
+                toggleBaudSelection();
                 populateDeviceListView();
 
                 return true;
@@ -105,6 +111,14 @@ public class ArduinoSettings extends PreferenceFragment {
                 CharSequence[] entries = list.getEntries();
                 int index = list.findIndexOfValue((String)newValue);
                 preference.setSummary(entries[index]);
+                return true;
+            }
+        });
+
+        selectBaudPref.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
+            @Override
+            public boolean onPreferenceChange(Preference preference, Object newValue) {
+                preference.setSummary(Integer.toString((Integer)newValue));
                 return true;
             }
         });
@@ -136,13 +150,18 @@ public class ArduinoSettings extends PreferenceFragment {
         localBM.unregisterReceiver(deviceListReciever);
     }
 
-    @Override
-    public void onPause() {
-        super.onPause();
-        LocalBroadcastManager localBM = LocalBroadcastManager.getInstance(getActivity());
-        Intent refreshArduinoIntent = new Intent(getString(R.string.ACTION_REFRESH_ARDUINO_CONNECTION));
-        localBM.sendBroadcast(refreshArduinoIntent);
+    private void toggleBaudSelection() {
+        PreferenceScreen root = this.getPreferenceScreen();
+        ListPreference selectBaudPref = (ListPreference) root.findPreference("arduino_pref_key_select_baud");
+
+        // Bluetooth detects the attached device baud automatically, we need to set the baud for usb
+        if (mDeviceType.equals("USB")) {
+            selectBaudPref.setEnabled(true);
+        } else {
+            selectBaudPref.setEnabled(false);
+        }
     }
+
 
     private void populateDeviceListView() {
 
@@ -192,8 +211,6 @@ public class ArduinoSettings extends PreferenceFragment {
 
                     // Make sure that we don't enumerate the MJS HD Radio Cable,
                     // VID 0x0403 (1027), PID 0x937C (37756)
-                    //TODO: instead of excluding this ID, perhaps we should create an .xml
-                    //      resource file with supported arduino/avr Id's and check against it.
                     if (!(ids[0].equals("1027") && ids[1].equals("37756"))) {
                         String vid = Integer.toHexString(Integer.parseInt(ids[0]));
                         String pid = Integer.toHexString(Integer.parseInt(ids[1]));

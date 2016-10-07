@@ -19,10 +19,8 @@ import android.widget.Toast;
 /**
  * Class ArduinoCom
  *
- * This class handles bluetooth serial communication with the arduino.  First, it establishes
- * a serial connection and confirms that the Arudino is connected.    After setup is complete, it will listen
- * for resistive touch screen events from the arudino and send them to the NativeInput class
- * where they can be handled by the uinput driver in the NDK.
+ * This class handles serial communication with the arduino.  First, it establishes
+ * a serial connection and confirms that the Arudino is connected.
  */
 class ArduinoCom  {
 
@@ -244,11 +242,6 @@ class ArduinoCom  {
             }
             mSerialHelper = null;
         }
-
-        // TODO: if we decide to remove the run() thus the arduinothread then we need to remove the
-        // command below
-        // Notify the thread to resume so it can finish
-        resumeThread();
 
         if (isWriteReceiverRegistered) {
             mContext.unregisterReceiver(writeReciever);

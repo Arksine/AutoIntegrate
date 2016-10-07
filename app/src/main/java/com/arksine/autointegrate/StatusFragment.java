@@ -95,11 +95,15 @@ public class StatusFragment extends PreferenceFragment {
 
         // TODO: check if service is running but suspended?
         if (isServiceRunning(MainService.class)) {
-            toggleService.setChecked(true);
-            Log.i(TAG, "Service is running");
+            if (!toggleService.isChecked()) {
+                toggleService.setChecked(true);
+                Log.i(TAG, "Service is running");
+            }
         } else {
-            toggleService.setChecked(false);
-            Log.i(TAG, "Service is not running");
+            if (toggleService.isChecked()) {
+                toggleService.setChecked(false);
+                Log.i(TAG, "Service is not running");
+            }
         }
     }
 

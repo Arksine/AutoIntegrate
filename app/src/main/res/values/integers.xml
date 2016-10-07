@@ -6,5 +6,16 @@
     <integer name="REQUEST_STOP_SERVICE">6703</integer>
     <integer name="REQUEST_START_AUTOINTEGRATE_ACTIVITY">6704</integer>
 
+    <integer-array name="ardino_pref_select_baud_entry_values">
+        <item>1200</item>
+        <item>2400</item>
+        <item>4800</item>
+        <item>9600</item>
+        <item>19200</item>
+        <item>38400</item>
+        <item>57600</item>
+        <item>115200</item>
+    </integer-array>
+
     <!-- Integers used for arduino_preferences -->
 </resources>

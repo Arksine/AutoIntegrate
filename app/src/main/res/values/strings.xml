@@ -75,6 +75,19 @@
     </string-array>
     <string name="arduino_pref_select_device_summary">No Device Selected</string>
     <string name="arduino_pref_select_device_default">NO_DEVICE</string>
+
+    <string name="arduino_pref_select_baud">Select Baud Rate</string>
+    <string-array name="ardino_pref_select_baud_entries">
+        <item>1200</item>
+        <item>2400</item>
+        <item>4800</item>
+        <item>9600</item>
+        <item>19200</item>
+        <item>38400</item>
+        <item>57600</item>
+        <item>115200</item>
+    </string-array>
+    
     <string name="arduino_pref_edit_buttons">Add/Edit Steering Wheel Buttons</string>
 
     <string name="pref_start_service">Start Service</string>

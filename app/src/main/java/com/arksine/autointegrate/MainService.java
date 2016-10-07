@@ -63,9 +63,9 @@ public class MainService extends Service {
         PendingIntent stopPendingIntent = PendingIntent.getBroadcast(this, R.integer.REQUEST_STOP_SERVICE,
                 stopIntent, 0);
 
-        // TODO: LargeIcon not working
         // TODO: may need to generate a different small icon. Also want to add  pause and resume notifications?
-        Bitmap largeIcon = BitmapFactory.decodeResource(getResources(), R.drawable.ic_autointegrate_notification_large);
+        // TODO: add Android Auto car extension to api 23+?
+        Bitmap largeIcon = BitmapFactory.decodeResource(getResources(), R.mipmap.ic_launcher);
         Intent notificationIntent = new Intent(this, MainActivity.class);
         PendingIntent pendingIntent = PendingIntent.getActivity(this,
                 R.integer.REQUEST_START_AUTOINTEGRATE_ACTIVITY, notificationIntent, 0);
@@ -81,6 +81,8 @@ public class MainService extends Service {
                     .setLargeIcon(largeIcon)
                     .setContentIntent(pendingIntent)
                     .addAction(stopAction)
+                    .setOngoing(true)
+                    .setPriority(Notification.PRIORITY_HIGH)
                     .build();
         } else {
             notification = new Notification.Builder(this)
@@ -91,6 +93,8 @@ public class MainService extends Service {
                     .setContentIntent(pendingIntent)
                     .addAction(R.drawable.ic_stop,
                             "Stop Service", stopPendingIntent)
+                    .setOngoing(true)
+                    .setPriority(Notification.PRIORITY_HIGH)
                     .build();
         }
 

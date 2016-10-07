@@ -53,14 +53,17 @@ public class ServiceThread implements Runnable {
             String action = intent.getAction();
 
             if (mContext.getString(R.string.ACTION_WAKE_SERVICE_THREAD).equals(action)) {
-                EXECUTOR.execute(wakeServiceThread);
+                if (serviceSuspended) {
+                    EXECUTOR.execute(wakeServiceThread);
+                    Log.i(TAG, "Service resumed.");
+                }
             } else if (mContext.getString(R.string.ACTION_SUSPEND_SERVICE_THREAD).equals(action)) {
                 // Stop the main thread, but do not destroy the the ExecutorService so the thread
                 // can be restarted
+                serviceSuspended = true;
                 EXECUTOR.execute(stopMainThread);
 
-                // TODO: Do I really need to send an intent when the service status changes?
-                // Send intent to status fragment so it knows service status has changed
+                // Broadcast Intent to Status Fragment notifying that service status has changed
                 PreferenceManager.getDefaultSharedPreferences(mContext).edit()
                         .putBoolean("service_suspended", true).apply();
                 Intent statusChangedIntent = new Intent(mContext.getString(R.string.ACTION_SERVICE_STATUS_CHANGED));
@@ -187,7 +190,6 @@ public class ServiceThread implements Runnable {
         serviceThreadRunning = true;
         mMainThreadFuture = EXECUTOR.submit(this);
 
-        // TODO: Do I really need to send an intent when the service status changes?
         // Send intent to status fragment so it knows service status has changed
         PreferenceManager.getDefaultSharedPreferences(mContext).edit()
                 .putBoolean("service_suspended", false).apply();
@@ -216,7 +218,6 @@ public class ServiceThread implements Runnable {
 
         mMainThreadFuture = null;
 
-        // TODO: Do I really need to send an intent when the service status changes?
         // Send intent to status fragment so it knows service status has changed
         Intent statusChangedIntent = new Intent(mContext.getString(R.string.ACTION_SERVICE_STATUS_CHANGED));
         mLocalBM.sendBroadcast(statusChangedIntent);
@@ -286,6 +287,7 @@ public class ServiceThread implements Runnable {
             } catch (InterruptedException e) {
                 Log.e(TAG, e.getMessage());
             }
+            serviceSuspended = false;
             startServiceThread();
         }
     };

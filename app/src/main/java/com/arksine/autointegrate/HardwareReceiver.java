@@ -72,8 +72,9 @@ public class HardwareReceiver extends BroadcastReceiver {
                     LocalBroadcastManager.getInstance(context).sendBroadcast(devChanged);
                     Log.i(TAG, "Usb device removed");
 
-                    //TODO: rebroadcast to local reciever.  This is temporary until I can implement
-                    //      error handling directly into code.
+                    /*TODO: rebroadcast to local reciever.  This is temporary until I can implement
+                      error handling directly into code.
+                    */
                     UsbDevice uDev = (UsbDevice) intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
                     Intent devDisconnected = new Intent(context.getString(R.string.ACTION_DEVICE_DISCONNECTED));
                     devDisconnected.putExtra(UsbManager.EXTRA_DEVICE, uDev);
