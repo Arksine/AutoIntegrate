@@ -14,8 +14,9 @@ import android.preference.PreferenceManager;
 import android.util.Log;
 import android.widget.Toast;
 
-// TODO:  Need to make this a base class (SerialCom).  Then ArduinoCom and HDRadioCom can both
-//        extend it.  Both will need their own thread to poll for data.
+// TODO:  Create a base class serialcom that ArudinoCom extends.  Much of the functionality
+//        is the same as will be necessary for RadioCom.  connect() would need to be
+//        overridden, the Handler is different, and t
 /**
  * Class ArduinoCom
  *
@@ -29,7 +30,6 @@ class ArduinoCom  {
     private volatile boolean mConnected = false;
     private Context mContext;
 
-    private volatile boolean mRunning = false;
     private volatile boolean mIsWaiting = false;
     private volatile boolean mDeviceError = false;
 
@@ -39,34 +39,7 @@ class ArduinoCom  {
     private volatile byte[] mReceivedBuffer = new byte[256];
     private volatile int mReceivedBytes = 0;
 
-    private InputHandler mInputHandler;
-    private Looper mInputLooper;
-
-    // Handler that receives messages from arudino, parses them, and processes them
-    private final class InputHandler extends Handler {
-
-        InputHandler(Looper looper) {
-            super(looper);
-        }
-
-        @Override
-        public void handleMessage(Message msg) {
-            String message = (String) msg.obj;
-            ArduinoMessage ardMsg =  parseMessage(message);
-
-            if (ardMsg != null) {
-                if (ardMsg.command.equals("LOG")) {
-                    Log.i("Arduino", ardMsg.data);
-                    Toast.makeText(mContext, "Arduino Log Info, check logcat", Toast.LENGTH_SHORT).show();
-
-                } else {
-                    Log.i(TAG, ardMsg.command);
-                    // TODO: process/execute command.  We will need a new class for this.
-                }
-            }
-
-        }
-    }
+    private ArduinoHandler mInputHandler;
 
     // Broadcast reciever to listen for write commands.
     public class WriteReciever extends BroadcastReceiver {
@@ -85,15 +58,6 @@ class ArduinoCom  {
     private final WriteReciever writeReciever = new WriteReciever();
     private boolean isWriteReceiverRegistered = false;
 
-    /**
-     * Container for a message recieved from the arduino.  There are two message types we can receive,
-     * logging types and point types.  Logging types fill in the desc string, point types fill in
-     * the TouchPoint.
-     */
-    private class ArduinoMessage {
-        public String command;
-        public String data;
-    }
 
     ArduinoCom(Context context) {
 
@@ -102,8 +66,10 @@ class ArduinoCom  {
         HandlerThread thread = new HandlerThread("ArduinoMessageHandler",
                 Process.THREAD_PRIORITY_BACKGROUND);
         thread.start();
-        mInputLooper = thread.getLooper();
-        mInputHandler = new InputHandler(mInputLooper);
+        Looper mInputLooper = thread.getLooper();
+
+        // TODO: When this
+        mInputHandler = new ArduinoHandler(mInputLooper, mContext);
 
         mCallbacks = new SerialHelper.Callbacks() {
             @Override
@@ -117,14 +83,17 @@ class ArduinoCom  {
                 // add the incoming bytes to a buffer
                 for (byte ch : data) {
                     if (ch == '<') {
+                        // start of packet, clear buffer
                         mReceivedBuffer = new byte[256];
                         mReceivedBytes =  0;
                     } else if (ch == '>') {
+                        // end of packet, handle message
                         Message msg = mInputHandler.obtainMessage();
                         msg.obj = new String (mReceivedBuffer, 0 ,mReceivedBytes);
                         mInputHandler.sendMessage(msg);
 
                     } else {
+                        // add byte to received buffer
                         mReceivedBuffer[mReceivedBytes] = ch;
                         mReceivedBytes++;
                     }
@@ -223,7 +192,6 @@ class ArduinoCom  {
     }
 
     void disconnect() {
-        mRunning = false;
         mConnected = false;
 
         if (mSerialHelper!= null) {
@@ -249,30 +217,6 @@ class ArduinoCom  {
         }
     }
 
-    // Reads a message from the arduino and parses it
-    private ArduinoMessage parseMessage(String msg) {
 
-        ArduinoMessage ardMsg;
-
-        String[] tokens = msg.split(":");
-
-        if (tokens.length == 2) {
-            // command received or log message
-            ardMsg = new ArduinoMessage();
-
-            ardMsg.command = tokens[0];
-            ardMsg.data = tokens[1];
-
-        }
-        else {
-            if (mRunning) {
-                // Only log an error if the device has been shut down, it always throws an
-                // IOExeception when the socket is closed
-                Log.e(TAG, "Issue parsing string, invalid data recd: " + msg);
-            }
-            ardMsg = null;
-        }
-        return ardMsg;
-    }
 
 }

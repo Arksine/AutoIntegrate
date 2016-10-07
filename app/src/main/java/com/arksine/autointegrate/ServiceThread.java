@@ -83,6 +83,7 @@ public class ServiceThread implements Runnable {
     @Override
     public void run() {
         SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(mContext);
+        int connectionAttempts = 1;
 
 
         // Register the receiver for local broadcasts, dont want other apps screwing with this
@@ -112,7 +113,7 @@ public class ServiceThread implements Runnable {
                     if (mArduino.connect()) {
                         Log.i(TAG, "Arduino Thread Started");
                     } else {
-                        Log.e(TAG, "Error connecting to Arduino");
+                        Log.e(TAG, "Error connecting to Arduino: Connection Attempt " + connectionAttempts);
                     }
                 }
             } else {
@@ -120,7 +121,14 @@ public class ServiceThread implements Runnable {
             }
 
 
-            if (allConnected()) {
+            if (allConnected() || (connectionAttempts > 10)) {
+                // TODO: should I send a toast indicating to the user max number of connection attempts
+                // has been reached?  Should I track connection attempts per connection type?
+
+
+                // reset connection attempts
+                connectionAttempts = 1;
+
                 // Pause execution of this thread until some event requires it to wake up (ie:
                 // someone changed a setting or the device has had power applied
                 synchronized (this) {
@@ -135,9 +143,10 @@ public class ServiceThread implements Runnable {
                     }
                 }
             } else {
-                // sleep for 500 ms between connection attempts
+                connectionAttempts++;
+                // sleep for 1 second between connection attempts
                 try {
-                    Thread.sleep(500);
+                    Thread.sleep(1000);
                 } catch (InterruptedException e) {
                     Log.i(TAG, e.getMessage());
                 }
