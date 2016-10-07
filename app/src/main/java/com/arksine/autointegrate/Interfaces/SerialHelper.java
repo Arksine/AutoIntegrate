@@ -1,11 +1,11 @@
-package com.arksine.autointegrate;
+package com.arksine.autointegrate.Interfaces;
 
 import java.util.ArrayList;
 
 /**
  * Interface for basic serial device functionality
  */
-interface SerialHelper {
+public interface SerialHelper {
     //TODO: put all the interfaces below into one callback
 
     interface Callbacks {

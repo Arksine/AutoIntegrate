@@ -1,4 +1,4 @@
-package com.arksine.autointegrate;
+package com.arksine.autointegrate.Preferences;
 
 import android.app.ActivityManager;
 import android.content.BroadcastReceiver;
@@ -12,6 +12,9 @@ import android.preference.PreferenceScreen;
 import android.preference.SwitchPreference;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
+
+import com.arksine.autointegrate.MainService;
+import com.arksine.autointegrate.R;
 
 /**
  * Created by Eric on 10/1/2016.

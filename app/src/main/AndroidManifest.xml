@@ -21,7 +21,7 @@
         </service>
 
         <activity
-            android:name=".MainActivity"
+            android:name=".Activities.MainActivity"
             android:label="@string/title_activity_main">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
@@ -30,16 +30,21 @@
             </intent-filter>
         </activity>
 
-        <receiver android:name=".HardwareReceiver"
-                  android:exported="false">
-
+        <receiver
+            android:name=".Utilities.HardwareReceiver"
+            android:exported="false">
             <intent-filter>
                 <action android:name="com.arksine.autointegrate.USB_PERMISSION"/>
                 <action android:name="android.hardware.usb.action.USB_DEVICE_DETACHED"/>
                 <action android:name="android.bluetooth.device.action.ACL_DISCONNECTED"/>
             </intent-filter>
-
         </receiver>
+
+        <activity
+            android:name=".Activities.ButtonLearningActivity"
+            android:label="@string/title_activity_button_learning"
+            android:theme="@style/AppTheme.NoActionBar">
+        </activity>
     </application>
 
 </manifest>

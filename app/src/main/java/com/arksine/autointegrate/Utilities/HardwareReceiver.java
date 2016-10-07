@@ -1,4 +1,4 @@
-package com.arksine.autointegrate;
+package com.arksine.autointegrate.Utilities;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -9,6 +9,8 @@ import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
+
+import com.arksine.autointegrate.R;
 
 /**
  * This class manages USB and Bluetooth Hardware related broadcasts.  We want to make sure

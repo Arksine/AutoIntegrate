@@ -9,6 +9,9 @@ import android.preference.PreferenceManager;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
+import com.arksine.autointegrate.Arduino.ArduinoCom;
+import com.arksine.autointegrate.Utilities.BackgroundThreadFactory;
+
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;

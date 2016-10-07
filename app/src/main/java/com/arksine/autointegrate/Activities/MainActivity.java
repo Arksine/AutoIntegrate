@@ -1,4 +1,4 @@
-package com.arksine.autointegrate;
+package com.arksine.autointegrate.Activities;
 
 import android.app.ActivityManager;
 import android.app.FragmentManager;
@@ -10,8 +10,6 @@ import android.graphics.Point;
 import android.os.Bundle;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceManager;
-import android.support.v4.app.Fragment;
-import android.support.v4.content.LocalBroadcastManager;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v4.view.GravityCompat;
 import android.support.v7.app.ActionBarDrawerToggle;
@@ -25,6 +23,14 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.Toast;
+
+import com.arksine.autointegrate.MainService;
+import com.arksine.autointegrate.Preferences.ArduinoSettings;
+import com.arksine.autointegrate.Preferences.CameraSettings;
+import com.arksine.autointegrate.Preferences.PowerSettings;
+import com.arksine.autointegrate.Preferences.RadioSettings;
+import com.arksine.autointegrate.Preferences.StatusFragment;
+import com.arksine.autointegrate.R;
 
 
 public class MainActivity extends AppCompatActivity {

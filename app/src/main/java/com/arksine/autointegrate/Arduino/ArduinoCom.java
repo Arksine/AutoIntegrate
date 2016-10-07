@@ -1,18 +1,21 @@
-package com.arksine.autointegrate;
+package com.arksine.autointegrate.Arduino;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
-import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Message;
 import android.os.Process;
 import android.preference.PreferenceManager;
 import android.util.Log;
-import android.widget.Toast;
+
+import com.arksine.autointegrate.Interfaces.SerialHelper;
+import com.arksine.autointegrate.R;
+import com.arksine.autointegrate.Utilities.BluetoothHelper;
+import com.arksine.autointegrate.Utilities.UsbHelper;
 
 // TODO:  Create a base class serialcom that ArudinoCom extends.  Much of the functionality
 //        is the same as will be necessary for RadioCom.  connect() would need to be
@@ -23,7 +26,7 @@ import android.widget.Toast;
  * This class handles serial communication with the arduino.  First, it establishes
  * a serial connection and confirms that the Arudino is connected.
  */
-class ArduinoCom  {
+public class ArduinoCom  {
 
     private static final String TAG = "ArduinoCom";
 
@@ -59,7 +62,7 @@ class ArduinoCom  {
     private boolean isWriteReceiverRegistered = false;
 
 
-    ArduinoCom(Context context) {
+    public ArduinoCom(Context context) {
 
         mContext = context;
 
@@ -191,7 +194,7 @@ class ArduinoCom  {
         return mConnected;
     }
 
-    void disconnect() {
+    public void disconnect() {
         mConnected = false;
 
         if (mSerialHelper!= null) {
@@ -216,7 +219,5 @@ class ArduinoCom  {
             isWriteReceiverRegistered = false;
         }
     }
-
-
 
 }

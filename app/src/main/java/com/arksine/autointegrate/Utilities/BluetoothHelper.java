@@ -1,13 +1,14 @@
-package com.arksine.autointegrate;
+package com.arksine.autointegrate.Utilities;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Process;
 import android.util.Log;
 import android.widget.Toast;
+
+import com.arksine.autointegrate.Interfaces.SerialHelper;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -25,7 +26,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Class BluetoothHelper - Handles basic bluetooth tasks, implements async read/write
  */
-class BluetoothHelper implements SerialHelper {
+public class BluetoothHelper implements SerialHelper {
 
     private static String TAG = "BluetoothHelper";
 
@@ -49,7 +50,7 @@ class BluetoothHelper implements SerialHelper {
 
     // TODO: May want to redo this using BTWiz library
 
-    BluetoothHelper(Context context){
+    public BluetoothHelper(Context context){
         mContext = context;
         deviceConnected = false;
         initBluetooth();

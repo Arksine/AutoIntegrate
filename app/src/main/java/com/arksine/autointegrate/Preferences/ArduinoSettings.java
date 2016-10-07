@@ -1,4 +1,4 @@
-package com.arksine.autointegrate;
+package com.arksine.autointegrate.Preferences;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -12,6 +12,11 @@ import android.preference.PreferenceManager;
 import android.preference.PreferenceScreen;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
+
+import com.arksine.autointegrate.Interfaces.SerialHelper;
+import com.arksine.autointegrate.R;
+import com.arksine.autointegrate.Utilities.BluetoothHelper;
+import com.arksine.autointegrate.Utilities.UsbHelper;
 
 import java.util.ArrayList;
 

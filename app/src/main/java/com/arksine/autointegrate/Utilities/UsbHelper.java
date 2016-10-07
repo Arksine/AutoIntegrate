@@ -1,6 +1,5 @@
-package com.arksine.autointegrate;
+package com.arksine.autointegrate.Utilities;
 
-import android.app.Notification;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -16,6 +15,8 @@ import android.preference.PreferenceManager;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
+import com.arksine.autointegrate.R;
+import com.arksine.autointegrate.Interfaces.SerialHelper;
 import com.felhr.deviceids.CH34xIds;
 import com.felhr.deviceids.CP210xIds;
 import com.felhr.deviceids.FTDISioIds;
@@ -36,7 +37,7 @@ import java.util.HashMap;
 /**
  *  Helper class to enumerate usb devices and establish a connection
  */
-class UsbHelper implements SerialHelper {
+public class UsbHelper implements SerialHelper {
 
     private static final String TAG = "UsbHelper";
 
@@ -88,7 +89,7 @@ class UsbHelper implements SerialHelper {
     };
 
 
-    UsbHelper(Context context) {
+    public UsbHelper(Context context) {
         this.mContext = context;
         mUsbManager = (UsbManager) mContext.getSystemService(Context.USB_SERVICE);
 

@@ -93,12 +93,12 @@
         <item>57600</item>
         <item>115200</item>
     </string-array>
-    
+
     <string name="arduino_pref_edit_buttons">Add/Edit Steering Wheel Buttons</string>
 
     <string name="pref_start_service">Start Service</string>
     <string name="pref_stop_service">Stop Service</string>
-
+    <string name="title_activity_button_learning">ButtonLearningActivity</string>
 
 
 </resources>
