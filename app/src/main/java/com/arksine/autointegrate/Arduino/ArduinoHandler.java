@@ -11,7 +11,6 @@ import android.widget.Toast;
 
 import com.arksine.autointegrate.R;
 
-import java.util.Set;
 
 /**
  * Class to parse incoming packets from the Arduino and process its events
@@ -25,8 +24,8 @@ public class ArduinoHandler extends Handler {
 
     private volatile boolean mLearningMode = false;
 
-    private volatile Set<String> mButtonClickSet;
-    private volatile Set<String> mButtonHoldSet;
+    // TODO: use gson to store and retrieve a list of LearnedButton objects frome shared prefs
+   // private volatile List<ArduinoButton> mButtonList;
 
     private volatile boolean isHolding = false;
 

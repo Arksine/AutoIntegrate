@@ -27,6 +27,8 @@
 
     <!-- End Intents -->
 
+    <string name="gson_button_list_file">come.arksine.autointegrate.GSON_BUTTON_LIST_FILE</string>
+
     <string-array name="drawer_setting_titles">
         <item>Service Status</item>
         <item>Power Settings</item>
@@ -70,7 +72,7 @@
         <item>USB</item>
         <item>BLUETOOTH</item>
     </string-array>
-    <string name="arduino_pref_select_device_type_default">BLUETOOTH</string>
+    <string name="arduino_pref_select_device_type_default">USB</string>
 
     <string name="arduino_pref_select_device">Select Device</string>
     <string-array name="arduino_pref_select_device_entries">
@@ -99,6 +101,23 @@
     <string name="pref_start_service">Start Service</string>
     <string name="pref_stop_service">Stop Service</string>
     <string name="title_activity_button_learning">ButtonLearningActivity</string>
+
+
+    <string name="dialog_button_confirm">Save</string>
+    <string name="dialog_button_cancel">Cancel</string>
+
+    <string-array name="dialog_spinner_margin_of_error">
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+        <item>6</item>
+        <item>7</item>
+        <item>8</item>
+        <item>9</item>
+        <item>10</item>
+    </string-array>
 
 
 </resources>

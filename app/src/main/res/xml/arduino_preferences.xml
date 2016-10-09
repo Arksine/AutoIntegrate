@@ -21,7 +21,7 @@
         android:entries="@array/ardino_pref_select_baud_entries"
         android:key="arduino_pref_key_select_baud"
         android:persistent="true"
-        android:entryValues="@array/ardino_pref_select_baud_entry_values"/>
+        android:entryValues="@array/ardino_pref_select_baud_entries"/>
     <PreferenceScreen
         android:key="arduino_pref_key_edit_buttons"
         android:title="@string/arduino_pref_edit_buttons" >

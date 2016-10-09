@@ -326,9 +326,9 @@ public class UsbHelper implements SerialHelper {
             mSerialPort = UsbSerialDevice.createUsbSerialDevice(mUsbDevice, mUsbConnection);
             if (mSerialPort != null) {
                 if (mSerialPort.open()) {
-                    int baudrate = PreferenceManager.getDefaultSharedPreferences(mContext)
-                            .getInt("arduino_pref_key_select_baud", 9600);
-                    mSerialPort.setBaudRate(baudrate);
+                    String baudrate = PreferenceManager.getDefaultSharedPreferences(mContext)
+                            .getString("arduino_pref_key_select_baud", "9600");
+                    mSerialPort.setBaudRate(Integer.valueOf(baudrate));
                     mSerialPort.setDataBits(UsbSerialInterface.DATA_BITS_8);
                     mSerialPort.setStopBits(UsbSerialInterface.STOP_BITS_1);
                     mSerialPort.setParity(UsbSerialInterface.PARITY_NONE);

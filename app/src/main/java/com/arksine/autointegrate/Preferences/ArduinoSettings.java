@@ -13,6 +13,7 @@ import android.preference.PreferenceScreen;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
+import com.arksine.autointegrate.Activities.ButtonLearningActivity;
 import com.arksine.autointegrate.Interfaces.SerialHelper;
 import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.Utilities.BluetoothHelper;
@@ -133,9 +134,8 @@ public class ArduinoSettings extends PreferenceFragment {
             @Override
             public boolean onPreferenceClick(Preference preference) {
                 Context mContext = getActivity();
-                // TODO: Edit the intent below to launch Add/Edit Buttons activity
-                //Intent startIntent = new Intent(mContext, .class);
-                //mContext.startService(startIntent);
+                Intent startIntent = new Intent(mContext, ButtonLearningActivity.class);
+                mContext.startActivity(startIntent);
                 return true;
             }
         });

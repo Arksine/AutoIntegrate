@@ -124,7 +124,7 @@ public class ServiceThread implements Runnable {
             }
 
 
-            if (allConnected() || (connectionAttempts > 10)) {
+            if (allConnected() || (connectionAttempts > 9)) {
                 // TODO: should I send a toast indicating to the user max number of connection attempts
                 // has been reached?  Should I track connection attempts per connection type?
 
