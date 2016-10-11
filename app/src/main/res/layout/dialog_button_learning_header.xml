@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:id="@+id/dialog_button_learning_header"
+              android:orientation="horizontal"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:background="@color/colorPrimary"
+              android:padding="@dimen/dialog_margin_horizontal">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Add Button"
+        android:textColor="@android:color/white"
+        android:gravity="center"
+        android:background="@color/colorPrimary"
+        android:textSize="@dimen/dialog_header_text_size"/>
+
+</LinearLayout>

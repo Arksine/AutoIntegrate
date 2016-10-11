@@ -11,6 +11,7 @@ import android.widget.Toast;
 import com.arksine.autointegrate.Arduino.ArduinoButton;
 import com.arksine.autointegrate.R;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -75,6 +76,11 @@ public class LearnedButtonAdapter extends RecyclerView.Adapter<LearnedButtonAdap
     public void remove(int position) {
         mButtonList.remove(position);
         notifyItemRemoved(position);
+    }
+
+    public void swap(int firstPosition, int secondPosition){
+        Collections.swap(mButtonList, firstPosition, secondPosition);
+        notifyItemMoved(firstPosition, secondPosition);
     }
 
     public void add(ArduinoButton button) {

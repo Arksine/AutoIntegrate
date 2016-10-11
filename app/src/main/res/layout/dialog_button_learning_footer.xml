@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout style="?android:attr/buttonBarButtonStyle"
+              xmlns:android="http://schemas.android.com/apk/res/android"
+              android:id="@+id/dialog_button_learning_footer"
+              android:orientation="horizontal"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:weightSum="2"
+              android:gravity="end">
+
+    <Button
+        style="?android:attr/buttonBarButtonStyle"
+        android:id="@+id/footer_close_button"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="Cancel"
+        android:textColor="@color/colorPrimary"
+        android:textSize="@dimen/dialog_button_text_size"/>
+
+    <Button
+        style="?android:attr/buttonBarButtonStyle"
+        android:id="@+id/footer_confirm_button"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="Save"
+        android:textColor="@color/colorPrimary"
+        android:textSize="@dimen/dialog_button_text_size"/>
+
+</LinearLayout>

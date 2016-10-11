@@ -9,13 +9,13 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
+import android.support.v7.widget.helper.ItemTouchHelper;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 
 
 import com.arksine.autointegrate.Arduino.ArduinoButton;
-import com.arksine.autointegrate.Fragments.ButtonLearningDialogFragment;
 import com.arksine.autointegrate.R;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -44,9 +44,12 @@ public class ButtonLearningActivity extends AppCompatActivity {
         setSupportActionBar(toolbar);
 
         buttonDialog = DialogPlus.newDialog(this)
-                .setExpanded(true, 300)
                 .setContentHolder(new ViewHolder(R.layout.dialog_button_learning))
+                .setHeader(R.layout.dialog_button_learning_header)
+                .setFooter(R.layout.dialog_button_learning_footer)
+                //.setExpanded(true)
                 .setContentWidth(ViewGroup.LayoutParams.WRAP_CONTENT)
+                .setContentHeight(ViewGroup.LayoutParams.WRAP_CONTENT)
                 .setGravity(Gravity.CENTER)
                 .setCancelable(true)
                 .create();
@@ -89,7 +92,9 @@ public class ButtonLearningActivity extends AppCompatActivity {
         mAdapter = new LearnedButtonAdapter(this, buttonList);
         mButtonsRecyclerView.setAdapter(mAdapter);
 
-        // TODO: add itemtouchhelper
+        ItemTouchHelper.Callback callback = new LearnedButtonTouchHelper(mAdapter);
+        ItemTouchHelper helper = new ItemTouchHelper(callback);
+        helper.attachToRecyclerView(mButtonsRecyclerView);
 
         // TODO: make sure service is started and arduino is connected, send broadcast
         //       to put service into learning mode

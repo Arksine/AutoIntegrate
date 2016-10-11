@@ -219,7 +219,7 @@ public class ArduinoSettings extends PreferenceFragment {
                     if (!(ids[0].equals("1027") && ids[1].equals("37756"))) {
                         String vid = Integer.toHexString(Integer.parseInt(ids[0]));
                         String pid = Integer.toHexString(Integer.parseInt(ids[1]));
-                        entries[i] = ids[0] + "\nVID:0x" + vid + " PID:0x" + pid + "\n" + ids[2];
+                        entries[i] = deviceInfo[0] + "\nVID:0x" + vid + " PID:0x" + pid + "\n" + ids[2];
                         entryValues[i] = deviceInfo[1];
                     } else {
                         Log.d(TAG, "Skipped enumerating MJS cable");
