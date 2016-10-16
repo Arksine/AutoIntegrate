@@ -10,22 +10,22 @@
 
     <Button
         style="?android:attr/buttonBarButtonStyle"
-        android:id="@+id/footer_close_button"
+        android:id="@+id/btn_dialog_cancel"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:text="Cancel"
-        android:textColor="@color/colorPrimary"
+        android:textColor="@color/colorAccent"
         android:textSize="@dimen/dialog_button_text_size"/>
 
     <Button
         style="?android:attr/buttonBarButtonStyle"
-        android:id="@+id/footer_confirm_button"
+        android:id="@+id/btn_dialog_save"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:text="Save"
-        android:textColor="@color/colorPrimary"
+        android:textColor="@color/colorAccent"
         android:textSize="@dimen/dialog_button_text_size"/>
 
 </LinearLayout>

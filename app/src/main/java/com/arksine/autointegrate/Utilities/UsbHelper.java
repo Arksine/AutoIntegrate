@@ -1,4 +1,4 @@
-package com.arksine.autointegrate.Utilities;
+package com.arksine.autointegrate.utilities;
 
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
@@ -16,7 +16,7 @@ import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
 import com.arksine.autointegrate.R;
-import com.arksine.autointegrate.Interfaces.SerialHelper;
+import com.arksine.autointegrate.interfaces.SerialHelper;
 import com.felhr.deviceids.CH34xIds;
 import com.felhr.deviceids.CP210xIds;
 import com.felhr.deviceids.FTDISioIds;
@@ -327,7 +327,7 @@ public class UsbHelper implements SerialHelper {
             if (mSerialPort != null) {
                 if (mSerialPort.open()) {
                     String baudrate = PreferenceManager.getDefaultSharedPreferences(mContext)
-                            .getString("arduino_pref_key_select_baud", "9600");
+                            .getString("controller_pref_key_select_baud", "9600");
                     mSerialPort.setBaudRate(Integer.valueOf(baudrate));
                     mSerialPort.setDataBits(UsbSerialInterface.DATA_BITS_8);
                     mSerialPort.setStopBits(UsbSerialInterface.STOP_BITS_1);
@@ -340,8 +340,8 @@ public class UsbHelper implements SerialHelper {
                     LocalBroadcastManager.getInstance(mContext).registerReceiver(mDisconnectReceiver, filter);
                     mIsDisconnectReceiverRegistered = true;
 
-                    // Some arduinos need time to initialize before you can communicate.  CH34x is
-                    // one such device, others need to be tested.
+                    // Some micro controllers need time to initialize before you can communicate.
+                    // CH34x is one such device, others need to be tested.
                     if (CH34xIds.isDeviceSupported(mUsbDevice.getVendorId(), mUsbDevice.getProductId())) {
                         try {
                             Thread.sleep(2000);

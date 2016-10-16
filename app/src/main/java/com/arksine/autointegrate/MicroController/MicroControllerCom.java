@@ -1,10 +1,11 @@
-package com.arksine.autointegrate.Arduino;
+package com.arksine.autointegrate.microcontroller;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Message;
@@ -12,23 +13,23 @@ import android.os.Process;
 import android.preference.PreferenceManager;
 import android.util.Log;
 
-import com.arksine.autointegrate.Interfaces.SerialHelper;
+import com.arksine.autointegrate.interfaces.SerialHelper;
 import com.arksine.autointegrate.R;
-import com.arksine.autointegrate.Utilities.BluetoothHelper;
-import com.arksine.autointegrate.Utilities.UsbHelper;
+import com.arksine.autointegrate.utilities.BluetoothHelper;
+import com.arksine.autointegrate.utilities.UsbHelper;
 
 // TODO:  Create a base class serialcom that ArudinoCom extends.  Much of the functionality
 //        is the same as will be necessary for RadioCom.  connect() would need to be
 //        overridden, the Handler is different, and t
 /**
- * Class ArduinoCom
+ * Class MicroControllerCom
  *
- * This class handles serial communication with the arduino.  First, it establishes
- * a serial connection and confirms that the Arudino is connected.
+ * This class handles serial communication with the micro controller.  First, it establishes
+ * a serial connection and confirms that the micro controller is connected.
  */
-public class ArduinoCom  {
+public class MicroControllerCom {
 
-    private static final String TAG = "ArduinoCom";
+    private static final String TAG = "MicroControllerCom";
 
     private volatile boolean mConnected = false;
     private Context mContext;
@@ -42,7 +43,7 @@ public class ArduinoCom  {
     private volatile byte[] mReceivedBuffer = new byte[256];
     private volatile int mReceivedBytes = 0;
 
-    private ArduinoHandler mInputHandler;
+    private Handler mInputHandler;
 
     // Broadcast reciever to listen for write commands.
     public class WriteReciever extends BroadcastReceiver {
@@ -62,17 +63,20 @@ public class ArduinoCom  {
     private boolean isWriteReceiverRegistered = false;
 
 
-    public ArduinoCom(Context context) {
+    public MicroControllerCom(Context context, boolean learningMode) {
 
         mContext = context;
 
-        HandlerThread thread = new HandlerThread("ArduinoMessageHandler",
+        HandlerThread thread = new HandlerThread("ControllerMessageHandler",
                 Process.THREAD_PRIORITY_BACKGROUND);
         thread.start();
         Looper mInputLooper = thread.getLooper();
 
-        // TODO: When this
-        mInputHandler = new ArduinoHandler(mInputLooper, mContext);
+        if (learningMode) {
+            mInputHandler = new ControllerLearnHandler(mInputLooper, mContext);
+        } else {
+            mInputHandler = new ControllerExecHandler(mInputLooper, mContext);
+        }
 
         mCallbacks = new SerialHelper.Callbacks() {
             @Override
@@ -130,12 +134,13 @@ public class ArduinoCom  {
                 PreferenceManager.getDefaultSharedPreferences(mContext);
 
         // No device selected, exit
-        final String devId = sharedPrefs.getString("arduino_pref_key_select_device", "NO_DEVICE");
+        final String devId = sharedPrefs.getString("controller_pref_key_select_device", "NO_DEVICE");
         if (devId.equals("NO_DEVICE")){
+            Log.d(TAG, "No device selected");
             return false;
         }
 
-        String deviceType = sharedPrefs.getString("arduino_pref_key_select_device_type", "BLUETOOTH");
+        String deviceType = sharedPrefs.getString("controller_pref_key_select_device_type", "BLUETOOTH");
         if (deviceType.equals("BLUETOOTH")) {
             // user selected bluetooth device
             mSerialHelper = new BluetoothHelper(mContext);
@@ -146,6 +151,7 @@ public class ArduinoCom  {
 
         }
 
+        Log.d(TAG, "Attempting connection to usb device:\n" + devId);
         mSerialHelper.connectDevice(devId, mCallbacks);
 
         // wait until the connection is finished.  The onDeviceReady callback will
@@ -170,7 +176,7 @@ public class ArduinoCom  {
             // Tell the Arudino that it is time to start
             if (!mSerialHelper.writeString("<START>")) {
                 // unable to write start command
-                Log.e(TAG, "Unable to start arduino");
+                Log.e(TAG, "Unable to start Micro Controller");
                 mSerialHelper.disconnect();
                 mConnected = false;
                 mSerialHelper = null;
@@ -178,9 +184,9 @@ public class ArduinoCom  {
                 // Its possible that usb device location changes, so we will put the most recently
                 // connected Id in a preference that the Arudino Settings fragment can check
                 PreferenceManager.getDefaultSharedPreferences(mContext).edit()
-                        .putString("arduino_pref_key_connected_id", mSerialHelper.getConnectedId())
+                        .putString("controller_pref_key_connected_id", mSerialHelper.getConnectedId())
                         .apply();
-                Log.i(TAG, "Sucessfully connected to Arduino");
+                Log.i(TAG, "Sucessfully connected to Micro Controller");
             }
         } else {
             mSerialHelper = null;

@@ -1,4 +1,4 @@
-package com.arksine.autointegrate.Activities;
+package com.arksine.autointegrate.activities;
 
 import android.app.ActivityManager;
 import android.app.FragmentManager;
@@ -25,11 +25,11 @@ import android.widget.ListView;
 import android.widget.Toast;
 
 import com.arksine.autointegrate.MainService;
-import com.arksine.autointegrate.Preferences.ArduinoSettings;
-import com.arksine.autointegrate.Preferences.CameraSettings;
-import com.arksine.autointegrate.Preferences.PowerSettings;
-import com.arksine.autointegrate.Preferences.RadioSettings;
-import com.arksine.autointegrate.Preferences.StatusFragment;
+import com.arksine.autointegrate.preferences.MicroControllerSettings;
+import com.arksine.autointegrate.preferences.CameraSettings;
+import com.arksine.autointegrate.preferences.PowerSettings;
+import com.arksine.autointegrate.preferences.RadioSettings;
+import com.arksine.autointegrate.preferences.StatusFragment;
 import com.arksine.autointegrate.R;
 
 
@@ -103,6 +103,8 @@ public class MainActivity extends AppCompatActivity {
         }
 
     }
+
+
 
     @Override
     protected void onPostCreate(Bundle savedInstanceState) {
@@ -201,7 +203,7 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case 2:     // Arduino Settings
                 if (sharedPrefs.getBoolean("status_pref_key_toggle_arduino", false)) {
-                    fragment = new ArduinoSettings();
+                    fragment = new MicroControllerSettings();
                     title = "Arduino Settings";
                     Log.i(TAG, "Arduino Settings Selected");
                 } else {

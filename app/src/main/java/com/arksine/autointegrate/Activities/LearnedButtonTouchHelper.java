@@ -1,4 +1,4 @@
-package com.arksine.autointegrate.Activities;
+package com.arksine.autointegrate.activities;
 
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.helper.ItemTouchHelper;

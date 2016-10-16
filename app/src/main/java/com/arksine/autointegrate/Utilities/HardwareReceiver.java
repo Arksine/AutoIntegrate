@@ -1,4 +1,4 @@
-package com.arksine.autointegrate.Utilities;
+package com.arksine.autointegrate.utilities;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;

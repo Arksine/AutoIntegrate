@@ -1,4 +1,4 @@
-package com.arksine.autointegrate.Preferences;
+package com.arksine.autointegrate.preferences;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -13,29 +13,28 @@ import android.preference.PreferenceScreen;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
-import com.arksine.autointegrate.Activities.ButtonLearningActivity;
-import com.arksine.autointegrate.Interfaces.SerialHelper;
+import com.arksine.autointegrate.activities.ButtonLearningActivity;
+import com.arksine.autointegrate.interfaces.SerialHelper;
 import com.arksine.autointegrate.R;
-import com.arksine.autointegrate.Utilities.BluetoothHelper;
-import com.arksine.autointegrate.Utilities.UsbHelper;
+import com.arksine.autointegrate.utilities.BluetoothHelper;
+import com.arksine.autointegrate.utilities.UsbHelper;
 
 import java.util.ArrayList;
 
 /**
- * Preference Fragment containing Settings for Arduino Serial Connection
+ * Preference Fragment containing Settings for Microcontroller Serial Connection
  */
 
-public class ArduinoSettings extends PreferenceFragment {
+public class MicroControllerSettings extends PreferenceFragment {
 
-    private static String TAG = "ArduinoSettings";
+    private static String TAG = "MicroControllerSettings";
 
-    // TODO: Use localbroadcast to restart service in button learning mode
-    // TODO: Add button learning activity
     // TODO: Add dimmer learning activity
     // TODO: add preferences to set dimmer and reverse(camera)
 
     SerialHelper mSerialHelper;
     private String mDeviceType;
+    private boolean mSettingChanged;
 
 
     private final BroadcastReceiver deviceListReciever = new BroadcastReceiver() {
@@ -52,14 +51,16 @@ public class ArduinoSettings extends PreferenceFragment {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Load the arduino_preferences from an XML resource
-        addPreferencesFromResource(R.xml.arduino_preferences);
+        // Load the microcontroller_preferences from an XML resource
+        addPreferencesFromResource(R.xml.microcontroller_preferences);
+
+        mSettingChanged = false;
 
         PreferenceScreen root = this.getPreferenceScreen();
-        PreferenceScreen editButtons = (PreferenceScreen) root.findPreference("arduino_pref_key_edit_buttons");
-        ListPreference selectDeviceType = (ListPreference) root.findPreference("arduino_pref_key_select_device_type");
-        ListPreference selectDevice = (ListPreference) root.findPreference("arduino_pref_key_select_device");
-        ListPreference selectBaudPref = (ListPreference) root.findPreference("arduino_pref_key_select_baud");
+        PreferenceScreen editButtons = (PreferenceScreen) root.findPreference("controller_pref_key_edit_buttons");
+        ListPreference selectDeviceType = (ListPreference) root.findPreference("controller_pref_key_select_device_type");
+        ListPreference selectDevice = (ListPreference) root.findPreference("controller_pref_key_select_device");
+        ListPreference selectBaudPref = (ListPreference) root.findPreference("controller_pref_key_select_baud");
 
         mDeviceType = selectDeviceType.getValue();
         toggleBaudSelection();
@@ -72,22 +73,25 @@ public class ArduinoSettings extends PreferenceFragment {
         // but with a different location (USB only) TODO: this needs testing!
         if(mDeviceType.equals("USB")) {
             String connectedVal = PreferenceManager.getDefaultSharedPreferences(getActivity())
-                    .getString("arduino_pref_key_connected_id", "");
+                    .getString("controller_pref_key_connected_id", "");
             String currentVal = selectDevice.getValue();
 
             // Check to see if a valid change has been made
-            if (!connectedVal.equals(currentVal)
-                    && !connectedVal.equals("") &&  !currentVal.equals("NO_DEVICE")) {
+            if (!connectedVal.equals(currentVal) && !connectedVal.equals("")) {
                 String[] connectedIds = connectedVal.split(":");
                 CharSequence[] entryVals = selectDevice.getEntryValues();
-                for(CharSequence cs : entryVals) {
-                    String[] entryIds = cs.toString().split(":");
-                    if (connectedIds[0].equals(entryIds[0]) && connectedIds[1].equals(entryIds[1])){
-                        // this is the connected device
-                        selectDevice.setValue(cs.toString());
-                        selectDevice.setSummary(cs);
-                        Log.d(TAG, "Select device preference reset");
-                        break;
+
+                // make sure that the list contains devices
+                if (!entryVals[0].equals("NO_DEVICE")) {
+                    for (CharSequence cs : entryVals) {
+                        String[] entryIds = cs.toString().split(":");
+                        if (connectedIds[0].equals(entryIds[0]) && connectedIds[1].equals(entryIds[1])) {
+                            // this is the connected device
+                            selectDevice.setValue(cs.toString());
+                            selectDevice.setSummary(cs);
+                            Log.d(TAG, "Select device preference reset");
+                            break;
+                        }
                     }
                 }
             }
@@ -105,7 +109,7 @@ public class ArduinoSettings extends PreferenceFragment {
                 mDeviceType = (String)newValue;
                 toggleBaudSelection();
                 populateDeviceListView();
-
+                mSettingChanged = true;
                 return true;
             }
         });
@@ -117,6 +121,7 @@ public class ArduinoSettings extends PreferenceFragment {
                 CharSequence[] entries = list.getEntries();
                 int index = list.findIndexOfValue((String)newValue);
                 preference.setSummary(entries[index]);
+                mSettingChanged = true;
                 return true;
             }
         });
@@ -124,7 +129,8 @@ public class ArduinoSettings extends PreferenceFragment {
         selectBaudPref.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
             @Override
             public boolean onPreferenceChange(Preference preference, Object newValue) {
-                preference.setSummary(Integer.toString((Integer)newValue));
+                preference.setSummary((String)newValue);
+                mSettingChanged = true;
                 return true;
             }
         });
@@ -136,6 +142,10 @@ public class ArduinoSettings extends PreferenceFragment {
                 Context mContext = getActivity();
                 Intent startIntent = new Intent(mContext, ButtonLearningActivity.class);
                 mContext.startActivity(startIntent);
+
+                // Since the learning activity will reconnect the MicroController with new
+                // settings, so there is no need to reconnect again unless settings are changed
+                mSettingChanged = false;
                 return true;
             }
         });
@@ -149,15 +159,27 @@ public class ArduinoSettings extends PreferenceFragment {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        LocalBroadcastManager localBM = LocalBroadcastManager.getInstance(getActivity());
-        Intent refreshArduinoIntent = new Intent(getString(R.string.ACTION_REFRESH_ARDUINO_CONNECTION));
-        localBM.sendBroadcast(refreshArduinoIntent);
-        localBM.unregisterReceiver(deviceListReciever);
+
+        // Refresh the Microcontroller connection with new settings if settings have changed
+        if (mSettingChanged) {
+            refreshConnection();
+        }
+
+        LocalBroadcastManager.getInstance(getActivity()).unregisterReceiver(deviceListReciever);
     }
+
+    private void refreshConnection() {
+        LocalBroadcastManager localBM = LocalBroadcastManager.getInstance(getActivity());
+        Intent refreshControllerIntent =
+                new Intent(getString(R.string.ACTION_REFRESH_CONTROLLER_CONNECTION));
+        refreshControllerIntent.putExtra("LearningMode", false);
+        localBM.sendBroadcast(refreshControllerIntent);
+    }
+
 
     private void toggleBaudSelection() {
         PreferenceScreen root = this.getPreferenceScreen();
-        ListPreference selectBaudPref = (ListPreference) root.findPreference("arduino_pref_key_select_baud");
+        ListPreference selectBaudPref = (ListPreference) root.findPreference("controller_pref_key_select_baud");
 
         // Bluetooth detects the attached device baud automatically, we need to set the baud for usb
         if (mDeviceType.equals("USB")) {
@@ -172,7 +194,7 @@ public class ArduinoSettings extends PreferenceFragment {
 
         PreferenceScreen root = this.getPreferenceScreen();
         ListPreference selectDevicePref =
-                (ListPreference) root.findPreference("arduino_pref_key_select_device");
+                (ListPreference) root.findPreference("controller_pref_key_select_device");
 
         if (mDeviceType.equals("BLUETOOTH")) {
             // user selected bluetooth device
@@ -184,13 +206,21 @@ public class ArduinoSettings extends PreferenceFragment {
 
         }
 
-        ArrayList<String> mAdapterList = mSerialHelper.enumerateDevices();
+        ArrayList<String> devList = mSerialHelper.enumerateDevices();
+
+        // TODO: We need to check for the MJS cable here, and any other devices we want excluded.
+        //       That way we can remove them from the device list
+        // Make sure that we don't enumerate the MJS HD Radio Cable,
+        // VID 0x0403 (1027), PID 0x937C (37756)
+        //if ((ids[0].equals("1027") && ids[1].equals("37756"))) {
+        //  Log.d(TAG, "Skipped enumerating MJS cable");
+        //}
 
         CharSequence[] entries;
         CharSequence[] entryValues;
 
-        if (mAdapterList == null || mAdapterList.isEmpty()) {
-            Log.i(TAG, "No compatible bluetooth devices found on system");
+        if (devList == null || devList.isEmpty()) {
+            Log.i(TAG, "No compatible devices found on system");
             entries = new CharSequence[1];
             entryValues = new CharSequence[1];
 
@@ -201,29 +231,23 @@ public class ArduinoSettings extends PreferenceFragment {
         }
         else {
 
-            entries = new CharSequence[mAdapterList.size()];
-            entryValues = new CharSequence[mAdapterList.size()];
+            entries = new CharSequence[devList.size()];
+            entryValues = new CharSequence[devList.size()];
 
-            for (int i = 0; i < mAdapterList.size(); i++) {
+            for (int i = 0; i < devList.size(); i++) {
 
-                String[] deviceInfo = mAdapterList.get(i).split("\n");
+                String[] deviceInfo = devList.get(i).split("\n");
 
                 if (mDeviceType.equals("BLUETOOTH")) {
-                    entries[i] = mAdapterList.get(i);
+                    entries[i] = devList.get(i);
                     entryValues[i] = deviceInfo[1];
                 } else {
                     String[] ids = deviceInfo[1].split(":");
-
-                    // Make sure that we don't enumerate the MJS HD Radio Cable,
-                    // VID 0x0403 (1027), PID 0x937C (37756)
-                    if (!(ids[0].equals("1027") && ids[1].equals("37756"))) {
-                        String vid = Integer.toHexString(Integer.parseInt(ids[0]));
-                        String pid = Integer.toHexString(Integer.parseInt(ids[1]));
-                        entries[i] = deviceInfo[0] + "\nVID:0x" + vid + " PID:0x" + pid + "\n" + ids[2];
-                        entryValues[i] = deviceInfo[1];
-                    } else {
-                        Log.d(TAG, "Skipped enumerating MJS cable");
-                    }
+                    // TODO: need to add leading zeroes to vid and pid
+                    String vid = Integer.toHexString(Integer.parseInt(ids[0]));
+                    String pid = Integer.toHexString(Integer.parseInt(ids[1]));
+                    entries[i] = deviceInfo[0] + "\nVID:0x" + vid + " PID:0x" + pid + "\n" + ids[2];
+                    entryValues[i] = deviceInfo[1];
                 }
             }
         }

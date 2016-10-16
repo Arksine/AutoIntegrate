@@ -13,7 +13,7 @@ import android.graphics.drawable.Icon;
 import android.os.Build;
 import android.os.IBinder;
 
-import com.arksine.autointegrate.Activities.MainActivity;
+import com.arksine.autointegrate.activities.MainActivity;
 
 
 public class MainService extends Service {

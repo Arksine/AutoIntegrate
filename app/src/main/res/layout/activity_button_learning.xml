@@ -6,7 +6,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fitsSystemWindows="true"
-    tools:context="com.arksine.autointegrate.Activities.ButtonLearningActivity">
+    tools:context="com.arksine.autointegrate.activities.ButtonLearningActivity">
 
     <android.support.design.widget.AppBarLayout
         android:layout_width="match_parent"
@@ -29,7 +29,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="@dimen/fab_margin"
-        app:srcCompat="@android:drawable/ic_input_add"/>
+        app:srcCompat="@drawable/ic_add_item"/>
 
     <include layout="@layout/content_button_learning"/>
 

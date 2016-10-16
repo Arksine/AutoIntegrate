@@ -9,8 +9,8 @@ import android.preference.PreferenceManager;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
-import com.arksine.autointegrate.Arduino.ArduinoCom;
-import com.arksine.autointegrate.Utilities.BackgroundThreadFactory;
+import com.arksine.autointegrate.microcontroller.MicroControllerCom;
+import com.arksine.autointegrate.utilities.BackgroundThreadFactory;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -18,7 +18,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Created by Eric on 10/2/2016.
+ * Main Background Thread for service
  */
 
 public class ServiceThread implements Runnable {
@@ -31,7 +31,8 @@ public class ServiceThread implements Runnable {
     //       Future declarations using the template types Future<Type>
     private Future mMainThreadFuture = null;
 
-    private ArduinoCom mArduino = null;
+    private volatile MicroControllerCom mMicroController = null;
+    private volatile boolean mLearningMode = false;
 
     private volatile boolean serviceSuspended = false;
     private volatile boolean serviceThreadRunning = false;
@@ -72,9 +73,10 @@ public class ServiceThread implements Runnable {
                 Intent statusChangedIntent = new Intent(mContext.getString(R.string.ACTION_SERVICE_STATUS_CHANGED));
                 mLocalBM.sendBroadcast(statusChangedIntent);
 
-            } else if (mContext.getString(R.string.ACTION_REFRESH_ARDUINO_CONNECTION).equals(action)) {
-                Log.i(TAG, "Refresh Arduino Thread");
-                EXECUTOR.execute(stopArduinoConnection);
+            } else if (mContext.getString(R.string.ACTION_REFRESH_CONTROLLER_CONNECTION).equals(action)) {
+                Log.i(TAG, "Refresh MicroController Connection");
+                mLearningMode = intent.getBooleanExtra("LearningMode", false);
+                EXECUTOR.execute(stopMicroControllerConnection);
 
             } else if (mContext.getString(R.string.ACTION_REFRESH_RADIO_CONNECTION).equals(action)) {
                 Log.i(TAG, "Refresh Radio Thread");
@@ -92,7 +94,7 @@ public class ServiceThread implements Runnable {
         // Register the receiver for local broadcasts, dont want other apps screwing with this
         ServiceThreadReceiver wakeRecvr = new ServiceThreadReceiver();
         IntentFilter filter = new IntentFilter(mContext.getString(R.string.ACTION_WAKE_SERVICE_THREAD));
-        filter.addAction(mContext.getString(R.string.ACTION_REFRESH_ARDUINO_CONNECTION));
+        filter.addAction(mContext.getString(R.string.ACTION_REFRESH_CONTROLLER_CONNECTION));
         filter.addAction(mContext.getString(R.string.ACTION_REFRESH_RADIO_CONNECTION));
         filter.addAction(mContext.getString(R.string.ACTION_SUSPEND_SERVICE_THREAD));
 
@@ -103,24 +105,24 @@ public class ServiceThread implements Runnable {
             // TODO: Add thread for Radio.  Camera nor power management should need a thread
             //       We do need to check to see if Power Mangement is enabled.  If so, we will
             //       Instantiate it so we can listen for Power Management events.  When device
-            //       is put into sleep mode we should kill mArduino and radio threads, and
+            //       is put into sleep mode we should kill mMicroController and radio threads, and
             //       pause this thread using wait() until a broadcast is recieved to wake up
 
 
-            // Check to see if Arduino Integration is enabled
-            if (sharedPrefs.getBoolean("status_pref_key_toggle_arduino", false)) {
+            // Check to see if MicroController Integration is enabled
+            if (sharedPrefs.getBoolean("status_pref_key_toggle_controller", false)) {
 
-                // If the arduino connection hasn't been established, do so.
-                if (mArduino == null || !mArduino.isConnected()) {
-                    mArduino = new ArduinoCom(mContext);
-                    if (mArduino.connect()) {
-                        Log.i(TAG, "Arduino Thread Started");
+                // If the MicroController connection hasn't been established, do so.
+                if (mMicroController == null || !mMicroController.isConnected()) {
+                    mMicroController = new MicroControllerCom(mContext, mLearningMode);
+                    if (mMicroController.connect()) {
+                        Log.i(TAG, "Micro Controller connection established");
                     } else {
-                        Log.e(TAG, "Error connecting to Arduino: Connection Attempt " + connectionAttempts);
+                        Log.e(TAG, "Error connecting to Micro Controller: Connection Attempt " + connectionAttempts);
                     }
                 }
             } else {
-                Log.i(TAG, "Arduino Integration Disabled");
+                Log.i(TAG, "Micro Controller Integration Disabled");
             }
 
 
@@ -158,7 +160,7 @@ public class ServiceThread implements Runnable {
         }
 
         // Clean up all spawned threads.
-        stopArduinoConnection.run();
+        stopMicroControllerConnection.run();
 
 
         serviceThreadRunning = false;
@@ -172,8 +174,8 @@ public class ServiceThread implements Runnable {
         //       are enabled in settings
         boolean connected = true;
         SharedPreferences globalPrefs = PreferenceManager.getDefaultSharedPreferences(mContext);
-        if (globalPrefs.getBoolean("status_pref_key_toggle_arduino", false)) {
-            connected = (connected && (mArduino != null && mArduino.isConnected()));
+        if (globalPrefs.getBoolean("status_pref_key_toggle_controller", false)) {
+            connected = (connected && (mMicroController != null && mMicroController.isConnected()));
         }
 
         return connected;
@@ -264,7 +266,7 @@ public class ServiceThread implements Runnable {
 
                 // if the thread is still alive, kill it
                 if (!mMainThreadFuture.isDone()) {
-                    Log.i(TAG, "Arduino Thread did not properly shut down.");
+                    Log.i(TAG, "Main Thread did not properly shut down.");
                     mMainThreadFuture.cancel(true);
                 }
 
@@ -275,18 +277,18 @@ public class ServiceThread implements Runnable {
         }
     };
 
-    private Runnable stopArduinoConnection = new Runnable() {
+    private Runnable stopMicroControllerConnection = new Runnable() {
         @Override
         public void run() {
-            // Disconnect from Arduino if connected
-            if (mArduino != null ) {
-                mArduino.disconnect();
-
-                // make sure the service thread isn't waiting
-                notifyServiceThread();
-
-                Log.i(TAG, "Arduino Thread Disconnected");
+            // Disconnect from Micro Controller if connected
+            if (mMicroController != null ) {
+                mMicroController.disconnect();
+                mMicroController = null;
             }
+            // make sure the service thread isn't waiting
+            notifyServiceThread();
+
+            Log.i(TAG, "Micro Controller Disconnected");
         }
     };
 

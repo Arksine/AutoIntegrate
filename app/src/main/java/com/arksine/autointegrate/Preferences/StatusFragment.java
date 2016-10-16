@@ -1,4 +1,4 @@
-package com.arksine.autointegrate.Preferences;
+package com.arksine.autointegrate.preferences;
 
 import android.app.ActivityManager;
 import android.content.BroadcastReceiver;
@@ -43,7 +43,7 @@ public class StatusFragment extends PreferenceFragment {
         PreferenceScreen root = this.getPreferenceScreen();
         SwitchPreference toggleService = (SwitchPreference) root.findPreference("status_pref_key_toggle_service");
         //SwitchPreference togglePower = (SwitchPreference) root.findPreference("status_pref_key_toggle_power");
-        SwitchPreference toggleArduino = (SwitchPreference) root.findPreference("status_pref_key_toggle_arduino");
+        SwitchPreference toggleMC = (SwitchPreference) root.findPreference("status_pref_key_toggle_controller");
         //SwitchPreference toggleCamera = (SwitchPreference) root.findPreference("status_pref_key_toggle_camera");
         //SwitchPreference toggleRadio = (SwitchPreference) root.findPreference("status_pref_key_toggle_radio");
         // Check to see if the service is on and set the toggleService preferences value accordingly
@@ -72,11 +72,12 @@ public class StatusFragment extends PreferenceFragment {
             }
         });
 
-        toggleArduino.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
+        toggleMC.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
             @Override
             public boolean onPreferenceChange(Preference preference, Object newValue) {
-                // Refresh the arduino thread
-                Intent refreshIntent = new Intent(getString(R.string.ACTION_REFRESH_ARDUINO_CONNECTION));
+                // Refresh the Micro Controller connection
+                Intent refreshIntent = new Intent(getString(R.string.ACTION_REFRESH_CONTROLLER_CONNECTION));
+                refreshIntent.putExtra("LearningMode", false);
                 LocalBroadcastManager.getInstance(getActivity()).sendBroadcast(refreshIntent);
                 return true;
             }

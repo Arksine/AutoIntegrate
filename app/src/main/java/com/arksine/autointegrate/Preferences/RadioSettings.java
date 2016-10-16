@@ -1,4 +1,4 @@
-package com.arksine.autointegrate.Preferences;
+package com.arksine.autointegrate.preferences;
 
 import android.os.Bundle;
 import android.preference.PreferenceFragment;

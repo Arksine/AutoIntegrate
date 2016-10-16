@@ -1,4 +1,4 @@
-package com.arksine.autointegrate.Interfaces;
+package com.arksine.autointegrate.interfaces;
 
 import java.util.ArrayList;
 

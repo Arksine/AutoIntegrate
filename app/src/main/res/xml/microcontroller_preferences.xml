@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:tools="http://schemas.android.com/tools"
+                  xmlns:android="http://schemas.android.com/apk/res/android">
+    <ListPreference
+        android:key="controller_pref_key_select_device_type"
+        android:title="@string/controller_pref_select_device_type"
+        android:dialogTitle="@string/controller_pref_select_device_type"
+        android:entries="@array/controller_pref_select_device_type_entries"
+        android:entryValues="@array/controller_pref_select_device_type_values"
+        android:persistent="true"
+        android:defaultValue="@string/controller_pref_select_device_type_default" />
+    <ListPreference
+        android:key="controller_pref_key_select_device"
+        android:title="@string/controller_pref_select_device"
+        android:dialogTitle="@string/controller_pref_select_device"
+        android:persistent="true"
+        android:defaultValue="@string/controller_pref_select_device_default" />
+    <ListPreference
+        android:defaultValue="9600"
+        android:title="@string/controller_pref_select_baud"
+        android:entries="@array/controller_pref_select_baud_entries"
+        android:key="controller_pref_key_select_baud"
+        android:persistent="true"
+        android:entryValues="@array/controller_pref_select_baud_entries"/>
+    <PreferenceScreen
+        android:key="controller_pref_key_edit_buttons"
+        android:title="@string/controller_pref_edit_buttons" >
+    </PreferenceScreen>
+
+</PreferenceScreen>

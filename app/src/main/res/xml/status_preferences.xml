@@ -16,11 +16,11 @@
         android:summaryOff="@string/status_pref_toggle_power_summ_off"/>
     <SwitchPreference
         android:defaultValue="true"
-        android:title="@string/status_pref_toggle_arduino"
-        android:key="status_pref_key_toggle_arduino"
+        android:title="@string/status_pref_toggle_controller"
+        android:key="status_pref_key_toggle_controller"
         android:persistent="true"
-        android:summaryOn="@string/status_pref_toggle_arduino_summ_on"
-        android:summaryOff="@string/status_pref_toggle_arduino_summ_off"/>
+        android:summaryOn="@string/status_pref_toggle_controller_summ_on"
+        android:summaryOff="@string/status_pref_toggle_controller_summ_off"/>
     <SwitchPreference
         android:defaultValue="false"
         android:title="@string/status_pref_toggle_camera"

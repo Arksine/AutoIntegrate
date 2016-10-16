@@ -1,19 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:app="http://schemas.android.com/apk/res-auto"
               android:id="@+id/dialog_button_learning_header"
               android:orientation="horizontal"
               android:layout_width="match_parent"
               android:layout_height="wrap_content"
-              android:background="@color/colorPrimary"
-              android:padding="@dimen/dialog_margin_horizontal">
+              android:background="@color/colorPrimaryDark"
+              android:paddingTop="@dimen/dialog_margin_vertical"
+              android:paddingBottom="@dimen/dialog_margin_vertical"
+              android:paddingStart="@dimen/dialog_margin_horizontal"
+              android:paddingEnd="@dimen/dialog_margin_horizontal">
 
     <TextView
+        android:text="@string/dialog_title_add"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:textColor="@android:color/white"
+        android:background="@color/colorPrimaryDark"
+        android:textSize="@dimen/dialog_header_text_size"
+        android:id="@+id/txt_dialog_title"/>
+
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Add Button"
-        android:textColor="@android:color/white"
-        android:gravity="center"
-        android:background="@color/colorPrimary"
-        android:textSize="@dimen/dialog_header_text_size"/>
+        android:gravity="end">
+
+        <ImageButton
+            style="@android:style/Widget.DeviceDefault.Light.ImageButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            app:srcCompat="@android:drawable/ic_menu_help"
+            android:background="@android:color/transparent"
+            android:contentDescription="@string/dialog_button_help"
+            android:id="@+id/btn_help"/>
+    </LinearLayout>
 
 </LinearLayout>

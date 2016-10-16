@@ -1,8 +1,10 @@
 package com.arksine.autointegrate;
 
 import android.content.Context;
+import android.content.Intent;
 import android.support.test.InstrumentationRegistry;
 import android.support.test.runner.AndroidJUnit4;
+import android.support.v4.content.LocalBroadcastManager;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -23,4 +25,6 @@ public class ExampleInstrumentedTest {
 
         assertEquals("com.arksine.autointegrate", appContext.getPackageName());
     }
+
+
 }

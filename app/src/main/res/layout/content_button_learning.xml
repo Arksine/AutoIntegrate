@@ -11,7 +11,7 @@
     android:paddingRight="0dp"
     android:paddingTop="0dp"
     app:layout_behavior="@string/appbar_scrolling_view_behavior"
-    tools:context="com.arksine.autointegrate.Activities.ButtonLearningActivity"
+    tools:context="com.arksine.autointegrate.activities.ButtonLearningActivity"
     tools:showIn="@layout/activity_button_learning">
 
     <android.support.v7.widget.RecyclerView

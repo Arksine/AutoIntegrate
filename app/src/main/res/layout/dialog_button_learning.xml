@@ -1,8 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
               android:orientation="vertical"
+              android:layout_marginStart="@dimen/dialog_margin_horizontal"
+              android:layout_marginEnd="@dimen/dialog_margin_horizontal"
+              android:layout_marginTop="@dimen/dialog_margin_vertical"
+              android:minWidth="@dimen/dialog_min_width"
               android:layout_width="match_parent"
               android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/dialog_margin_vertical"
+        android:layout_marginBottom="@dimen/dialog_margin_vertical">
+
+        <TextView
+            android:text="@string/dialog_controller_reading_default"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAppearance="?android:attr/textAppearanceLarge"
+            android:layout_gravity="center_vertical"
+            android:gravity="center"
+            android:id="@+id/txt_controller_reading"/>
+
+    </LinearLayout>
+
 
     <LinearLayout
         android:orientation="horizontal"
@@ -10,14 +33,37 @@
         android:layout_height="wrap_content">
 
         <TextView
-            android:text="{00000}"
-            android:layout_width="match_parent"
+            android:text="@string/dialog_debounce"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textAppearance="?android:attr/textAppearanceLarge"
-            android:layout_margin="4dp"
             android:layout_gravity="center_vertical"
-            android:gravity="center"
-            android:id="@+id/txt_arduino_reading"/>
+            android:textAppearance="?android:attr/textAppearanceMedium"
+            android:layout_marginEnd="25dp"/>
+
+        <TextView
+            android:text="@string/dialog_plus_minus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:textAppearance="?android:attr/textAppearanceMedium"/>
+
+        <Spinner
+            style="@style/Widget.AppCompat.Spinner.Underlined"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:dropDownWidth="100dp"
+            android:id="@+id/spn_debounce"
+            android:entries="@array/dialog_spinner_debounce"
+            />
+
+        <CheckBox
+            android:text="@string/dialog_multiplier"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:id="@+id/chk_debounce_multiplier"/>
+
     </LinearLayout>
 
     <LinearLayout
@@ -26,31 +72,80 @@
         android:layout_height="wrap_content">
 
         <TextView
-            android:text="Margin of Error: "
+            android:text="@string/dialog_click_action"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
             android:textAppearance="?android:attr/textAppearanceMedium"
-            android:layout_margin="4dp"/>
+            android:layout_marginEnd="@dimen/dialog_control_space"/>
+
+        <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:weightSum="2">
+
+            <Spinner
+                style="@style/Widget.AppCompat.Spinner.Underlined"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:layout_weight="2"
+                android:id="@+id/spn_click_action_type"
+                android:entries="@array/dialog_action_type"/>
+
+            <Spinner
+                style="@style/Widget.AppCompat.Spinner.Underlined"
+                android:visibility="gone"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:layout_weight="0"
+                android:id="@+id/spn_click_action"
+                android:entries="@array/dialog_spinner_empty"/>
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
 
         <TextView
-            android:text="+/-"
+            android:text="@string/dialog_hold_action"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
             android:textAppearance="?android:attr/textAppearanceMedium"
-            android:layout_margin="4dp"/>
+            android:layout_marginEnd="@dimen/dialog_control_space"/>
 
-        <Spinner
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:id="@+id/spn_margin_of_error"
-            android:entries="@array/dialog_spinner_margin_of_error"/>
+            android:weightSum="2">
 
-        <CheckBox
-            android:text="x10"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginEnd="4dp"
-            android:id="@+id/chb_margin_of_error"/>
+            <Spinner
+                style="@style/Widget.AppCompat.Spinner.Underlined"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:id="@+id/spn_hold_action_type"
+                android:layout_weight="2"
+                android:entries="@array/dialog_action_type"/>
+
+            <Spinner
+                style="@style/Widget.AppCompat.Spinner.Underlined"
+                android:visibility="gone"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:layout_weight="0"
+                android:id="@+id/spn_hold_action"
+                android:entries="@array/dialog_spinner_empty"/>
+        </LinearLayout>
+
     </LinearLayout>
 
 

@@ -1,4 +1,4 @@
-package com.arksine.autointegrate.Utilities;
+package com.arksine.autointegrate.utilities;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -8,7 +8,7 @@ import android.content.Intent;
 import android.util.Log;
 import android.widget.Toast;
 
-import com.arksine.autointegrate.Interfaces.SerialHelper;
+import com.arksine.autointegrate.interfaces.SerialHelper;
 
 import java.io.IOException;
 import java.io.InputStream;

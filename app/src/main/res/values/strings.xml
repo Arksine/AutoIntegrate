@@ -7,15 +7,14 @@
     <string name="ACTION_STOP_SERVICE">com.arksine.autointegrate.ACTION_STOP_SERVICE</string>
     <string name="ACTION_WAKE_SERVICE_THREAD">com.arksine.autointegrate.ACTION_WAKE_SERVICE_THREAD</string>
     <string name="ACTION_REFRESH_SERVICE_THREAD">com.arksine.autointegrate.ACTION_REFRESH_SERVICE_THREAD</string>
-    <string name="ACTION_REFRESH_ARDUINO_CONNECTION">com.arksine.autointegrate.ACTION_REFRESH_ARDUINO_CONNECTION</string>
+    <string name="ACTION_REFRESH_CONTROLLER_CONNECTION">com.arksine.autointegrate.ACTION_REFRESH_CONTROLLER_CONNECTION</string>
     <string name="ACTION_REFRESH_RADIO_CONNECTION">com.arksine.autointegrate.ACTION_REFRESH_RADIO_CONNECTION</string>
     <string name="ACTION_SUSPEND_SERVICE_THREAD">com.arksine.autointegrate.ACTION_SUSPEND_SERVICE_THREAD</string>
     <string name="ACTION_STATUS_TOGGLE_CHANGED">com.arksine.autointegrate.ACTION_STATUS_TOGGLE_CHANGED</string>
     <string name="ACTION_SERVICE_STATUS_CHANGED">com.arksine.autointegrate.ACTION_SERVER_STATUS_CHANGED</string>
     <string name="ACTION_DEVICE_CHANGED">com.arksine.autointegrate.ACTION_DEVICE_CHANGED</string>
     <string name="ACTION_DEVICE_DISCONNECTED">com.arksine.autointegrate.ACTION_DEVICE_DISCONNECTED</string>
-    <string name="ACTION_TOGGLE_LEARN_MODE">com.arksine.autointegrate.ACTION_TOGGLE_LEARN_MODE</string>
-    <string name="ACTION_ARDUINO_DATA_RECD">com.arksine.autointegrate.ACTION_ARDUINO_DATA_RECD</string>
+    <string name="ACTION_CONTROLLER_LEARN_DATA">com.arksine.autointegrate.ACTION_CONTROLLER_LEARN_DATA</string>
 
     <string name="ACTION_SEND_DATA">com.arksine.autointegrate.ACTION_SEND_DATA</string>
     <string name="EXTRA_COMMAND">com.arksine.autointegrate.EXTRA_COMMAND</string>
@@ -32,7 +31,7 @@
     <string-array name="drawer_setting_titles">
         <item>Service Status</item>
         <item>Power Settings</item>
-        <item>Arduino Settings</item>
+        <item>Controller Settings</item>
         <item>Camera Settings</item>
         <item>HD Radio Settings</item>
     </string-array>
@@ -50,9 +49,9 @@
     <string name="status_pref_toggle_power_summ_on">Power Management Integration ENABLED</string>
     <string name="status_pref_toggle_power_summ_off">Power Management Integration DISABLED</string>
 
-    <string name="status_pref_toggle_arduino">Arduino Integration</string>
-    <string name="status_pref_toggle_arduino_summ_on">Arduino Integration ENABLED</string>
-    <string name="status_pref_toggle_arduino_summ_off">Arduino Integration DISABLED</string>
+    <string name="status_pref_toggle_controller">Micro Controller Integration</string>
+    <string name="status_pref_toggle_controller_summ_on">Micro Controller Integration ENABLED</string>
+    <string name="status_pref_toggle_controller_summ_off">Micro Controller Integration DISABLED</string>
 
     <string name="status_pref_toggle_camera">Camera Integration</string>
     <string name="status_pref_toggle_camera_summ_on">Camera Integration ENABLED</string>
@@ -62,30 +61,30 @@
     <string name="status_pref_toggle_radio_summ_on">HD Radio Integration ENABLED</string>
     <string name="status_pref_toggle_radio_summ_off">HD Radio Integration DISABLED</string>
 
-    <!-- Strings related to Arduino Settings -->
-    <string name="arduino_pref_select_device_type">Select Device Type</string>
-    <string-array name="arduino_pref_select_device_type_entries">
+    <!-- Strings related to Micro Controller Settings -->
+    <string name="controller_pref_select_device_type">Select Device Type</string>
+    <string-array name="controller_pref_select_device_type_entries">
         <item>Usb</item>
         <item>Bluetooth</item>
     </string-array>
-    <string-array name="arduino_pref_select_device_type_values">
+    <string-array name="controller_pref_select_device_type_values">
         <item>USB</item>
         <item>BLUETOOTH</item>
     </string-array>
-    <string name="arduino_pref_select_device_type_default">USB</string>
+    <string name="controller_pref_select_device_type_default">USB</string>
 
-    <string name="arduino_pref_select_device">Select Device</string>
-    <string-array name="arduino_pref_select_device_entries">
+    <string name="controller_pref_select_device">Select Device</string>
+    <string-array name="controller_pref_select_device_entries">
         <item>No Device Selected</item>
     </string-array>
-    <string-array name="pref_select_device_values">
+    <string-array name="controller_pref_select_device_values">
         <item>NO_DEVICE</item>
     </string-array>
-    <string name="arduino_pref_select_device_summary">No Device Selected</string>
-    <string name="arduino_pref_select_device_default">NO_DEVICE</string>
+    <string name="controller_pref_select_device_summary">No Device Selected</string>
+    <string name="controller_pref_select_device_default">NO_DEVICE</string>
 
-    <string name="arduino_pref_select_baud">Select Baud Rate</string>
-    <string-array name="ardino_pref_select_baud_entries">
+    <string name="controller_pref_select_baud">Select Baud Rate</string>
+    <string-array name="controller_pref_select_baud_entries">
         <item>1200</item>
         <item>2400</item>
         <item>4800</item>
@@ -96,17 +95,29 @@
         <item>115200</item>
     </string-array>
 
-    <string name="arduino_pref_edit_buttons">Add/Edit Steering Wheel Buttons</string>
+    <string name="controller_pref_edit_buttons">Add/Edit Steering Wheel Buttons</string>
 
     <string name="pref_start_service">Start Service</string>
     <string name="pref_stop_service">Stop Service</string>
-    <string name="title_activity_button_learning">ButtonLearningActivity</string>
+    <string name="title_activity_button_learning">Map Resistive Buttons</string>
 
+    <!-- DIALOG STRINGS-->
 
+    <string name="dialog_title_add">Add Resistive Button</string>
+    <string name="dialog_title_edit">Edit Resistive Button</string>
+    <string name="dialog_button_help">Help</string>
     <string name="dialog_button_confirm">Save</string>
     <string name="dialog_button_cancel">Cancel</string>
+    <string name="dialog_controller_reading_default">[00000]</string>
+    <string name="dialog_debounce_default">1</string>
+    <string name="dialog_debounce">Debounce: </string>
+    <string name="dialog_plus_minus">+/-</string>
+    <string name="dialog_multiplier">x10</string>
+    <string name="dialog_click_action">Click Action:</string>
+    <string name="dialog_hold_action">Hold Action:</string>
+    <string name="dialog_none">None</string>
 
-    <string-array name="dialog_spinner_margin_of_error">
+    <string-array name="dialog_spinner_debounce">
         <item>1</item>
         <item>2</item>
         <item>3</item>
@@ -117,6 +128,38 @@
         <item>8</item>
         <item>9</item>
         <item>10</item>
+    </string-array>
+
+    <string-array name="dialog_action_type">
+        <item>None</item>
+        <item>Volume</item>
+        <item>Media</item>
+        <item>Integrated</item>
+        <item>Application</item>
+        <item>Tasker</item>
+    </string-array>
+
+    <string-array name="dialog_action_volume">
+        <item>Volume Up</item>
+        <item>Volume Down</item>
+        <item>Mute</item>
+    </string-array>
+
+    <string-array name="dialog_action_media">
+        <item>Play/Pause</item>
+        <item>Next</item>
+        <item>Previous</item>
+        <item>Fast Forward</item>
+        <item>Rewind</item>
+    </string-array>
+
+    <string-array name="dialog_action_integrated">
+        <item>Launch Camera</item>
+        <item>Toggle Audio Source</item>
+    </string-array>
+
+    <string-array name="dialog_spinner_empty">
+        <item>None</item>
     </string-array>
 
 
