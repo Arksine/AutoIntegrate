@@ -16,6 +16,7 @@ import android.util.Log;
 import com.arksine.autointegrate.activities.ButtonLearningActivity;
 import com.arksine.autointegrate.interfaces.SerialHelper;
 import com.arksine.autointegrate.R;
+import com.arksine.autointegrate.utilities.UtilityFunctions;
 import com.arksine.autointegrate.utilities.BluetoothHelper;
 import com.arksine.autointegrate.utilities.UsbHelper;
 
@@ -243,9 +244,10 @@ public class MicroControllerSettings extends PreferenceFragment {
                     entryValues[i] = deviceInfo[1];
                 } else {
                     String[] ids = deviceInfo[1].split(":");
-                    // TODO: need to add leading zeroes to vid and pid
                     String vid = Integer.toHexString(Integer.parseInt(ids[0]));
                     String pid = Integer.toHexString(Integer.parseInt(ids[1]));
+                    vid = UtilityFunctions.addLeadingZeroes(vid, 4);
+                    pid = UtilityFunctions.addLeadingZeroes(pid, 4);
                     entries[i] = deviceInfo[0] + "\nVID:0x" + vid + " PID:0x" + pid + "\n" + ids[2];
                     entryValues[i] = deviceInfo[1];
                 }

@@ -1,7 +1,9 @@
-package com.arksine.autointegrate.activities;
+package com.arksine.autointegrate.utilities;
 
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.helper.ItemTouchHelper;
+
+import com.arksine.autointegrate.adapters.LearnedButtonAdapter;
 
 /**
  * Helper class to implement swiping and swapping Items in the recycler view

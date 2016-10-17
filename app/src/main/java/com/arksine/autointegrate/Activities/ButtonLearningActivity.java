@@ -21,14 +21,20 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
 
 
+import com.arksine.autointegrate.adapters.ApplicationAdapter;
+import com.arksine.autointegrate.adapters.LearnedButtonAdapter;
 import com.arksine.autointegrate.microcontroller.ResistiveButton;
 import com.arksine.autointegrate.R;
+import com.arksine.autointegrate.utilities.AppItem;
+import com.arksine.autointegrate.utilities.LearnedButtonTouchHelper;
+import com.arksine.autointegrate.utilities.UtilityFunctions;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.orhanobut.dialogplus.DialogPlus;
@@ -67,11 +73,7 @@ public class ButtonLearningActivity extends AppCompatActivity {
                     String data = intent.getStringExtra("Data");
                     if (mButtonDialog.isShowing()) {
                         // Format the data and set the controller reading in the dialog
-                        int targetLength = 5 - data.length();
-                        for (int i = 0; i < targetLength; i++) {
-                            data = "0" + data;
-                        }
-
+                        data = UtilityFunctions.addLeadingZeroes(data, 5);
                         data = "[" + data + "]";
                         mControllerReading.setText(data);
                     } else {
@@ -103,8 +105,8 @@ public class ButtonLearningActivity extends AppCompatActivity {
                 mEditMode = false;
                 mDialogTitle.setText(getString(R.string.dialog_title_add));
                 mControllerReading.setText(getString(R.string.dialog_controller_reading_default));
-                mDebounceSpinner.setSelection(0);
                 mDebounceMultiplier.setChecked(false);
+                mDebounceSpinner.setSelection(0);
                 mClickActionTypeSpinner.setSelection(0);
                 mClickActionSpinner.setSelection(0);
                 mHoldActionTypeSpinner.setSelection(0);
@@ -140,9 +142,10 @@ public class ButtonLearningActivity extends AppCompatActivity {
                 mDialogTitle.setText(getString(R.string.dialog_title_edit));
 
                 mControllerReading.setText(currentItem.getIdAsString());
+                mDebounceMultiplier.setChecked(currentItem.isMultiplied());
                 mDebounceSpinner.setSelection(findSpinnerIndex(mDebounceSpinner,
                         String.valueOf(currentItem.getTolerance())));
-                mDebounceMultiplier.setChecked(currentItem.isMultiplied());
+
                 mClickActionTypeSpinner.setSelection(findSpinnerIndex(mClickActionTypeSpinner,
                         currentItem.getClickType()));
                 mClickActionSpinner.setSelection(findSpinnerIndex(mClickActionSpinner,
@@ -231,10 +234,25 @@ public class ButtonLearningActivity extends AppCompatActivity {
                 resBtn.setId(numId);
                 resBtn.setTolerance(Integer.parseInt((String)mDebounceSpinner.getSelectedItem()));
                 resBtn.setMultiplied(mDebounceMultiplier.isChecked());
+
+
                 resBtn.setClickType((String)mClickActionTypeSpinner.getSelectedItem());
-                resBtn.setClickAction((String)mClickActionSpinner.getSelectedItem());
+                if (resBtn.getClickType().equals("Application")) {
+                    String packageName = ((AppItem) mClickActionSpinner.getSelectedItem())
+                            .getPackageName();
+                    resBtn.setClickAction(packageName);
+                } else {
+                    resBtn.setClickAction((String) mClickActionSpinner.getSelectedItem());
+                }
+
                 resBtn.setHoldType((String)mHoldActionTypeSpinner.getSelectedItem());
-                resBtn.setHoldAction((String)mHoldActionSpinner.getSelectedItem());
+                if (resBtn.getHoldType().equals("Application")) {
+                    String packageName = ((AppItem) mHoldActionSpinner.getSelectedItem())
+                            .getPackageName();
+                    resBtn.setHoldAction(packageName);
+                } else {
+                    resBtn.setHoldAction((String) mHoldActionSpinner.getSelectedItem());
+                }
 
                 if (mEditMode) {
                     mAdapter.editItem(resBtn, mEditPosition);
@@ -257,6 +275,13 @@ public class ButtonLearningActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 // TODO: launch help popup
+            }
+        });
+
+        mDebounceMultiplier.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                setDebounceSpinnerAdapter(isChecked);
             }
         });
 
@@ -285,6 +310,25 @@ public class ButtonLearningActivity extends AppCompatActivity {
             }
         });
 
+    }
+
+    private void setDebounceSpinnerAdapter(boolean isMultiplied) {
+        ArrayAdapter<String> debounceAdapter;
+
+        // get the current position so we can reset it
+        int index = mDebounceSpinner.getSelectedItemPosition();
+
+        if (isMultiplied) {
+            debounceAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item,
+                    getResources().getStringArray(R.array.dialog_spinner_debounce_multiplied));
+        } else {
+            debounceAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item,
+                    getResources().getStringArray(R.array.dialog_spinner_debounce));
+        }
+
+        debounceAdapter.setDropDownViewResource(android.R.layout.simple_dropdown_item_1line);
+        mDebounceSpinner.setAdapter(debounceAdapter);
+        mDebounceSpinner.setSelection(index);
     }
 
     /**
@@ -357,9 +401,11 @@ public class ButtonLearningActivity extends AppCompatActivity {
                 break;
             case 4:     // Action Type: Application
                 actionSpinner.setVisibility(View.VISIBLE);
+                ApplicationAdapter appAdapter = new ApplicationAdapter(this);
+                actionSpinner.setAdapter(appAdapter);
+
                 actionSpinner.setLayoutParams(actionParams);
                 typeSpinner.setLayoutParams(actionTypeParams);
-                // TODO: get list of apps.  Alternatively just use tasker to launch apps
                 break;
             case 5:     // Action Type: Tasker
                 actionSpinner.setVisibility(View.VISIBLE);
@@ -387,6 +433,8 @@ public class ButtonLearningActivity extends AppCompatActivity {
         }
         return index;
     }
+
+    // TODO: need to implement onPause and onResume So we can enter/exit service learning mode
 
 }
 

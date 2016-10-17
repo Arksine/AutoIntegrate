@@ -62,6 +62,7 @@
     <string name="status_pref_toggle_radio_summ_off">HD Radio Integration DISABLED</string>
 
     <!-- Strings related to Micro Controller Settings -->
+    <string name="controller_category_connection">Connection Settings</string>
     <string name="controller_pref_select_device_type">Select Device Type</string>
     <string-array name="controller_pref_select_device_type_entries">
         <item>Usb</item>
@@ -95,7 +96,8 @@
         <item>115200</item>
     </string-array>
 
-    <string name="controller_pref_edit_buttons">Add/Edit Steering Wheel Buttons</string>
+    <string name="controller_pref_edit_buttons">Map Steering Wheel Buttons</string>
+    <string name="controller_pref_volume_ui">Show Volume UI</string>
 
     <string name="pref_start_service">Start Service</string>
     <string name="pref_stop_service">Stop Service</string>
@@ -118,6 +120,7 @@
     <string name="dialog_none">None</string>
 
     <string-array name="dialog_spinner_debounce">
+        <item>0</item>
         <item>1</item>
         <item>2</item>
         <item>3</item>
@@ -128,6 +131,20 @@
         <item>8</item>
         <item>9</item>
         <item>10</item>
+    </string-array>
+
+    <string-array name="dialog_spinner_debounce_multiplied">
+        <item>0</item>
+        <item>10</item>
+        <item>20</item>
+        <item>30</item>
+        <item>40</item>
+        <item>50</item>
+        <item>60</item>
+        <item>70</item>
+        <item>80</item>
+        <item>90</item>
+        <item>100</item>
     </string-array>
 
     <string-array name="dialog_action_type">

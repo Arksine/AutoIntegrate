@@ -1,4 +1,4 @@
-package com.arksine.autointegrate.activities;
+package com.arksine.autointegrate.adapters;
 
 import android.content.Context;
 import android.support.v7.widget.RecyclerView;
@@ -25,7 +25,7 @@ public class LearnedButtonAdapter extends RecyclerView.Adapter<LearnedButtonAdap
     private Context mContext;
     private List<ResistiveButton> mButtonList;
 
-    interface ItemClickCallback {
+    public interface ItemClickCallback {
         void OnItemClick(ResistiveButton currentItem, int position);
     }
 
@@ -58,10 +58,6 @@ public class LearnedButtonAdapter extends RecyclerView.Adapter<LearnedButtonAdap
 
             if (!hold.equals("None")) {
                 hold += " - " + button.getHoldAction();
-            }
-
-            if (button.isMultiplied()) {
-                debounce = debounce * 10;
             }
 
             this.mButtonValue.setText(id);

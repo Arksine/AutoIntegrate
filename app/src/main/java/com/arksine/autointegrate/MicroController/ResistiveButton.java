@@ -1,5 +1,7 @@
 package com.arksine.autointegrate.microcontroller;
 
+import com.arksine.autointegrate.utilities.UtilityFunctions;
+
 /**
  * Represents a steering wheel button press, read by a Micro Controller
  */
@@ -42,12 +44,7 @@ public class ResistiveButton {
 
     // Returns the ID as a string with leading zeroes and surrounding brackets
     public String getIdAsString() {
-        String strId = String.valueOf(id);
-        int targetLength = 5 - strId.length();
-        for(int i = 0; i < targetLength; i++) {
-            strId = "0" + strId;
-        }
-
+        String strId = UtilityFunctions.addLeadingZeroes(String.valueOf(id), 5);
         return ("[" + strId + "]");
     }
 

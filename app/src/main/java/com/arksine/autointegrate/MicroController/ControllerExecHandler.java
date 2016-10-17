@@ -16,7 +16,7 @@ public class ControllerExecHandler extends Handler {
     private static final String TAG = "ControllerExecHandler";
 
     private Context mContext = null;
-    private ActionExecutor mActionExector;
+    private CommandProcessor mActionExector;
 
 
     private volatile boolean isHolding = false;
@@ -27,7 +27,7 @@ public class ControllerExecHandler extends Handler {
     ControllerExecHandler(Looper looper, Context context) {
         super(looper);
         mContext = context;
-        mActionExector = new ActionExecutor(mContext);
+        mActionExector = new CommandProcessor(mContext);
         Log.i(TAG, "Controller is in Execution Mode.");
     }
 
@@ -42,8 +42,6 @@ public class ControllerExecHandler extends Handler {
 
             } else {
                 Log.d(TAG, ctrlMsg.command + " " + ctrlMsg.data);
-
-                // TODO: process/execute command.  We will need a new class for this.
                 mActionExector.executeAction(ctrlMsg);
             }
         }

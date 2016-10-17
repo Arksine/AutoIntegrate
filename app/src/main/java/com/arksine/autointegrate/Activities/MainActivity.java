@@ -1,8 +1,6 @@
 package com.arksine.autointegrate.activities;
 
-import android.app.ActivityManager;
 import android.app.FragmentManager;
-import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
@@ -31,6 +29,7 @@ import com.arksine.autointegrate.preferences.PowerSettings;
 import com.arksine.autointegrate.preferences.RadioSettings;
 import com.arksine.autointegrate.preferences.StatusFragment;
 import com.arksine.autointegrate.R;
+import com.arksine.autointegrate.utilities.UtilityFunctions;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -96,15 +95,21 @@ public class MainActivity extends AppCompatActivity {
             selectItem(0);
         }
 
+        UtilityFunctions.initAppList(this);
+
         // Start the service if it isn't started
-        if (!isServiceRunning(MainService.class)) {
+        if (!UtilityFunctions.isServiceRunning(MainService.class, this)) {
             Intent startIntent = new Intent(this, MainService.class);
             this.startService(startIntent);
         }
 
     }
 
-
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        UtilityFunctions.destroyAppList();
+    }
 
     @Override
     protected void onPostCreate(Bundle savedInstanceState) {
@@ -259,16 +264,6 @@ public class MainActivity extends AppCompatActivity {
     public void setTitle(CharSequence title) {
         mTitle = title;
         getSupportActionBar().setTitle(mTitle);
-    }
-
-    private boolean isServiceRunning(Class<?> serviceClass) {
-        ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
-        for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
-            if (serviceClass.getName().equals(service.service.getClassName())) {
-                return true;
-            }
-        }
-        return false;
     }
 
 }
