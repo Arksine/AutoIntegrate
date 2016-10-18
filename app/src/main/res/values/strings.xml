@@ -63,6 +63,8 @@
 
     <!-- Strings related to Micro Controller Settings -->
     <string name="controller_category_connection">Connection Settings</string>
+    <string name="controller_category_command">Command Settings</string>
+    <string name="controller_category_misc">Misc Settings</string>
     <string name="controller_pref_select_device_type">Select Device Type</string>
     <string-array name="controller_pref_select_device_type_entries">
         <item>Usb</item>
@@ -96,12 +98,16 @@
         <item>115200</item>
     </string-array>
 
-    <string name="controller_pref_edit_buttons">Map Steering Wheel Buttons</string>
+    <string name="controller_pref_edit_buttons">Launch Calibration Activity</string>
+    <string name="controller_pref_edit_buttons_summary">Map Buttons / Calibrate Dimmer</string>
+
     <string name="controller_pref_volume_ui">Show Volume UI</string>
 
     <string name="pref_start_service">Start Service</string>
     <string name="pref_stop_service">Stop Service</string>
     <string name="title_activity_button_learning">Map Resistive Buttons</string>
+
+
 
     <!-- DIALOG STRINGS-->
 
@@ -171,7 +177,8 @@
     </string-array>
 
     <string-array name="dialog_action_integrated">
-        <item>Launch Camera</item>
+        <item>Toggle Camera</item>
+        <item>Toggle AutoBrightness</item>
         <item>Toggle Audio Source</item>
     </string-array>
 

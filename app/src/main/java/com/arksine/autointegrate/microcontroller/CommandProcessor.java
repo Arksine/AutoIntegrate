@@ -178,7 +178,7 @@ public class CommandProcessor {
         mActions.put("Rewind", buildMediaRunnable(KeyEvent.KEYCODE_MEDIA_REWIND));
 
         // Custom events
-        mActions.put("Camera On", new ActionRunnable() {
+        mActions.put("Reverse On", new ActionRunnable() {
             @Override
             public void run() {
                 // TODO: launch integrated camera activity.  Need to check prefs to see if user
@@ -186,7 +186,7 @@ public class CommandProcessor {
                 Log.i(TAG, "Send Launch Camera");
             }
         });
-        mActions.put("Camera Off", new ActionRunnable() {
+        mActions.put("Reverse Off", new ActionRunnable() {
             @Override
             public void run() {
                 // TODO: Send intent to close integrated camera activity if integrated cam is enabled
@@ -246,14 +246,30 @@ public class CommandProcessor {
         mActions.put("Application", new ActionRunnable() {
             @Override
             public void run() {
+                Log.i(TAG, "Sending Application Intent");
                 Intent appIntent = mContext.getPackageManager().getLaunchIntentForPackage(data);
-                appIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                mContext.startActivity(appIntent);
+                if (appIntent != null) {
+                    appIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    mContext.startActivity(appIntent);
+                } else {
+                    Log.i(TAG, "Invalid application");
+                }
             }
         });
 
+        mActions.put("Tasker", new ActionRunnable() {
+            @Override
+            public void run() {
+                // TODO: currently using tasker's external access api to execute.  Can create
+                //       Locale/Tasker plugin that should also work with macrodroid.  
+                Log.i(TAG, "Execute Tasker Task");
+
+            }
+        });
+
+
         // TODO: Should I have a dimmer action that responds to analog data?
-        // TODO: Add tasker / macrodroid and possibly custom events
+
 
     }
 
@@ -348,7 +364,7 @@ public class CommandProcessor {
             case "Dimmer": // TODO:  allow for dimmer data to be an integer that relates to a brightness level
                 action = mActions.get(message.command + " " + message.data);
                 break;
-            case "Camera":
+            case "Reverse":
                 action = mActions.get(message.command + " " + message.data);
                 break;
             default:

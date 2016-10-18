@@ -27,13 +27,23 @@
             android:entryValues="@array/controller_pref_select_baud_entries"/>
 
     </PreferenceCategory>
-    <PreferenceScreen
-        android:key="controller_pref_key_edit_buttons"
-        android:title="@string/controller_pref_edit_buttons"/>
-    <CheckBoxPreference
-        android:key="controller_pref_key_volume_ui"
-        android:title="@string/controller_pref_volume_ui"
-        android:persistent="true"
-        android:defaultValue="true"/>
+
+    <PreferenceCategory
+        android:title="@string/controller_category_command">
+        <PreferenceScreen
+            android:key="controller_pref_key_edit_buttons"
+            android:title="@string/controller_pref_edit_buttons"
+            android:summary="@string/controller_pref_edit_buttons_summary"/>
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:title="@string/controller_category_misc">
+        <CheckBoxPreference
+            android:key="controller_pref_key_volume_ui"
+            android:title="@string/controller_pref_volume_ui"
+            android:persistent="true"
+            android:defaultValue="true"/>
+    </PreferenceCategory>
 
 </PreferenceScreen>

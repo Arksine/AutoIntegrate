@@ -5,6 +5,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.database.Cursor;
+import android.net.Uri;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
@@ -41,9 +43,12 @@ import com.orhanobut.dialogplus.DialogPlus;
 import com.orhanobut.dialogplus.ViewHolder;
 
 import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.List;
 
 public class ButtonLearningActivity extends AppCompatActivity {
+
+    //TODO:  need to add dialog for dimmer calibration
 
     private RecyclerView mButtonsRecyclerView;
     private LearnedButtonAdapter mAdapter;
@@ -61,6 +66,8 @@ public class ButtonLearningActivity extends AppCompatActivity {
     private Spinner mHoldActionSpinner;
     private Spinner mHoldActionTypeSpinner;
     private CheckBox mDebounceMultiplier;
+
+    private ArrayList<String> mTaskerTasks;
 
     // broadcast reciever to receive button press values
     private BroadcastReceiver mButtonReciever = new BroadcastReceiver() {
@@ -96,6 +103,7 @@ public class ButtonLearningActivity extends AppCompatActivity {
         setSupportActionBar(toolbar);
 
         buildDialog();
+        enumerateTasks();
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
@@ -166,6 +174,15 @@ public class ButtonLearningActivity extends AppCompatActivity {
         ItemTouchHelper helper = new ItemTouchHelper(callback);
         helper.attachToRecyclerView(mButtonsRecyclerView);
 
+        // TODO: this should be called in onresume after creation
+        //startServiceLearningMode();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        // Register data learning receiver
         IntentFilter filter = new IntentFilter(getString(R.string.ACTION_CONTROLLER_LEARN_DATA));
         LocalBroadcastManager.getInstance(this).registerReceiver(mButtonReciever, filter);
 
@@ -179,7 +196,18 @@ public class ButtonLearningActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        startServiceExecutionMode();
+    }
 
+
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        startServiceExecutionMode();
+    }
+
+    private void startServiceExecutionMode() {
         // Save the current list of buttons to shared preferences
         SharedPreferences gsonFile = getSharedPreferences(getString(R.string.gson_button_list_file),
                 Context.MODE_PRIVATE);
@@ -197,6 +225,10 @@ public class ButtonLearningActivity extends AppCompatActivity {
         LocalBroadcastManager.getInstance(this).sendBroadcast(refreshControllerIntent);
 
         LocalBroadcastManager.getInstance(this).unregisterReceiver(mButtonReciever);
+    }
+
+    private void startServiceLearningMode() {
+
     }
 
     private void buildDialog() {
@@ -409,9 +441,17 @@ public class ButtonLearningActivity extends AppCompatActivity {
                 break;
             case 5:     // Action Type: Tasker
                 actionSpinner.setVisibility(View.VISIBLE);
+                if (mTaskerTasks != null) {
+                    actionAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item,
+                            mTaskerTasks);
+                } else {
+                    actionAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item,
+                            getResources().getStringArray(R.array.dialog_spinner_empty));
+                }
+                actionSpinner.setAdapter(actionAdapter);
+
                 actionSpinner.setLayoutParams(actionParams);
                 typeSpinner.setLayoutParams(actionTypeParams);
-                // TODO: enumerate custom tasks
                 break;
             default:
                 actionSpinner.setVisibility(View.GONE);
@@ -434,7 +474,21 @@ public class ButtonLearningActivity extends AppCompatActivity {
         return index;
     }
 
-    // TODO: need to implement onPause and onResume So we can enter/exit service learning mode
+    private void enumerateTasks() {
+        Cursor cursor = getContentResolver()
+                .query(Uri.parse( "content://net.dinglisch.android.tasker/tasks" ),
+                        null, null, null, null );
 
+        if (cursor != null) {
+            mTaskerTasks = new ArrayList<>();
+            int nameColumn = cursor.getColumnIndex("name");
+
+            while (cursor.moveToNext()) {
+                mTaskerTasks.add(cursor.getString(nameColumn));
+            }
+
+            cursor.close();
+        }
+    }
 }
 

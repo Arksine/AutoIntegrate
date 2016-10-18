@@ -30,7 +30,6 @@ public class MicroControllerSettings extends PreferenceFragment {
 
     private static String TAG = "MicroControllerSettings";
 
-    // TODO: Add dimmer learning activity
     // TODO: add preferences to set dimmer and reverse(camera)
 
     SerialHelper mSerialHelper;
@@ -150,11 +149,14 @@ public class MicroControllerSettings extends PreferenceFragment {
                 return true;
             }
         });
+    }
 
+    @Override
+    public void onResume() {
+        super.onResume();
 
         IntentFilter filter = new IntentFilter(getActivity().getString(R.string.ACTION_DEVICE_CHANGED));
         LocalBroadcastManager.getInstance(getActivity()).registerReceiver(deviceListReciever, filter);
-
     }
 
     @Override
@@ -162,6 +164,17 @@ public class MicroControllerSettings extends PreferenceFragment {
         super.onDestroy();
 
         // Refresh the Microcontroller connection with new settings if settings have changed
+        if (mSettingChanged) {
+            refreshConnection();
+        }
+
+        LocalBroadcastManager.getInstance(getActivity()).unregisterReceiver(deviceListReciever);
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+
         if (mSettingChanged) {
             refreshConnection();
         }

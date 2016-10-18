@@ -37,7 +37,8 @@ public class ApplicationAdapter extends ArrayAdapter<AppItem> {
         int size = (int)label.getTextSize();
         Drawable icon = appItem.getItemImage();
         icon.setBounds(0, 0, size, size);
-        label.setCompoundDrawables(appItem.getItemImage(), null, null, null);
+        label.setCompoundDrawables(icon, null, null, null);
+        label.setCompoundDrawablePadding(10);
 
         return label;
     }
@@ -52,10 +53,8 @@ public class ApplicationAdapter extends ArrayAdapter<AppItem> {
         }
 
         label.setText(appItem.getItemName());
-        int size = (int)label.getTextSize();
-        Drawable icon = appItem.getItemImage();
-        icon.setBounds(0, 0, size, size);
-        label.setCompoundDrawables(appItem.getItemImage(), null, null, null);
+        label.setCompoundDrawablesWithIntrinsicBounds(appItem.getItemImage(), null, null, null);
+        label.setCompoundDrawablePadding(10);
 
         return label;
     }
