@@ -27,8 +27,6 @@ public class ServiceThread implements Runnable {
     private Context mContext;
     private ExecutorService EXECUTOR = Executors.newCachedThreadPool(new BackgroundThreadFactory());
 
-    // TODO: IfI ever want to change runnables to callables, we need to change the type of
-    //       Future declarations using the template types Future<Type>
     private Future mMainThreadFuture = null;
 
     private volatile MicroControllerCom mMicroController = null;

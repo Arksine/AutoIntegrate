@@ -47,6 +47,8 @@
             android:label="@string/title_activity_button_learning"
             android:theme="@style/AppTheme.NoActionBar">
         </activity>
+        <activity android:name=".activities.BrightnessChangeActivity">
+        </activity>
     </application>
 
 </manifest>

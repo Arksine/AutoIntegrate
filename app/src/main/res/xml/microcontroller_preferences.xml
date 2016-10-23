@@ -30,10 +30,19 @@
 
     <PreferenceCategory
         android:title="@string/controller_category_command">
+
         <PreferenceScreen
             android:key="controller_pref_key_edit_buttons"
             android:title="@string/controller_pref_edit_buttons"
             android:summary="@string/controller_pref_edit_buttons_summary"/>
+
+        <CheckBoxPreference
+            android:key="controller_pref_key_custom_commands"
+            android:title="@string/controller_pref_custom_commands"
+            android:summary="@string/controller_pref_custom_commands_summary"
+            android:defaultValue="false"
+            android:persistent="true"/>
+
 
     </PreferenceCategory>
 

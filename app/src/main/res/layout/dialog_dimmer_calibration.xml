@@ -1,0 +1,316 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:orientation="vertical"
+              android:layout_marginStart="@dimen/dialog_margin_horizontal"
+              android:layout_marginEnd="@dimen/dialog_margin_horizontal"
+              android:layout_marginTop="@dimen/dialog_margin_vertical"
+              android:minWidth="@dimen/dialog_min_width"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:text="@string/dimmer_dialog_mode_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:textAppearance="?android:attr/textAppearanceMedium"
+            android:layout_marginEnd="@dimen/dialog_control_space"/>
+
+        <Spinner
+            style="@style/Widget.AppCompat.Spinner.Underlined"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/spn_dimmer_mode"
+            android:entries="@array/dimmer_dialog_modes"/>
+
+    </LinearLayout>
+
+    <SeekBar
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/seek_bar_brightness"
+        android:layout_marginTop="@dimen/dialog_control_space"
+        android:layout_marginBottom="@dimen/dialog_control_space"
+        android:visibility="gone"/>
+
+    <ViewAnimator
+        android:id="@+id/dimmer_view_animator"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <!-- -->
+        <android.support.v7.widget.GridLayout
+            xmlns:grid="http://schemas.android.com/apk/res-auto"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            grid:rowCount="4"
+            grid:columnCount="3"
+            grid:useDefaultMargins="true">
+
+
+            <TextView
+                android:text="@string/dimmer_dialog_reading_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                grid:layout_row="0"
+                grid:layout_column="1"
+                grid:layout_columnWeight="1"/>
+
+            <TextView
+                android:text="@string/dimmer_dialog_brightness_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                grid:layout_row="0"
+                grid:layout_column="2"
+                grid:layout_columnWeight="1"/>
+
+            <TextView
+                android:id="@+id/label_dimmer_high_on"
+                android:text="@string/dimmer_dialog_high_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                grid:layout_row="1"
+                grid:layout_column="0"
+                grid:layout_columnWeight="1"/>
+
+            <TextView
+                android:id="@+id/txt_high_reading"
+                android:text="@string/dimmer_dialog_text_not_set"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                grid:layout_row="1"
+                grid:layout_column="1"
+                grid:layout_columnWeight="1"/>
+
+            <TextView
+                android:id="@+id/txt_high_brightness"
+                android:text="@string/dimmer_dialog_text_not_set"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                grid:layout_row="1"
+                grid:layout_column="2"
+                grid:layout_columnWeight="1"/>
+
+            <TextView
+                android:id="@+id/label_dimmer_low"
+                android:text="@string/dimmer_dialog_low_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                grid:layout_row="2"
+                grid:layout_column="0"
+                grid:layout_columnWeight="1"/>
+
+            <TextView
+                android:id="@+id/txt_low_reading"
+                android:text="@string/dimmer_dialog_text_not_set"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                grid:layout_row="2"
+                grid:layout_column="1"
+                grid:layout_columnWeight="1"/>
+
+            <TextView
+                android:id="@+id/txt_low_brightness"
+                android:text="@string/dimmer_dialog_text_not_set"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                grid:layout_row="2"
+                grid:layout_column="2"
+                grid:layout_columnWeight="1"/>
+
+            <Button
+                android:id="@+id/btn_start_cal"
+                android:text="@string/dimmer_dialog_button_start_cal"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                grid:layout_row="3"
+                grid:layout_columnSpan="3"
+                grid:layout_gravity="center"/>
+
+        </android.support.v7.widget.GridLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:text="@string/dimmer_dialog_calibrate_page_one"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:maxWidth="400dp"
+                android:layout_gravity="center_vertical"
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                android:layout_marginEnd="@dimen/dialog_control_space"
+                android:maxLines="3"/>
+
+            <Button
+                android:id="@+id/btn_page_one"
+                android:text="@string/dimmer_dialog_button_ok"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"/>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_gravity="center"
+                android:layout_marginTop="@dimen/dialog_control_space"
+                android:layout_marginBottom="@dimen/dialog_control_space">
+
+                <TextView
+                    android:text="@string/dimmer_dialog_controller_reading"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="@dimen/dialog_control_space"
+                    android:textAppearance="?android:attr/textAppearanceMedium"/>
+
+                <TextView
+                    android:id="@+id/txt_dimmer_reading_digital"
+                    android:text="@string/dialog_controller_reading_default"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="?android:attr/textAppearanceLarge"/>
+
+            </LinearLayout>
+
+            <TextView
+                android:text="@string/dimmer_dialog_calibrate_page_two_digital"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                android:layout_marginEnd="@dimen/dialog_control_space"
+                android:maxLines="3"/>
+
+
+            <Button
+                android:id="@+id/btn_page_two_digital"
+                android:text="@string/dimmer_dialog_button_finish"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"/>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_gravity="center"
+                android:layout_marginTop="@dimen/dialog_control_space"
+                android:layout_marginBottom="@dimen/dialog_control_space">
+
+                <TextView
+                    android:text="@string/dimmer_dialog_controller_reading"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="@dimen/dialog_control_space"
+                    android:textAppearance="?android:attr/textAppearanceMedium"/>
+
+                <TextView
+                    android:id="@+id/txt_dimmer_reading_analog_high"
+                    android:text="@string/dialog_controller_reading_default"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="?android:attr/textAppearanceLarge"/>
+
+            </LinearLayout>
+
+            <TextView
+                android:text="@string/dimmer_dialog_calibrate_page_two_analog"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                android:layout_marginEnd="@dimen/dialog_control_space"
+                android:maxLines="3"/>
+
+            <Button
+                android:id="@+id/btn_page_two_analog"
+                android:text="@string/dimmer_dialog_button_ok"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"/>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_gravity="center"
+                android:layout_marginTop="@dimen/dialog_control_space"
+                android:layout_marginBottom="@dimen/dialog_control_space">
+
+                <TextView
+                    android:text="@string/dimmer_dialog_controller_reading"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="@dimen/dialog_control_space"
+                    android:textAppearance="?android:attr/textAppearanceMedium"/>
+
+                <TextView
+                    android:id="@+id/txt_dimmer_reading_analog_low"
+                    android:text="@string/dialog_controller_reading_default"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="?android:attr/textAppearanceLarge"/>
+
+            </LinearLayout>
+
+
+            <TextView
+                android:text="@string/dimmer_dialog_calibrate_page_three_analog"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                android:layout_marginEnd="@dimen/dialog_control_space"
+                android:maxLines="3"/>
+
+            <Button
+                android:id="@+id/btn_page_three_analog"
+                android:text="@string/dimmer_dialog_button_finish"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"/>
+
+        </LinearLayout>
+
+    </ViewAnimator>
+
+
+
+</LinearLayout>

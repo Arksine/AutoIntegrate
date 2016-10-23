@@ -17,6 +17,7 @@
     <string name="ACTION_CONTROLLER_LEARN_DATA">com.arksine.autointegrate.ACTION_CONTROLLER_LEARN_DATA</string>
 
     <string name="ACTION_SEND_DATA">com.arksine.autointegrate.ACTION_SEND_DATA</string>
+    <string name="ACTION_DATA_RECIEVED">com.arksine.autointegrate.ACTION_DATA_RECIEVED"</string>
     <string name="EXTRA_COMMAND">com.arksine.autointegrate.EXTRA_COMMAND</string>
     <string name="EXTRA_DATA">com.arksine.autointegrate.EXTRA_DATA</string>
 
@@ -101,12 +102,14 @@
     <string name="controller_pref_edit_buttons">Launch Calibration Activity</string>
     <string name="controller_pref_edit_buttons_summary">Map Buttons / Calibrate Dimmer</string>
 
+    <string name="controller_pref_custom_commands">Enable Custom Commands</string>
+    <string name="controller_pref_custom_commands_summary">Broadcast intent when custom command is received</string>
+
     <string name="controller_pref_volume_ui">Show Volume UI</string>
 
     <string name="pref_start_service">Start Service</string>
     <string name="pref_stop_service">Stop Service</string>
     <string name="title_activity_button_learning">Map Resistive Buttons</string>
-
 
 
     <!-- DIALOG STRINGS-->
@@ -186,5 +189,40 @@
         <item>None</item>
     </string-array>
 
+    <!-- Dimmer dialog strings-->
+    <string name="dimmer_dialog_title">Calibrate Dimmer</string>
+    <string name="dimmer_dialog_mode_label">Dimmer Mode:</string>
+    <string-array name="dimmer_dialog_modes">
+        <item>None</item>
+        <item>Digital - Toggle Autobrightness</item>
+        <item>Digital - User Defined</item>
+        <item>Analog Voltage Map</item>
+    </string-array>
 
+    <string name="dimmer_dialog_label_on">On</string>
+    <string name="dimmer_dialog_controller_reading">Controller Reading:</string>
+    <string name="dimmer_dialog_reading_label">Reading</string>
+    <string name="dimmer_dialog_brightness_label">Brightness</string>
+    <string name="dimmer_dialog_on_label">Dimmer On:</string>
+    <string name="dimmer_dialog_high_label">Dimmer High:</string>
+    <string name="dimmer_dialog_low_label">Dimmer Low:</string>
+    <string name="dimmer_dialog_text_not_set">Not Set</string>
+    <string name="dimmer_dialog_button_start_cal">Start Calibration Wizard</string>
+    <string name="dimmer_dialog_button_ok">OK</string>
+    <string name="dimmer_dialog_button_finish">Finish</string>
+    <string name="dimmer_dialog_calibrate_page_one">
+        Make sure your headlights are off, then click OK to continue.
+    </string>
+    <string name="dimmer_dialog_calibrate_page_two_digital">
+        Turn your headlights on.  Adjust the brightness slider
+        to your night time preference.  Click FINISH to complete calibration.
+    </string>
+    <string name="dimmer_dialog_calibrate_page_two_analog">
+        Turn your headlights on, with dimmer on its Maximum setting. Adjust the brightness slider
+        to your maximum night time preference.  Click OK to continue.
+    </string>
+    <string name="dimmer_dialog_calibrate_page_three_analog">
+        With your headlights still on, adjust the dimmer to its Minimum setting. Adjust the brightness slider
+        to your minimum night time preference.  Click FINISH to complete calibration.
+    </string>
 </resources>

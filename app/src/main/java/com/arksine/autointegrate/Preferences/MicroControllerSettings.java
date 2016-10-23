@@ -164,16 +164,17 @@ public class MicroControllerSettings extends PreferenceFragment {
         super.onDestroy();
 
         // Refresh the Microcontroller connection with new settings if settings have changed
-        if (mSettingChanged) {
-            refreshConnection();
-        }
+        //if (mSettingChanged) {
+            //refreshConnection();
+        //}
 
-        LocalBroadcastManager.getInstance(getActivity()).unregisterReceiver(deviceListReciever);
+       // LocalBroadcastManager.getInstance(getActivity()).unregisterReceiver(deviceListReciever);
     }
 
     @Override
     public void onPause() {
         super.onPause();
+        Log.d(TAG, "Paused");
 
         if (mSettingChanged) {
             refreshConnection();

@@ -43,7 +43,7 @@ public class MicroControllerCom {
     private volatile byte[] mReceivedBuffer = new byte[256];
     private volatile int mReceivedBytes = 0;
 
-    private Handler mInputHandler;
+    private ControllerInputHandler mInputHandler;
 
     // Broadcast reciever to listen for write commands.
     public class WriteReciever extends BroadcastReceiver {
@@ -72,11 +72,7 @@ public class MicroControllerCom {
         thread.start();
         Looper mInputLooper = thread.getLooper();
 
-        if (learningMode) {
-            mInputHandler = new ControllerLearnHandler(mInputLooper, mContext);
-        } else {
-            mInputHandler = new ControllerExecHandler(mInputLooper, mContext);
-        }
+        mInputHandler = new ControllerInputHandler(mInputLooper, mContext, learningMode);
 
         mCallbacks = new SerialHelper.Callbacks() {
             @Override
@@ -187,6 +183,7 @@ public class MicroControllerCom {
                         .putString("controller_pref_key_connected_id", mSerialHelper.getConnectedId())
                         .apply();
                 Log.i(TAG, "Sucessfully connected to Micro Controller");
+                // TODO: need to request dimmer status
             }
         } else {
             mSerialHelper = null;
@@ -202,6 +199,7 @@ public class MicroControllerCom {
 
     public void disconnect() {
         mConnected = false;
+        mInputHandler.close();
 
         if (mSerialHelper!= null) {
             // If there was a device error then we cannot write to it
