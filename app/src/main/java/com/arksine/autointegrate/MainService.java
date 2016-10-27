@@ -20,9 +20,6 @@ public class MainService extends Service {
 
     private static String TAG = "MainService";
 
-
-    // TODO: add pause action to this receiver?  Then add a pause button to notification
-
     // Stop Reciever cleans up and stops the service when the stop button is pressed on
     // the service notification
     public class StopReciever extends BroadcastReceiver {
@@ -67,7 +64,7 @@ public class MainService extends Service {
 
         // TODO: may need to generate a different small icon. Also want to add  pause and resume notifications?
         // TODO: add Android Auto car extension to api 23+?
-        Bitmap largeIcon = BitmapFactory.decodeResource(getResources(), R.mipmap.ic_launcher);
+        Bitmap largeIcon = getLargeNotificationIcon();
         Intent notificationIntent = new Intent(this, MainActivity.class);
         PendingIntent pendingIntent = PendingIntent.getActivity(this,
                 R.integer.REQUEST_START_AUTOINTEGRATE_ACTIVITY, notificationIntent, 0);
@@ -124,6 +121,16 @@ public class MainService extends Service {
     @Override
     public void onDestroy() {
         unregisterReceiver(mStopReceiver);
+    }
+
+    private Bitmap getLargeNotificationIcon() {
+        Bitmap icon = BitmapFactory.decodeResource(getResources(),
+                R.drawable.notification_large);
+
+        float scaleMultiplier = getResources().getDisplayMetrics().density / 3f;
+
+        return Bitmap.createScaledBitmap(icon, (int)(icon.getWidth() * scaleMultiplier),
+                (int)(icon.getHeight() * scaleMultiplier), false);
     }
 
 }

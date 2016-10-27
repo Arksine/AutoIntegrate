@@ -14,7 +14,7 @@ import android.view.WindowManager;
  * Transparent Activity to change system brightness.  This is required to make sure that
  * brightness changes are reflected when doing so from the service, as a service has no window
  */
-public class BrightnessChangeActivity extends AppCompatActivity {
+public class BrightnessChangeActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

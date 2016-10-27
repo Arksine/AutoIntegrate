@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:orientation="vertical"
+              android:background="@drawable/help_bg"
+              android:layout_width="wrap_content"
+              android:layout_height="wrap_content">
+
+    <ScrollView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+
+            android:padding="10dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:text="@string/dialog_help_button_overview"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/help_bg"
+                android:textColor="@android:color/white"
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                android:maxWidth="400dp"
+                android:layout_marginBottom="15dp"/>
+
+            <TextView
+                android:text="@string/dialog_help_button_debounce"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/help_bg"
+                android:textColor="@android:color/white"
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                android:maxWidth="400dp"
+                android:layout_marginBottom="15dp"/>
+
+            <TextView
+                android:text="@string/dialog_help_button_action"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/help_bg"
+                android:textColor="@android:color/white"
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                android:maxWidth="400dp"/>
+
+        </LinearLayout>
+
+    </ScrollView>
+
+    <Button
+        android:text="@string/dialog_help_dismiss"
+        android:id="@+id/btn_help_dismiss"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_weight="0"
+        style="@style/Widget.AppCompat.Button"/>
+
+</LinearLayout>

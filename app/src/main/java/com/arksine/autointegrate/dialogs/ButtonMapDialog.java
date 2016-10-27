@@ -51,12 +51,17 @@ public class ButtonMapDialog {
 
     private boolean mEditMode = false;
     private int mEditPosition = 0;
+    private int mClickTypeSelection = -1;
+    private int mHoldTypeSelection = -1;
+
+    private HelpDialog mButtonHelp;
 
     public ButtonMapDialog(Context context, LearnedButtonAdapter adapter) {
         mContext = context;
         mLearnedButtonAdapter = adapter;
         buildDialog();
         enumerateTasks();
+        mButtonHelp = new HelpDialog(mContext, R.layout.dialog_help_button_learning);
     }
 
     private void buildDialog() {
@@ -134,7 +139,7 @@ public class ButtonMapDialog {
         mDialogHelpBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // TODO: launch help popup
+                mButtonHelp.showHelpDialog(v);
             }
         });
 
@@ -149,7 +154,11 @@ public class ButtonMapDialog {
         mClickActionTypeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                setActionSpinner(true, position);
+
+                // Only reset the adapter if the position has changed
+                if (position != mClickTypeSelection) {
+                    setActionSpinner(true, position);
+                }
             }
 
             @Override
@@ -161,7 +170,11 @@ public class ButtonMapDialog {
         mHoldActionTypeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                setActionSpinner(false, position);
+
+                // Only reset the adapter if the position has changed
+                if (position != mHoldTypeSelection) {
+                    setActionSpinner(false, position);
+                }
             }
 
             @Override
@@ -196,14 +209,19 @@ public class ButtonMapDialog {
         mDebounceSpinner.setSelection(findSpinnerIndex(mDebounceSpinner,
                 String.valueOf(currentItem.getTolerance())));
 
-        mClickActionTypeSpinner.setSelection(findSpinnerIndex(mClickActionTypeSpinner,
-                currentItem.getClickType()));
+        int actionTypeIndex = findSpinnerIndex(mClickActionTypeSpinner, currentItem.getClickType());
+        setActionSpinner(true, actionTypeIndex);
+        int holdTypeIndex = findSpinnerIndex(mHoldActionTypeSpinner, currentItem.getHoldType());
+        setActionSpinner(false, holdTypeIndex);
+
+        mClickActionTypeSpinner.setSelection(actionTypeIndex);
         mClickActionSpinner.setSelection(findSpinnerIndex(mClickActionSpinner,
                 currentItem.getClickAction()));
-        mHoldActionTypeSpinner.setSelection(findSpinnerIndex(mHoldActionTypeSpinner,
-                currentItem.getHoldType()));
+        mHoldActionTypeSpinner.setSelection(holdTypeIndex);
         mHoldActionSpinner.setSelection(findSpinnerIndex(mHoldActionSpinner,
                 currentItem.getHoldAction()));
+
+
 
         mButtonDialog.show();
     }
@@ -257,9 +275,11 @@ public class ButtonMapDialog {
         if (isClickAction) {
             actionSpinner = mClickActionSpinner;
             typeSpinner = mClickActionTypeSpinner;
+            mClickTypeSelection = pos;
         } else {
             actionSpinner = mHoldActionSpinner;
             typeSpinner = mHoldActionTypeSpinner;
+            mHoldTypeSelection = pos;
         }
 
         ArrayAdapter<String> actionAdapter;
@@ -344,6 +364,8 @@ public class ButtonMapDialog {
                 typeSpinner.setLayoutParams(actionTypeParams);
                 break;
         }
+
+
     }
 
     private void enumerateTasks() {

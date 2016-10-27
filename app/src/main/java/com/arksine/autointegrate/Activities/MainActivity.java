@@ -47,7 +47,6 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // TODO: Edit the layouts so the theme is better
         setLayout();
 
         mTitle = mDrawerTitle = getTitle();

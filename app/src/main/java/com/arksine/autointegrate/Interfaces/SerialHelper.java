@@ -6,7 +6,6 @@ import java.util.ArrayList;
  * Interface for basic serial device functionality
  */
 public interface SerialHelper {
-    //TODO: put all the interfaces below into one callback
 
     interface Callbacks {
         void OnDeviceReady(boolean deviceReadyStatus);
@@ -16,7 +15,7 @@ public interface SerialHelper {
 
 
     ArrayList<String> enumerateDevices();
-    void connectDevice(String id, Callbacks cbs);
+    boolean connectDevice(String id, Callbacks cbs);
     void disconnect();
     String getConnectedId();
     boolean isDeviceConnected();

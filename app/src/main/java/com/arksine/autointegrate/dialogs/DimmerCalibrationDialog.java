@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -14,6 +15,7 @@ import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 import android.widget.AdapterView;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -24,6 +26,9 @@ import com.arksine.autointegrate.microcontroller.CommandProcessor.DimmerMode;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
 import com.orhanobut.dialogplus.DialogPlus;
 import com.orhanobut.dialogplus.ViewHolder;
+
+// TODO: Either disable save button during the wizard, or replace it with Continue/Finish and navigate
+//       actions that way
 
 /**
  *  Handles Lifecycle of dimmer settings dialog
@@ -41,8 +46,6 @@ public class DimmerCalibrationDialog {
     }
 
     private int mCurrentPage = WizardPage.NONE;
-
-
 
     private class DimmerValues {
         int dimmerMode = DimmerMode.NONE;
@@ -67,9 +70,12 @@ public class DimmerCalibrationDialog {
     private TextView mTxtDimmerLowReading;
     private TextView mTxtDimmerLowBrightness;
 
+    private HelpDialog mDimmerHelp;
+
     public DimmerCalibrationDialog(Context context) {
         mContext = context;
         mDimmerVals = new DimmerValues();
+        mDimmerHelp = new HelpDialog(mContext, R.layout.dialog_help_dimmer);
         getStoredPrefs();       // retreived stored preferences
         buildDialog();
     }
@@ -127,7 +133,6 @@ public class DimmerCalibrationDialog {
         }
     }
 
-    // TODO: implement help button/popup
     private void buildDialog() {
         mDimmerDialog = DialogPlus.newDialog(mContext)
                 .setContentHolder(new ViewHolder(R.layout.dialog_dimmer_calibration))
@@ -160,7 +165,6 @@ public class DimmerCalibrationDialog {
         mTxtDimmerHighBrightness = (TextView) mDimmerDialog.findViewById(R.id.txt_high_brightness);
         mTxtDimmerLowReading = (TextView) mDimmerDialog.findViewById(R.id.txt_low_reading);
         mTxtDimmerLowBrightness = (TextView) mDimmerDialog.findViewById(R.id.txt_low_brightness);
-        updateDialogViews();
 
         // Setup brightness bar
         mBrightnessBar = (SeekBar) mDimmerDialog.findViewById(R.id.seek_bar_brightness);
@@ -187,7 +191,6 @@ public class DimmerCalibrationDialog {
             }
         });
 
-
         mDimmerViewAnimator = (ViewAnimator) mDimmerDialog.findViewById(R.id.dimmer_view_animator);
         final Animation inAnimation = AnimationUtils.loadAnimation(mContext,
                 android.R.anim.fade_in);
@@ -198,16 +201,24 @@ public class DimmerCalibrationDialog {
         setOverviewContent(mDimmerControlTypeSpinner.getSelectedItemPosition());
 
 
-
-
         Button startCalButton = (Button) mDimmerDialog.findViewById(R.id.btn_start_cal);
         startCalButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 mCurrentPage = WizardPage.PAGE_ONE;
-                setReadingTextView(0, R.id.txt_dimmer_reading_digital);
-                setReadingTextView(0, R.id.txt_dimmer_reading_analog_high);
-                setReadingTextView(0, R.id.txt_dimmer_reading_analog_low);
+
+                switch (mDimmerVals.dimmerMode) {
+                    case DimmerMode.DIGITAL:
+                        setDigitalReadingTextView("", R.id.txt_dimmer_reading_digital);
+                        break;
+                    case DimmerMode.ANALOG:
+                        setAnalogReadingTextView("0", R.id.txt_dimmer_reading_analog_high);
+                        setAnalogReadingTextView("0", R.id.txt_dimmer_reading_analog_low);
+                        break;
+                    default:
+                        Log.i(TAG, "Invalid dimmer mode selected");
+                }
+
                 mDimmerViewAnimator.showNext();
 
             }
@@ -289,12 +300,22 @@ public class DimmerCalibrationDialog {
             }
         });
 
+        ImageButton helpButton = (ImageButton) mDimmerDialog.findViewById(R.id.btn_help);
+        helpButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                mDimmerHelp.showHelpDialog(v);
+            }
+        });
+
     }
 
     private void setOverviewContent(int position) {
 
         TextView dimmerHighLabel = (TextView) mDimmerDialog.findViewById(R.id.label_dimmer_high_on);
         TextView dimmerLowLabel = (TextView) mDimmerDialog.findViewById(R.id.label_dimmer_low);
+
+        updateDialogViews();
 
         // reset the wizard
         mBrightnessBar.setVisibility(View.GONE);
@@ -366,11 +387,16 @@ public class DimmerCalibrationDialog {
         setScreenBrightness(mInitialBrightness);
     }
 
-    private void setReadingTextView(int reading, int labelResource) {
+    private void setAnalogReadingTextView(String reading, int labelResource) {
         TextView label = (TextView) mDimmerDialog.findViewById(labelResource);
-        String txt = UtilityFunctions.addLeadingZeroes(String.valueOf(reading), 5);
+        String txt = UtilityFunctions.addLeadingZeroes(reading, 5);
         txt = "[" + txt + "]";
         label.setText(txt);
+    }
+
+    private void setDigitalReadingTextView(String reading, int labelResource) {
+        TextView label = (TextView) mDimmerDialog.findViewById(labelResource);
+        label.setText(reading);
     }
 
     public void showDialog() {
@@ -381,19 +407,26 @@ public class DimmerCalibrationDialog {
         return mDimmerDialog.isShowing();
     }
 
-    public void setReading(int reading) {
+    public void setReading(String reading) {
+
         switch (mCurrentPage) {
             case WizardPage.PAGE_TWO_DIGITAL:
-                mDimmerVals.highReading = reading;
-                setReadingTextView(reading, R.id.txt_dimmer_reading_digital);
+                mDimmerVals.highReading = -1;
+                if (reading.equals("On") || reading.equals("Off")) {
+                    setDigitalReadingTextView(reading, R.id.txt_dimmer_reading_digital);
+                }
                 break;
             case WizardPage.PAGE_TWO_ANALOG:
-                mDimmerVals.highReading = reading;
-                setReadingTextView(reading, R.id.txt_dimmer_reading_analog_high);
+                if (!(reading.equals("On") || reading.equals("Off"))) {
+                    mDimmerVals.highReading = Integer.parseInt(reading);
+                    setAnalogReadingTextView(reading, R.id.txt_dimmer_reading_analog_high);
+                }
                 break;
             case WizardPage.PAGE_THREE:
-                mDimmerVals.lowReading = reading;
-                setReadingTextView(reading, R.id.txt_dimmer_reading_analog_low);
+                if (!(reading.equals("On") || reading.equals("Off"))) {
+                    mDimmerVals.lowReading = Integer.parseInt(reading);
+                    setAnalogReadingTextView(reading, R.id.txt_dimmer_reading_analog_low);
+                }
                 break;
             default:
         }

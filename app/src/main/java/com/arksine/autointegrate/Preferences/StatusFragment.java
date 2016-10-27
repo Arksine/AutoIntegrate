@@ -24,8 +24,6 @@ public class StatusFragment extends PreferenceFragment {
 
     private static String TAG = "StatusFragment";
 
-    // TODO:  Do I need this? When settings are open realisitically nothing else should
-    //        affect the service status.
     private final BroadcastReceiver serverStatusReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -97,7 +95,6 @@ public class StatusFragment extends PreferenceFragment {
         PreferenceScreen root = this.getPreferenceScreen();
         SwitchPreference toggleService = (SwitchPreference) root.findPreference("status_pref_key_toggle_service");
 
-        // TODO: check if service is running but suspended?
         if (isServiceRunning(MainService.class)) {
             if (!toggleService.isChecked()) {
                 toggleService.setChecked(true);

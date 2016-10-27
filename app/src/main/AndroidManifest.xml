@@ -47,7 +47,10 @@
             android:label="@string/title_activity_button_learning"
             android:theme="@style/AppTheme.NoActionBar">
         </activity>
-        <activity android:name=".activities.BrightnessChangeActivity">
+        <activity android:name=".activities.BrightnessChangeActivity"
+            android:taskAffinity="com.arksine.autointegrate.invisactivity"
+            android:excludeFromRecents="true"
+            android:theme="@style/EmptyActivity">
         </activity>
     </application>
 

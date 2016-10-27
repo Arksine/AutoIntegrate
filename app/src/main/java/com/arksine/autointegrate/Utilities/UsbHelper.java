@@ -14,6 +14,7 @@ import android.os.Build;
 import android.preference.PreferenceManager;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
+import android.widget.Toast;
 
 import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.interfaces.SerialHelper;
@@ -41,8 +42,6 @@ public class UsbHelper implements SerialHelper {
 
     private static final String TAG = "UsbHelper";
 
-
-    // TODO: add preference to retrieve baudrate
     private static final String ACTION_USB_PERMISSION = "com.arksine.autointegrate.USB_PERMISSION";
 
     private Context mContext;
@@ -62,7 +61,10 @@ public class UsbHelper implements SerialHelper {
                 synchronized (this) {
                     UsbDevice uDev = (UsbDevice) intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
                     if (uDev.equals(mUsbDevice)) {
-                        // TODO: send a toast
+
+                        Toast.makeText(mContext, "USB Device Disconnected",
+                                Toast.LENGTH_SHORT).show();
+
                         // Disconnect from a new thread so we don't block the UI thread
                         Thread errorThread = new Thread(new Runnable() {
                             @Override
@@ -144,7 +146,16 @@ public class UsbHelper implements SerialHelper {
         return deviceList;
     }
 
-    public void connectDevice(String id, SerialHelper.Callbacks cbs) {
+    /**
+     * Connect to a USB device.  Returns true if the prerequisites to attempt connection are met,
+     * false otherwise.  Note that return value of true does not mean that the connection was
+     * succssful itself, that is handled through the onDeviceReady callback
+     *
+     * @param id
+     * @param cbs
+     * @return
+     */
+    public boolean connectDevice(String id, SerialHelper.Callbacks cbs) {
 
         if (serialPortConnected) {
             disconnect();
@@ -157,9 +168,7 @@ public class UsbHelper implements SerialHelper {
         // Make sure the entry value is formatted correctly
         if (ids.length != 3) {
             Log.e(TAG, "Invalid USB entry: " + id);
-            mSerialHelperCallbacks.OnDeviceReady(false);
-
-            return;
+            return false;
         }
 
         mUsbDevice = usbDeviceList.get(ids[2]);
@@ -183,10 +192,12 @@ public class UsbHelper implements SerialHelper {
             ConnectionThread mConnectionThread = new ConnectionThread();
             mConnectionThread.start();
 
+            return true;
+
         } else {
 
             Log.i(TAG, "Invalid usb device: " + id);
-            mSerialHelperCallbacks.OnDeviceReady(false);
+            return false;
         }
 
     }

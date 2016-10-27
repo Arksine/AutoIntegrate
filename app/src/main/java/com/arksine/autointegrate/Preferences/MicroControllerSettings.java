@@ -30,7 +30,7 @@ public class MicroControllerSettings extends PreferenceFragment {
 
     private static String TAG = "MicroControllerSettings";
 
-    // TODO: add preferences to set dimmer and reverse(camera)
+    // TODO: add preferences to reverse(camera)
 
     SerialHelper mSerialHelper;
     private String mDeviceType;

@@ -3,11 +3,16 @@ package com.arksine.autointegrate.utilities;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.os.ParcelUuid;
+import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.widget.Toast;
 
+import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.interfaces.SerialHelper;
 
 import java.io.IOException;
@@ -15,6 +20,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
@@ -30,8 +36,11 @@ public class BluetoothHelper implements SerialHelper {
 
     private static String TAG = "BluetoothHelper";
 
+    private final Object WRITELOCK = new Object();
+
     private ExecutorService EXECUTOR = null;
     private Future mReaderThreadFuture = null;
+    private volatile boolean mIsWaiting = false;
 
     private Context mContext = null;
 
@@ -48,7 +57,17 @@ public class BluetoothHelper implements SerialHelper {
 
     private final UUID MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
 
-    // TODO: May want to redo this using BTWiz library
+
+    private boolean mIsReceiverRegistered = false;
+    private BroadcastReceiver mBtAdapterStatusReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            if (action.equals(context.getString(R.string.ACTION_BT_ADAPTER_ON))) {
+                notifyThread();
+            }
+        }
+    };
 
     public BluetoothHelper(Context context){
         mContext = context;
@@ -101,6 +120,11 @@ public class BluetoothHelper implements SerialHelper {
             EXECUTOR = null;
         }
 
+        if (mIsReceiverRegistered) {
+            mIsReceiverRegistered = false;
+            LocalBroadcastManager.getInstance(mContext).unregisterReceiver(mBtAdapterStatusReceiver);
+        }
+
     }
 
     public boolean isBluetoothOn() {
@@ -131,6 +155,10 @@ public class BluetoothHelper implements SerialHelper {
                 // TODO: may need to compare the device name to a list of supported
                 //       devices before adding, as it doesn't appear I can get the
                 //       device profiles supported
+                ParcelUuid[] features = device.getUuids();
+                for (ParcelUuid uuid : features) {
+                    Log.i(TAG, uuid.toString());
+                }
 
                 // Add the name and address to an array adapter to show in a ListView
                 mAdapterList.add(device.getName() + "\n" + device.getAddress());
@@ -141,11 +169,12 @@ public class BluetoothHelper implements SerialHelper {
     }
 
     /**
-     * Retrieves a bluetooth socket from a specified device.  WARNING: This function is blocking, do
-     * not call from the UI thread!
+     * Retrieves a bluetooth socket from a specified device.  Returns true if an attempt to connect
+     * will be attempted, false if the prerequisites to attempt connection are not met.
+     *
      * @param macAddr - The mac address of the device to connect
      */
-    public void connectDevice (String macAddr, SerialHelper.Callbacks cbs) {
+    public boolean connectDevice (String macAddr, SerialHelper.Callbacks cbs) {
         if (deviceConnected) {
             disconnect();
         }
@@ -153,20 +182,42 @@ public class BluetoothHelper implements SerialHelper {
         EXECUTOR = Executors.newCachedThreadPool(new BackgroundThreadFactory());
         mSerialHelperCallbacks = cbs;
 
-        //TODO: If state is turning_on then we should wait until it is on, or just let the servicethread
-        //      continue connection attempts until its turned on
-
-        if (!isBluetoothOn()) {
-            mSerialHelperCallbacks.OnDeviceReady(false);
-            return;
+        /**
+         *  If the adapter is turning on, wait until its completed.  Timeout in 10 seconds.
+         */
+        if (mBluetoothAdapter.getState() == BluetoothAdapter.STATE_TURNING_ON) {
+            synchronized (this) {
+                try {
+                    // shouldn't take 10 seconds to turn on
+                    mIsWaiting = true;
+                    wait(10000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
         }
 
-
-
+        if (!isBluetoothOn()) {
+            return false;
+        }
 
         ConnectionThread btConnectThread = new ConnectionThread(macAddr);
         EXECUTOR.execute(btConnectThread);
 
+        if (!mIsReceiverRegistered) {
+            IntentFilter filter = new IntentFilter(mContext.getString(R.string.ACTION_BT_ADAPTER_ON));
+            LocalBroadcastManager.getInstance(mContext)
+                    .registerReceiver(mBtAdapterStatusReceiver, filter);
+        }
+
+        return true;
+    }
+
+    private synchronized void notifyThread() {
+        if (mIsWaiting) {
+            mIsWaiting = false;
+            notify();
+        }
     }
 
     public String getConnectedId() {
@@ -197,18 +248,21 @@ public class BluetoothHelper implements SerialHelper {
 
         if (mSocket == null) return false;
 
-        // TODO: needs to be synchronized?
         EXECUTOR.execute(new Runnable() {
             @Override
             public void run() {
-                try {
-                    serialOut.write(data.getBytes());
-                } catch (IOException e) {
-                    Log.e(TAG, "Error writing to device\n", e);
-                    mSerialHelperCallbacks.OnDeviceError();
+
+                synchronized (WRITELOCK) {
+                    try {
+                        serialOut.write(data.getBytes());
+                    } catch (IOException e) {
+                        Log.e(TAG, "Error writing to device\n", e);
+                        mSerialHelperCallbacks.OnDeviceError();
+                    }
                 }
             }
         });
+
 
 
         return true;
@@ -218,19 +272,21 @@ public class BluetoothHelper implements SerialHelper {
 
         if (mSocket == null) return false;
 
-        // TODO: needs to be synchronized?
+
         EXECUTOR.execute(new Runnable() {
             @Override
             public void run() {
-                try {
-                    serialOut.write(data);
-                } catch (IOException e) {
-                    Log.e(TAG, "Error writing to device\n", e);
-                    mSerialHelperCallbacks.OnDeviceError();
+
+                synchronized (WRITELOCK) {
+                    try {
+                        serialOut.write(data);
+                    } catch (IOException e) {
+                        Log.e(TAG, "Error writing to device\n", e);
+                        mSerialHelperCallbacks.OnDeviceError();
+                    }
                 }
             }
         });
-
 
         return true;
     }

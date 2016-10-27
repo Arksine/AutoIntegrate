@@ -28,6 +28,10 @@ import java.util.List;
 public class CommandProcessor {
     private static String TAG = "CommandProcessor";
 
+    // TODO: might want to make this a preference
+    // Delay between repetitive media keys when holding
+    private final static int MEDIA_KEY_DELAY = 2000;
+
     private Context mContext;
     private List<ResistiveButton> mMappedButtons;
     private boolean mCustomCommands = false;
@@ -96,7 +100,7 @@ public class CommandProcessor {
         Type collectionType = new TypeToken<List<ResistiveButton>>(){}.getType();
         mMappedButtons = gson.fromJson(json, collectionType);
 
-        initDimmer(); // initialize the dimmer
+        initDimmer(); // initialize the dimmer interface
 
         mActions = new ArrayMap<>();
         populateBuiltInActions();
@@ -303,10 +307,6 @@ public class CommandProcessor {
 
         final int volumeUiFlag = showVolumeUi ? AudioManager.FLAG_SHOW_UI : 0;
 
-        // TODO: holding on volume keys work with 100ms sleep, test 200ms
-        // TODO: test holding on media keys
-        // TODO: test dimmer
-
         // Volume Keys
         mActions.put("Volume Up", new ActionRunnable() {
             @Override
@@ -380,10 +380,11 @@ public class CommandProcessor {
             }
 
         });
-        mActions.put("Next",buildMediaRunnable(KeyEvent.KEYCODE_MEDIA_NEXT));
-        mActions.put("Previous", buildMediaRunnable(KeyEvent.KEYCODE_MEDIA_PREVIOUS));
-        mActions.put("Fast Forward", buildMediaRunnable(KeyEvent.KEYCODE_MEDIA_FAST_FORWARD));
-        mActions.put("Rewind", buildMediaRunnable(KeyEvent.KEYCODE_MEDIA_REWIND));
+
+        mActions.put("Next",buildSkipMediaRunnable(KeyEvent.KEYCODE_MEDIA_NEXT));
+        mActions.put("Previous", buildSkipMediaRunnable(KeyEvent.KEYCODE_MEDIA_PREVIOUS));
+        mActions.put("Fast Forward", buildSeekMediaRunnable(KeyEvent.KEYCODE_MEDIA_FAST_FORWARD));
+        mActions.put("Rewind", buildSeekMediaRunnable(KeyEvent.KEYCODE_MEDIA_REWIND));
 
         // Custom events
         mActions.put("Reverse On", new ActionRunnable() {
@@ -425,7 +426,7 @@ public class CommandProcessor {
                 }
             }
         });
-        mActions.put("Toggle AutoBrightness", new ActionRunnable() {
+        mActions.put("Toggle Auto-Brightness", new ActionRunnable() {
             @Override
             public void run() {
                 if (isAutoBrightnessOn()) {
@@ -470,8 +471,8 @@ public class CommandProcessor {
 
     }
 
-    // TODO:  This probably won't work for fast forward and rewind holding commands
-    private ActionRunnable buildMediaRunnable(final int keycode) {
+
+    private ActionRunnable buildSkipMediaRunnable(final int keycode) {
         return new ActionRunnable() {
             @Override
             public void run() {
@@ -498,17 +499,49 @@ public class CommandProcessor {
 
                     if (mIsHoldingBtn) {
                         try {
-                            Thread.sleep(500);
+                            Thread.sleep(MEDIA_KEY_DELAY);
+
                         } catch (InterruptedException e) {
                             Log.e(TAG, e.getMessage());
                         }
                     }
 
                 } while (mIsHoldingBtn);
-
             }
         };
 
+    }
+
+    private ActionRunnable buildSeekMediaRunnable(final int keycode) {
+        return new ActionRunnable() {
+            @Override
+            public void run() {
+                Intent mediaIntent;
+
+                // send key down event
+                mediaIntent = new Intent(Intent.ACTION_MEDIA_BUTTON);
+                mediaIntent.putExtra(Intent.EXTRA_KEY_EVENT,
+                        new KeyEvent(KeyEvent.ACTION_DOWN, keycode));
+                mContext.sendBroadcast(mediaIntent);
+
+
+                do {
+                    try {
+                        Thread.sleep(200);
+                    } catch (InterruptedException e) {
+                        Log.e(TAG, e.getMessage());
+                    }
+
+                } while (mIsHoldingBtn);
+
+                // send key up event
+                mediaIntent = new Intent(Intent.ACTION_MEDIA_BUTTON);
+                mediaIntent.putExtra(Intent.EXTRA_KEY_EVENT,
+                        new KeyEvent(KeyEvent.ACTION_UP, keycode));
+                mContext.sendBroadcast(mediaIntent);
+
+            }
+        };
     }
 
     private ActionRunnable getButtonAction(String data, boolean isClickAction) {

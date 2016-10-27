@@ -15,6 +15,7 @@
     <string name="ACTION_DEVICE_CHANGED">com.arksine.autointegrate.ACTION_DEVICE_CHANGED</string>
     <string name="ACTION_DEVICE_DISCONNECTED">com.arksine.autointegrate.ACTION_DEVICE_DISCONNECTED</string>
     <string name="ACTION_CONTROLLER_LEARN_DATA">com.arksine.autointegrate.ACTION_CONTROLLER_LEARN_DATA</string>
+    <string name="ACTION_BT_ADAPTER_ON">com.arksine.autointegrate.ACTION_BT_ADAPTER_ON</string>
 
     <string name="ACTION_SEND_DATA">com.arksine.autointegrate.ACTION_SEND_DATA</string>
     <string name="ACTION_DATA_RECIEVED">com.arksine.autointegrate.ACTION_DATA_RECIEVED"</string>
@@ -27,7 +28,7 @@
 
     <!-- End Intents -->
 
-    <string name="gson_button_list_file">come.arksine.autointegrate.GSON_BUTTON_LIST_FILE</string>
+    <string name="gson_button_list_file">com.arksine.autointegrate.GSON_BUTTON_LIST_FILE</string>
 
     <string-array name="drawer_setting_titles">
         <item>Service Status</item>
@@ -181,8 +182,7 @@
 
     <string-array name="dialog_action_integrated">
         <item>Toggle Camera</item>
-        <item>Toggle AutoBrightness</item>
-        <item>Toggle Audio Source</item>
+        <item>Toggle Auto-Brightness</item>
     </string-array>
 
     <string-array name="dialog_spinner_empty">
@@ -225,4 +225,43 @@
         With your headlights still on, adjust the dimmer to its Minimum setting. Adjust the brightness slider
         to your minimum night time preference.  Click FINISH to complete calibration.
     </string>
+
+    <string name="dialog_help_dismiss">Dismiss</string>
+    <string name="dialog_help_button_overview">
+        Press a steering wheel button to populate the reading label at the top of the dialog.  This
+        reading identifies the button press.  You should do this several times to get an idea of the
+        reading variance produced due to "bouncing".
+    </string>
+    <string name="dialog_help_button_debounce">
+        Debounce: Set this to encompass reading variance.  If your MCU has a 12-bit ADC, you may need
+        to check the x10 multiplier.
+    </string>
+    <string name="dialog_help_button_action">
+        Click/Hold Action: This is the action that will be executed when you "click" or "hold" a
+        button.  First select an action category, then select the action you want the button
+        to execute.
+    </string>
+    <string name="dialog_help_dimmer_overview">
+        Choose between the following Dimmer Modes:
+    </string>
+    <string name="dialog_help_dimmer_mode_none">
+        None: Dimmer commands received from the MCU will be ignored.
+    </string>
+    <string name="dialog_help_dimmer_mode_toggle_auto">
+        Digital - Toggle Autobrightness:  When the dimmer on, Autobrightness will be toggled on.
+        When the dimmer is off, Autobrightness will be toggled off and brightness will be returned
+        to its previous state.  This is useful for installations where the light sensor is unblocked.
+    </string>
+    <string name="dialog_help_dimmer_mode_manual">
+        Digital - User Defined:  When the dimmer is on, brightness will be set to a user defined
+        value determined by the wizard.  When the dimmer is off, brightness will be returned to its
+        previous value.  This is useful for installations where the light sensor is blocked or no
+        light sensor is available.
+    </string>
+    <string name="dialog_help_dimmer_mode_analog">
+        Analog Voltage Map:  This functions in a manner similar to "Digital - User Defined", however
+        Analog mode maps minimum and maximum dimmer readings to corresponding user defined brightness
+        levels.  This allows the device brightness to be variable, depending on the dimmer setting.
+    </string>
+
 </resources>

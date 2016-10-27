@@ -34,8 +34,6 @@ import java.util.List;
 public class ButtonLearningActivity extends AppCompatActivity {
     private static String TAG = "ButtonLearningActivity";
 
-    //TODO:  need to add dialog for dimmer calibration
-
     private RecyclerView mButtonsRecyclerView;
     private LearnedButtonAdapter mAdapter;
 
@@ -65,17 +63,14 @@ public class ButtonLearningActivity extends AppCompatActivity {
                     String data = intent.getStringExtra("Data");
 
                     if (data.equals("On") || data.equals("Off")) {
-                        // TODO: launch dimmer dialog?
                         Snackbar.make(findViewById(android.R.id.content),
                                 "Dimmer: " + data, Snackbar.LENGTH_LONG)
                                 .setAction("Action", null).show();
-                    } else {
-                        if (mDimmerCalDialog.isDialogShowing()) {
-                            int reading = Integer.parseInt(data);
-                            mDimmerCalDialog.setReading(reading);
-                        }
                     }
 
+                    if (mDimmerCalDialog.isDialogShowing()) {
+                        mDimmerCalDialog.setReading(data);
+                    }
                 }
             }
         }

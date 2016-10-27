@@ -64,6 +64,7 @@ public class HardwareReceiver extends BroadcastReceiver {
                     Intent devChanged = new Intent(ACTION_DEVICE_CHANGED);
                     LocalBroadcastManager.getInstance(context).sendBroadcast(devChanged);
                     Log.i(TAG, "Usb device attached");
+
                 }
                 break;
             case ACTION_USB_DETACHED:
@@ -74,8 +75,8 @@ public class HardwareReceiver extends BroadcastReceiver {
                     LocalBroadcastManager.getInstance(context).sendBroadcast(devChanged);
                     Log.i(TAG, "Usb device removed");
 
-                    /*TODO: rebroadcast to local reciever.  This is temporary until I can implement
-                      error handling directly into code.
+                    /*TODO: The broadcast below is temporary until I can implement error handling
+                      directly into the UsbHelper class.  Currently
                     */
                     UsbDevice uDev = (UsbDevice) intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
                     Intent devDisconnected = new Intent(context.getString(R.string.ACTION_DEVICE_DISCONNECTED));
@@ -88,11 +89,10 @@ public class HardwareReceiver extends BroadcastReceiver {
                     int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE,
                             BluetoothAdapter.STATE_OFF);
 
-                    // TODO: broadcast to bluetooth helper when State is on notifying it?
-                    if (state == BluetoothAdapter.STATE_ON || state == BluetoothAdapter.STATE_TURNING_OFF) {
+                    if (state == BluetoothAdapter.STATE_ON) {
 
-                        Intent devChanged = new Intent(ACTION_DEVICE_CHANGED);
-                        LocalBroadcastManager.getInstance(context).sendBroadcast(devChanged);
+                        Intent localDevIntent = new Intent(context.getString(R.string.ACTION_BT_ADAPTER_ON));
+                        LocalBroadcastManager.getInstance(context).sendBroadcast(localDevIntent);
                     }
 
                 }

@@ -40,7 +40,6 @@ public class ControllerInputHandler extends Handler {
                 public void ProcessMessage(ControllerMessage ctrlMsg) {
                     // Local broadcast to learning activity, we only learn click and dimmer events
                     if(ctrlMsg.command.equals("Click") || ctrlMsg.command.equals("Dimmer")) {
-                        // TODO: direct intent to specific class?
                         Intent msgIntent = new Intent(mContext.getString(R.string.ACTION_CONTROLLER_LEARN_DATA));
                         msgIntent.putExtra("Command", ctrlMsg.command);
                         msgIntent.putExtra("Data", ctrlMsg.data);
@@ -97,6 +96,9 @@ public class ControllerInputHandler extends Handler {
     }
 
     public void close() {
-        mCommandProcessor.close();
+        // if we are in execution mode we need to clean up the command processor
+        if (mCommandProcessor != null) {
+            mCommandProcessor.close();
+        }
     }
 }

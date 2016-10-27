@@ -11,6 +11,7 @@ import android.os.Looper;
 import android.os.Message;
 import android.os.Process;
 import android.preference.PreferenceManager;
+import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
 import com.arksine.autointegrate.interfaces.SerialHelper;
@@ -105,14 +106,17 @@ public class MicroControllerCom {
 
             @Override
             public void OnDeviceError() {
+                Log.i(TAG, "Device Error, disconnecting");
                 mDeviceError = true;
-                disconnect();
+                Intent refreshConnection = new Intent(mContext
+                        .getString(R.string.ACTION_REFRESH_CONTROLLER_CONNECTION));
+                LocalBroadcastManager.getInstance(mContext).sendBroadcast(refreshConnection);
             }
         };
 
     }
 
-    public synchronized void resumeThread() {
+    private synchronized void resumeThread() {
         if (mIsWaiting) {
             mIsWaiting = false;
             notify();
@@ -147,18 +151,24 @@ public class MicroControllerCom {
 
         }
 
-        Log.d(TAG, "Attempting connection to usb device:\n" + devId);
-        mSerialHelper.connectDevice(devId, mCallbacks);
+        /**
+         * Attept to connect to the device.  If we the prerequisites are met to attempt connection,
+         * we'll wait until the connection thread notifies it is done.
+          */
+        Log.d(TAG, "Attempting connection to device:\n" + devId);
+        if (mSerialHelper.connectDevice(devId, mCallbacks)) {
 
-        // wait until the connection is finished.  The onDeviceReady callback will
-        // set mConnected to the connection status
-        synchronized (this) {
-            try {
-                mIsWaiting = true;
-                wait(30000);
-            } catch (InterruptedException e) {
-                Log.e(TAG, e.getMessage());
+            // wait until the connection is finished.  Only wait if the
+            synchronized (this) {
+                try {
+                    mIsWaiting = true;
+                    wait(30000);
+                } catch (InterruptedException e) {
+                    Log.e(TAG, e.getMessage());
+                }
             }
+        } else {
+            mConnected = false;
         }
 
         if (mConnected) {
@@ -199,9 +209,9 @@ public class MicroControllerCom {
 
     public void disconnect() {
         mConnected = false;
-        mInputHandler.close();
 
         if (mSerialHelper!= null) {
+            mInputHandler.close();
             // If there was a device error then we cannot write to it
             if (!mDeviceError) {
                 mSerialHelper.writeString("<STOP>");
