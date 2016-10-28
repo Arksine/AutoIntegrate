@@ -14,6 +14,7 @@ import android.os.Build;
 import android.os.IBinder;
 
 import com.arksine.autointegrate.activities.MainActivity;
+import com.arksine.autointegrate.power.NexusPowerManager;
 
 
 public class MainService extends Service {
@@ -48,6 +49,8 @@ public class MainService extends Service {
 
     @Override
     public void onCreate() {
+
+        NexusPowerManager.initialize(getApplicationContext());
 
         // Instantiate the service thread
         mServiceThread = new ServiceThread(this);

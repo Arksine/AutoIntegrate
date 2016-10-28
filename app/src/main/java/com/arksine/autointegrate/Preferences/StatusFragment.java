@@ -95,6 +95,8 @@ public class StatusFragment extends PreferenceFragment {
         PreferenceScreen root = this.getPreferenceScreen();
         SwitchPreference toggleService = (SwitchPreference) root.findPreference("status_pref_key_toggle_service");
 
+        // TODO: does calling "setChecked" in turn call the onPreferenceChangedListener?  If so,
+        //       that is not behavior that we want.  Also, check to see if we are suspended.
         if (isServiceRunning(MainService.class)) {
             if (!toggleService.isChecked()) {
                 toggleService.setChecked(true);

@@ -46,10 +46,8 @@ public class ServiceThread implements Runnable {
 
 
     // Broadcast Receiver that responds to events sent to alter the service thread
-    public class ServiceThreadReceiver extends BroadcastReceiver {
-        public ServiceThreadReceiver() {
-        }
-
+    private boolean isReceiverRegistered = false;
+    private BroadcastReceiver mServiceThreadReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
@@ -89,14 +87,7 @@ public class ServiceThread implements Runnable {
         int connectionAttempts = 1;
 
 
-        // Register the receiver for local broadcasts, dont want other apps screwing with this
-        ServiceThreadReceiver wakeRecvr = new ServiceThreadReceiver();
-        IntentFilter filter = new IntentFilter(mContext.getString(R.string.ACTION_WAKE_SERVICE_THREAD));
-        filter.addAction(mContext.getString(R.string.ACTION_REFRESH_CONTROLLER_CONNECTION));
-        filter.addAction(mContext.getString(R.string.ACTION_REFRESH_RADIO_CONNECTION));
-        filter.addAction(mContext.getString(R.string.ACTION_SUSPEND_SERVICE_THREAD));
 
-        mLocalBM.registerReceiver(wakeRecvr, filter);
 
         while (serviceThreadRunning) {
 
@@ -162,7 +153,6 @@ public class ServiceThread implements Runnable {
 
 
         serviceThreadRunning = false;
-        mLocalBM.unregisterReceiver(wakeRecvr);
         Log.i(TAG, "Service Thread finished executing");
 
     }
@@ -185,6 +175,17 @@ public class ServiceThread implements Runnable {
 
 
     public void startServiceThread() {
+        if (!isReceiverRegistered) {
+            // Register the receiver for local broadcasts
+            IntentFilter filter = new IntentFilter(mContext.getString(R.string.ACTION_WAKE_SERVICE_THREAD));
+            filter.addAction(mContext.getString(R.string.ACTION_REFRESH_CONTROLLER_CONNECTION));
+            filter.addAction(mContext.getString(R.string.ACTION_REFRESH_RADIO_CONNECTION));
+            filter.addAction(mContext.getString(R.string.ACTION_SUSPEND_SERVICE_THREAD));
+
+            mLocalBM.registerReceiver(mServiceThreadReceiver, filter);
+            isReceiverRegistered = true;
+        }
+
         // Just in case, make sure the executor is active
         if (EXECUTOR == null || EXECUTOR.isShutdown()) {
             EXECUTOR = Executors.newCachedThreadPool(new BackgroundThreadFactory());
@@ -233,6 +234,12 @@ public class ServiceThread implements Runnable {
         // Send intent to status fragment so it knows service status has changed
         Intent statusChangedIntent = new Intent(mContext.getString(R.string.ACTION_SERVICE_STATUS_CHANGED));
         mLocalBM.sendBroadcast(statusChangedIntent);
+
+        // unregister receiver since the service will stop
+        if (isReceiverRegistered) {
+            mLocalBM.unregisterReceiver(mServiceThreadReceiver);
+            isReceiverRegistered = false;
+        }
     }
 
     public synchronized void notifyServiceThread() {
