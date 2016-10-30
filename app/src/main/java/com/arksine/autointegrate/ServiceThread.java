@@ -10,6 +10,7 @@ import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
 import com.arksine.autointegrate.microcontroller.MicroControllerCom;
+import com.arksine.autointegrate.power.IntegratedPowerManager;
 import com.arksine.autointegrate.utilities.BackgroundThreadFactory;
 
 import java.util.concurrent.ExecutorService;
@@ -29,6 +30,7 @@ public class ServiceThread implements Runnable {
 
     private Future mMainThreadFuture = null;
 
+    private IntegratedPowerManager mPowerManager = null;
     private volatile MicroControllerCom mMicroController = null;
     private volatile boolean mLearningMode = false;
 
@@ -41,6 +43,20 @@ public class ServiceThread implements Runnable {
     ServiceThread(Context context) {
         mContext = context;
         mLocalBM = LocalBroadcastManager.getInstance(mContext);
+
+        if (!isReceiverRegistered) {
+            // Register the receiver for local broadcasts
+            IntentFilter filter = new IntentFilter(mContext.getString(R.string.ACTION_WAKE_DEVICE));
+            filter.addAction(mContext.getString(R.string.ACTION_REFRESH_CONTROLLER_CONNECTION));
+            filter.addAction(mContext.getString(R.string.ACTION_REFRESH_RADIO_CONNECTION));
+            filter.addAction(mContext.getString(R.string.ACTION_SUSPEND_DEVICE));
+
+            mLocalBM.registerReceiver(mServiceThreadReceiver, filter);
+            isReceiverRegistered = true;
+        }
+
+        mPowerManager = new IntegratedPowerManager(mContext);
+
     }
 
 
@@ -52,22 +68,15 @@ public class ServiceThread implements Runnable {
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
 
-            if (mContext.getString(R.string.ACTION_WAKE_SERVICE_THREAD).equals(action)) {
+            if (mContext.getString(R.string.ACTION_WAKE_DEVICE).equals(action)) {
                 if (serviceSuspended) {
-                    EXECUTOR.execute(wakeServiceThread);
+                    EXECUTOR.execute(wakeUpDevice);
                     Log.i(TAG, "Service resumed.");
                 }
-            } else if (mContext.getString(R.string.ACTION_SUSPEND_SERVICE_THREAD).equals(action)) {
+            } else if (mContext.getString(R.string.ACTION_SUSPEND_DEVICE).equals(action)) {
                 // Stop the main thread, but do not destroy the the ExecutorService so the thread
                 // can be restarted
-                serviceSuspended = true;
-                EXECUTOR.execute(stopMainThread);
-
-                // Broadcast Intent to Status Fragment notifying that service status has changed
-                PreferenceManager.getDefaultSharedPreferences(mContext).edit()
-                        .putBoolean("service_suspended", true).apply();
-                Intent statusChangedIntent = new Intent(mContext.getString(R.string.ACTION_SERVICE_STATUS_CHANGED));
-                mLocalBM.sendBroadcast(statusChangedIntent);
+                EXECUTOR.execute(suspendDevice);
 
             } else if (mContext.getString(R.string.ACTION_REFRESH_CONTROLLER_CONNECTION).equals(action)) {
                 Log.i(TAG, "Refresh MicroController Connection");
@@ -85,9 +94,6 @@ public class ServiceThread implements Runnable {
     public void run() {
         SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(mContext);
         int connectionAttempts = 1;
-
-
-
 
         while (serviceThreadRunning) {
 
@@ -175,16 +181,6 @@ public class ServiceThread implements Runnable {
 
 
     public void startServiceThread() {
-        if (!isReceiverRegistered) {
-            // Register the receiver for local broadcasts
-            IntentFilter filter = new IntentFilter(mContext.getString(R.string.ACTION_WAKE_SERVICE_THREAD));
-            filter.addAction(mContext.getString(R.string.ACTION_REFRESH_CONTROLLER_CONNECTION));
-            filter.addAction(mContext.getString(R.string.ACTION_REFRESH_RADIO_CONNECTION));
-            filter.addAction(mContext.getString(R.string.ACTION_SUSPEND_SERVICE_THREAD));
-
-            mLocalBM.registerReceiver(mServiceThreadReceiver, filter);
-            isReceiverRegistered = true;
-        }
 
         // Just in case, make sure the executor is active
         if (EXECUTOR == null || EXECUTOR.isShutdown()) {
@@ -210,8 +206,8 @@ public class ServiceThread implements Runnable {
         mLocalBM.sendBroadcast(statusChangedIntent);
     }
 
-    // Only call this when you are ready to go out of scope, it shuts down the executor.  DO NOT
-    // call on the UI thread, as it is blocking.
+    // Only call this when you are ready to shut down the service, as it shuts down the executor.
+    // DO NOT call on the UI thread, as it is blocking.
     public void destroyServiceThread() {
         serviceThreadRunning = false;
         notifyServiceThread();
@@ -240,6 +236,9 @@ public class ServiceThread implements Runnable {
             mLocalBM.unregisterReceiver(mServiceThreadReceiver);
             isReceiverRegistered = false;
         }
+
+        // stop the power manager
+        mPowerManager.destroy();
     }
 
     public synchronized void notifyServiceThread() {
@@ -297,9 +296,11 @@ public class ServiceThread implements Runnable {
         }
     };
 
-    private Runnable wakeServiceThread = new Runnable() {
+    private Runnable wakeUpDevice = new Runnable() {
         @Override
         public void run() {
+            mPowerManager.wakeUp();
+
             // since the device is waking up, sleep for 2 seconds before attempting to start
             try {
                 Thread.sleep(2000);
@@ -308,6 +309,22 @@ public class ServiceThread implements Runnable {
             }
             serviceSuspended = false;
             startServiceThread();
+        }
+    };
+
+    private Runnable suspendDevice = new Runnable() {
+        @Override
+        public void run() {
+            serviceSuspended = true;
+            stopMainThread.run();
+
+            // Broadcast Intent to Status Fragment notifying that service status has changed
+            PreferenceManager.getDefaultSharedPreferences(mContext).edit()
+                    .putBoolean("service_suspended", true).apply();
+            Intent statusChangedIntent = new Intent(mContext.getString(R.string.ACTION_SERVICE_STATUS_CHANGED));
+            mLocalBM.sendBroadcast(statusChangedIntent);
+
+            mPowerManager.goToSleep();
         }
     };
 

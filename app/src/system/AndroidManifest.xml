@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest package="com.arksine.autointegrate"
+          xmlns:android="http://schemas.android.com/apk/res/android"
+          xmlns:tools="http://schemas.android.com/tools"
+          tools:remove="android:sharedUserId">
+
+    <uses-permission android:name="android.permission.DEVICE_POWER"
+                     tools:node="remove"/>
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS"
+                     tools:node="remove"/>
+
+
+</manifest>

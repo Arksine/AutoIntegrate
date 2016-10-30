@@ -15,6 +15,7 @@ import android.util.Log;
 
 import com.arksine.autointegrate.MainService;
 import com.arksine.autointegrate.R;
+import com.arksine.autointegrate.power.IntegratedPowerManager;
 
 /**
  * Created by Eric on 10/1/2016.
@@ -40,7 +41,7 @@ public class StatusFragment extends PreferenceFragment {
         addPreferencesFromResource(R.xml.status_preferences);
         PreferenceScreen root = this.getPreferenceScreen();
         SwitchPreference toggleService = (SwitchPreference) root.findPreference("status_pref_key_toggle_service");
-        //SwitchPreference togglePower = (SwitchPreference) root.findPreference("status_pref_key_toggle_power");
+        SwitchPreference togglePower = (SwitchPreference) root.findPreference("status_pref_key_toggle_power");
         SwitchPreference toggleMC = (SwitchPreference) root.findPreference("status_pref_key_toggle_controller");
         //SwitchPreference toggleCamera = (SwitchPreference) root.findPreference("status_pref_key_toggle_camera");
         //SwitchPreference toggleRadio = (SwitchPreference) root.findPreference("status_pref_key_toggle_radio");
@@ -66,6 +67,15 @@ public class StatusFragment extends PreferenceFragment {
                     Intent stopIntent = new Intent(getString(R.string.ACTION_STOP_SERVICE));
                     mContext.sendBroadcast(stopIntent);
                 }
+                return true;
+            }
+        });
+
+        togglePower.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
+            @Override
+            public boolean onPreferenceChange(Preference preference, Object newValue) {
+
+                // TODO: probably no longer need to do anything here
                 return true;
             }
         });

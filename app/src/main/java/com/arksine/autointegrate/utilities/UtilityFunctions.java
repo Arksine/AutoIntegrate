@@ -54,6 +54,18 @@ public class UtilityFunctions {
         }
     }
 
+    /**
+     * Since some functionality relies on system permissions, check if a particular permission is
+     * granted
+     */
+    public static boolean hasPermission(Context context, String permission) {
+        int permissionStatus = context.getPackageManager()
+                .checkPermission(permission, context.getPackageName());
+
+        return (permissionStatus == PackageManager.PERMISSION_GRANTED);
+
+    }
+
     public static void initAppList(final Context context) {
 
         Thread appListThread = new Thread(new Runnable() {

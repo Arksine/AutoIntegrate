@@ -1,6 +1,20 @@
 apply plugin: 'com.android.application'
 
 android {
+    signingConfigs {
+        omnirom {
+            keyAlias 'omnirom'
+            keyPassword '2calcul8int'
+            storeFile file('D:/Development/android/omnirom.keystore')
+            storePassword '2calcul8int'
+        }
+        standard {
+            keyAlias 'autointegrate'
+            keyPassword '2calculateint'
+            storeFile file('D:/Development/android/android app signatures.jks')
+            storePassword '2calcul8int'
+        }
+    }
     compileSdkVersion 25
     buildToolsVersion '25.0.0'
     defaultConfig {
@@ -8,13 +22,36 @@ android {
         minSdkVersion 19
         targetSdkVersion 24
         versionCode 1
-        versionName "0.1"
+        versionName "0.1-alpha"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+    productFlavors {
+        normal {
+            applicationId "com.arksine.autointegrate"
+            versionName "0.1-alpha-normal"
+            minSdkVersion 19
+            signingConfig signingConfigs.standard
+            targetSdkVersion 24
+        }
+        system {
+            applicationId "com.arksine.autointegrate"
+            versionName "0.1-alpha-system"
+            minSdkVersion 19
+            signingConfig signingConfigs.standard
+            targetSdkVersion 24
+        }
+        signature {
+            applicationId "com.arksine.autointegrate"
+            versionName "0.1-alpha-signature"
+            minSdkVersion 19
+            signingConfig signingConfigs.omnirom
+            targetSdkVersion 24
         }
     }
 }

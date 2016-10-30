@@ -5,11 +5,11 @@
 
     <!-- Intents -->
     <string name="ACTION_STOP_SERVICE">com.arksine.autointegrate.ACTION_STOP_SERVICE</string>
-    <string name="ACTION_WAKE_SERVICE_THREAD">com.arksine.autointegrate.ACTION_WAKE_SERVICE_THREAD</string>
+    <string name="ACTION_WAKE_DEVICE">com.arksine.autointegrate.ACTION_WAKE_DEVICE</string>
+    <string name="ACTION_SUSPEND_DEVICE">com.arksine.autointegrate.ACTION_SUSPEND_DEVICE</string>
     <string name="ACTION_REFRESH_SERVICE_THREAD">com.arksine.autointegrate.ACTION_REFRESH_SERVICE_THREAD</string>
     <string name="ACTION_REFRESH_CONTROLLER_CONNECTION">com.arksine.autointegrate.ACTION_REFRESH_CONTROLLER_CONNECTION</string>
     <string name="ACTION_REFRESH_RADIO_CONNECTION">com.arksine.autointegrate.ACTION_REFRESH_RADIO_CONNECTION</string>
-    <string name="ACTION_SUSPEND_SERVICE_THREAD">com.arksine.autointegrate.ACTION_SUSPEND_SERVICE_THREAD</string>
     <string name="ACTION_STATUS_TOGGLE_CHANGED">com.arksine.autointegrate.ACTION_STATUS_TOGGLE_CHANGED</string>
     <string name="ACTION_SERVICE_STATUS_CHANGED">com.arksine.autointegrate.ACTION_SERVER_STATUS_CHANGED</string>
     <string name="ACTION_DEVICE_CHANGED">com.arksine.autointegrate.ACTION_DEVICE_CHANGED</string>
