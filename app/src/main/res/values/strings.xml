@@ -31,7 +31,7 @@
     <string name="gson_button_list_file">com.arksine.autointegrate.GSON_BUTTON_LIST_FILE</string>
 
     <string-array name="drawer_setting_titles">
-        <item>Service Status</item>
+        <item>Main Settings</item>
         <item>Power Settings</item>
         <item>Controller Settings</item>
         <item>Camera Settings</item>

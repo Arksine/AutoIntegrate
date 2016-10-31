@@ -11,7 +11,9 @@ import android.util.Log;
 
 import com.arksine.autointegrate.microcontroller.MicroControllerCom;
 import com.arksine.autointegrate.power.IntegratedPowerManager;
+import com.arksine.autointegrate.preferences.MainSettings;
 import com.arksine.autointegrate.utilities.BackgroundThreadFactory;
+import com.arksine.autointegrate.utilities.UtilityFunctions;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -203,6 +205,8 @@ public class ServiceThread implements Runnable {
         PreferenceManager.getDefaultSharedPreferences(mContext).edit()
                 .putBoolean("service_suspended", false).apply();
         Intent statusChangedIntent = new Intent(mContext.getString(R.string.ACTION_SERVICE_STATUS_CHANGED));
+        statusChangedIntent.setClass(mContext, MainSettings.class);
+        statusChangedIntent.putExtra("service_status", "On");
         mLocalBM.sendBroadcast(statusChangedIntent);
     }
 
@@ -227,10 +231,6 @@ public class ServiceThread implements Runnable {
 
         mMainThreadFuture = null;
 
-        // Send intent to status fragment so it knows service status has changed
-        Intent statusChangedIntent = new Intent(mContext.getString(R.string.ACTION_SERVICE_STATUS_CHANGED));
-        mLocalBM.sendBroadcast(statusChangedIntent);
-
         // unregister receiver since the service will stop
         if (isReceiverRegistered) {
             mLocalBM.unregisterReceiver(mServiceThreadReceiver);
@@ -239,6 +239,12 @@ public class ServiceThread implements Runnable {
 
         // stop the power manager
         mPowerManager.destroy();
+
+        // Send intent to status fragment so it knows service status has changed
+        Intent statusChangedIntent = new Intent(mContext.getString(R.string.ACTION_SERVICE_STATUS_CHANGED));
+        statusChangedIntent.setClass(mContext, MainSettings.class);
+        statusChangedIntent.putExtra("service_status", "Off");
+        mLocalBM.sendBroadcast(statusChangedIntent);
     }
 
     public synchronized void notifyServiceThread() {
@@ -322,6 +328,8 @@ public class ServiceThread implements Runnable {
             PreferenceManager.getDefaultSharedPreferences(mContext).edit()
                     .putBoolean("service_suspended", true).apply();
             Intent statusChangedIntent = new Intent(mContext.getString(R.string.ACTION_SERVICE_STATUS_CHANGED));
+            statusChangedIntent.setClass(mContext, MainSettings.class);
+            statusChangedIntent.putExtra("service_status", "Suspended");
             mLocalBM.sendBroadcast(statusChangedIntent);
 
             mPowerManager.goToSleep();

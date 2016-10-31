@@ -1,6 +1,5 @@
 package com.arksine.autointegrate.preferences;
 
-import android.app.ActivityManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -15,22 +14,23 @@ import android.util.Log;
 
 import com.arksine.autointegrate.MainService;
 import com.arksine.autointegrate.R;
-import com.arksine.autointegrate.power.IntegratedPowerManager;
+import com.arksine.autointegrate.utilities.UtilityFunctions;
 
 /**
  * Created by Eric on 10/1/2016.
  */
 
-public class StatusFragment extends PreferenceFragment {
+public class MainSettings extends PreferenceFragment {
 
-    private static String TAG = "StatusFragment";
+    private static String TAG = "MainSettings";
 
     private final BroadcastReceiver serverStatusReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
             if (action.equals(context.getString(R.string.ACTION_SERVICE_STATUS_CHANGED))) {
-                updateServiceStatus();
+                String status = intent.getStringExtra("service_status");
+                updateServiceStatus(status);
             }
         }
     };
@@ -38,7 +38,7 @@ public class StatusFragment extends PreferenceFragment {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        addPreferencesFromResource(R.xml.status_preferences);
+        addPreferencesFromResource(R.xml.main_preferences);
         PreferenceScreen root = this.getPreferenceScreen();
         SwitchPreference toggleService = (SwitchPreference) root.findPreference("status_pref_key_toggle_service");
         SwitchPreference togglePower = (SwitchPreference) root.findPreference("status_pref_key_toggle_power");
@@ -47,7 +47,7 @@ public class StatusFragment extends PreferenceFragment {
         //SwitchPreference toggleRadio = (SwitchPreference) root.findPreference("status_pref_key_toggle_radio");
         // Check to see if the service is on and set the toggleService preferences value accordingly
 
-        if (isServiceRunning(MainService.class)) {
+        if (UtilityFunctions.isServiceRunning(MainService.class, getActivity())) {
             toggleService.setChecked(true);
             Log.i(TAG, "Service is running");
         } else {
@@ -71,14 +71,14 @@ public class StatusFragment extends PreferenceFragment {
             }
         });
 
-        togglePower.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
+        /*togglePower.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
             @Override
             public boolean onPreferenceChange(Preference preference, Object newValue) {
 
                 // TODO: probably no longer need to do anything here
                 return true;
             }
-        });
+        });*/
 
         toggleMC.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
             @Override
@@ -101,33 +101,31 @@ public class StatusFragment extends PreferenceFragment {
         LocalBroadcastManager.getInstance(getActivity()).unregisterReceiver(serverStatusReceiver);
     }
 
-    private void updateServiceStatus() {
+    private void updateServiceStatus(String status) {
         PreferenceScreen root = this.getPreferenceScreen();
         SwitchPreference toggleService = (SwitchPreference) root.findPreference("status_pref_key_toggle_service");
 
         // TODO: does calling "setChecked" in turn call the onPreferenceChangedListener?  If so,
         //       that is not behavior that we want.  Also, check to see if we are suspended.
-        if (isServiceRunning(MainService.class)) {
-            if (!toggleService.isChecked()) {
-                toggleService.setChecked(true);
-                Log.i(TAG, "Service is running");
-            }
-        } else {
-            if (toggleService.isChecked()) {
-                toggleService.setChecked(false);
-                Log.i(TAG, "Service is not running");
-            }
+        switch (status) {
+            case "On":
+                if (!toggleService.isChecked()) {
+                    toggleService.setChecked(true);
+                    Log.i(TAG, "Service is running");
+                }
+                break;
+            case "Off":
+                if (toggleService.isChecked()) {
+                    toggleService.setChecked(false);
+                    Log.i(TAG, "Service is not running");
+                }
+                break;
+            case "Suspended":
+                break;
+            default:
+                //
+                break;
         }
     }
 
-
-    private boolean isServiceRunning(Class<?> serviceClass) {
-        ActivityManager manager = (ActivityManager) getActivity().getSystemService(Context.ACTIVITY_SERVICE);
-        for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
-            if (serviceClass.getName().equals(service.service.getClassName())) {
-                return true;
-            }
-        }
-        return false;
-    }
 }

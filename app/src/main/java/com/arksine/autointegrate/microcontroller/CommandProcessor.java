@@ -86,8 +86,6 @@ public class CommandProcessor {
         mContext = context;
         mAudioManger = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
 
-        UtilityFunctions.checkSettingsPermission(mContext);
-
         mCustomCommands = PreferenceManager.getDefaultSharedPreferences(mContext)
                 .getBoolean("controller_pref_key_custom_commands", false);
 

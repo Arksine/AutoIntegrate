@@ -12,6 +12,9 @@ import android.graphics.BitmapFactory;
 import android.graphics.drawable.Icon;
 import android.os.Build;
 import android.os.IBinder;
+import android.provider.Settings;
+import android.util.Log;
+import android.widget.Toast;
 
 import com.arksine.autointegrate.activities.MainActivity;
 
@@ -45,9 +48,21 @@ public class MainService extends Service {
     }
     private final StopReciever mStopReceiver = new StopReciever();
     private ServiceThread mServiceThread;
+    private boolean mHasWritePermission;
 
     @Override
     public void onCreate() {
+
+        /**
+         * Make sure that the service has permission to write system settings
+         */
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                && !Settings.System.canWrite(this)) {
+            mHasWritePermission = false;
+            return;
+        } else {
+            mHasWritePermission = true;
+        }
 
         // Instantiate the service thread
         mServiceThread = new ServiceThread(this);
@@ -103,9 +118,18 @@ public class MainService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
 
+        if (!mHasWritePermission) {
+            Toast.makeText(this, "Write Settings Permission not granted, exiting",
+                    Toast.LENGTH_SHORT).show();
+            Log.e(TAG, "Permission WRITE_SETTINGS not granted, exiting service");
+            return START_NOT_STICKY;
+        }
+
         // Start the service thread if it isnt running
         if (!mServiceThread.isServiceThreadRunning()) {
             mServiceThread.startServiceThread();
+        } else {
+            Log.i(TAG, "Attempt to start service when already running");
         }
 
         // If we get killed, after returning from here, restart

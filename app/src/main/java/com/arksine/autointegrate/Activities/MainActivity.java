@@ -23,11 +23,11 @@ import android.widget.ListView;
 import android.widget.Toast;
 
 import com.arksine.autointegrate.MainService;
+import com.arksine.autointegrate.preferences.MainSettings;
 import com.arksine.autointegrate.preferences.MicroControllerSettings;
 import com.arksine.autointegrate.preferences.CameraSettings;
 import com.arksine.autointegrate.preferences.PowerSettings;
 import com.arksine.autointegrate.preferences.RadioSettings;
-import com.arksine.autointegrate.preferences.StatusFragment;
 import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
 
@@ -96,8 +96,11 @@ public class MainActivity extends AppCompatActivity {
 
         UtilityFunctions.initAppList(this);
 
+        // Make sure we are granted settings permission, launch dialog if necessary
+        boolean canWriteSettings = UtilityFunctions.checkSettingsPermission(this);
+
         // Start the service if it isn't started
-        if (!UtilityFunctions.isServiceRunning(MainService.class, this)) {
+        if (canWriteSettings && !UtilityFunctions.isServiceRunning(MainService.class, this)) {
             Intent startIntent = new Intent(this, MainService.class);
             this.startService(startIntent);
         }
@@ -192,8 +195,8 @@ public class MainActivity extends AppCompatActivity {
         SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(this);
         switch (position) {
             case 0:     // Service Settings
-                fragment = new StatusFragment();
-                title = "Service Status";
+                fragment = new MainSettings();
+                title = "Main Settings";
                 break;
             case 1:     // Power Settings
                 if (sharedPrefs.getBoolean("status_pref_key_toggle_power", false)) {
@@ -206,12 +209,12 @@ public class MainActivity extends AppCompatActivity {
                 }
                 break;
             case 2:     // Arduino Settings
-                if (sharedPrefs.getBoolean("status_pref_key_toggle_arduino", false)) {
+                if (sharedPrefs.getBoolean("status_pref_key_toggle_controller", false)) {
                     fragment = new MicroControllerSettings();
-                    title = "Arduino Settings";
-                    Log.i(TAG, "Arduino Settings Selected");
+                    title = "Controller Settings";
+                    Log.i(TAG, "Controller Settings Selected");
                 } else {
-                    Toast.makeText(this, "Arduino Integration Disabled",
+                    Toast.makeText(this, "Main Integration Disabled",
                             Toast.LENGTH_SHORT).show();
                     return;
                 }

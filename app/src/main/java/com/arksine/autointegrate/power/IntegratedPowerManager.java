@@ -422,16 +422,12 @@ public class IntegratedPowerManager {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 Method goToSleep = iPowerManger.getClass().getMethod("goToSleep", long.class, int.class, int.class);
                 goToSleep.setAccessible(true);
-                // TODO: is this time correct
                 goToSleep.invoke(iPowerManger, SystemClock.uptimeMillis(), 0, 0);
             } else {
                 Method goToSleep = iPowerManger.getClass().getMethod("goToSleep", long.class, int.class);
                 goToSleep.setAccessible(true);
-                // TODO: is this time correct
                 goToSleep.invoke(iPowerManger, SystemClock.uptimeMillis(), 0);
             }
-
-
 
             Log.i(TAG, "Successfully put device to sleep using reflection");
         } catch (Exception e) {
