@@ -1,16 +1,22 @@
 package com.arksine.autointegrate.utilities;
 
+import android.app.PendingIntent;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
+import android.support.annotation.NonNull;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
 import com.arksine.autointegrate.R;
+
+import java.lang.reflect.Method;
 
 /**
  * This class manages USB and Bluetooth Hardware related broadcasts.  We want to make sure
@@ -26,7 +32,7 @@ public class HardwareReceiver extends BroadcastReceiver {
     public static final String ACTION_USB_ATTACHED = "android.hardware.usb.action.USB_DEVICE_ATTACHED";
     public static final String ACTION_USB_DETACHED = "android.hardware.usb.action.USB_DEVICE_DETACHED";
 
-    interface UsbCallback {
+    public interface UsbCallback {
         void onUsbPermissionRequestComplete(boolean requestStatus);
     }
 
@@ -112,7 +118,7 @@ public class HardwareReceiver extends BroadcastReceiver {
         }
     }
 
-    static public void setUsbPermissionCallback(UsbDevice device,
+    public static void setUsbPermissionCallback(UsbDevice device,
                                                 UsbCallback usbRequestComplete) {
         if (device == null || usbRequestComplete == null) {
             // passed bad parameters
@@ -121,6 +127,57 @@ public class HardwareReceiver extends BroadcastReceiver {
         }
         requestedUsbDevice = device;
         usbCallback = usbRequestComplete;
+    }
+
+    public static void requestUsbPermission(@NonNull UsbDevice device, @NonNull UsbCallback usbRequestComplete,
+                                            @NonNull Context context) {
+
+        requestedUsbDevice = device;
+        usbCallback = usbRequestComplete;
+
+        UsbManager usbManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
+
+        PendingIntent mPendingIntent = PendingIntent.getBroadcast(context, 0, new Intent(ACTION_USB_PERMISSION), 0);
+        usbManager.requestPermission(requestedUsbDevice, mPendingIntent);
+    }
+
+    // The purpose of this function is to bypass the standard usb permission model and grant permission
+    // without requesting it from the user
+    public static boolean grantAutomaticUsbPermission(UsbDevice usbDevice, Context context)
+    {
+        try
+        {
+
+            PackageManager pkgManager=context.getPackageManager();
+            ApplicationInfo appInfo=pkgManager.getApplicationInfo(context.getPackageName(), PackageManager.GET_META_DATA);
+
+            Class serviceManagerClass=Class.forName("android.os.ServiceManager");
+            Method getServiceMethod=serviceManagerClass.getDeclaredMethod("getService",String.class);
+            getServiceMethod.setAccessible(true);
+            android.os.IBinder binder=(android.os.IBinder)getServiceMethod.invoke(null, Context.USB_SERVICE);
+
+            Class iUsbManagerClass=Class.forName("android.hardware.usb.IUsbManager");
+            Class stubClass=Class.forName("android.hardware.usb.IUsbManager$Stub");
+            Method asInterfaceMethod=stubClass.getDeclaredMethod("asInterface", android.os.IBinder.class);
+            asInterfaceMethod.setAccessible(true);
+            Object iUsbManager=asInterfaceMethod.invoke(null, binder);
+
+
+            System.out.println("UID : " + appInfo.uid + " " + appInfo.processName + " " + appInfo.permission);
+            final Method grantDevicePermissionMethod = iUsbManagerClass.getDeclaredMethod("grantDevicePermission", UsbDevice.class,int.class);
+            grantDevicePermissionMethod.setAccessible(true);
+            grantDevicePermissionMethod.invoke(iUsbManager, usbDevice,appInfo.uid);
+
+
+            Log.i(TAG, "Method OK : " + binder + "  " + iUsbManager);
+            return true;
+        }
+        catch(Exception e)
+        {
+            Log.e(TAG, "Error trying to assign automatic usb permission : " + usbDevice.getDeviceName());
+            e.printStackTrace();
+            return false;
+        }
     }
 
 }

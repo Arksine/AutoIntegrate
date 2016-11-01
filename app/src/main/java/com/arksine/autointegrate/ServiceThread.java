@@ -107,7 +107,7 @@ public class ServiceThread implements Runnable {
 
 
             // Check to see if MicroController Integration is enabled
-            if (sharedPrefs.getBoolean("status_pref_key_toggle_controller", false)) {
+            if (sharedPrefs.getBoolean("main_pref_key_toggle_controller", false)) {
 
                 // If the MicroController connection hasn't been established, do so.
                 if (mMicroController == null || !mMicroController.isConnected()) {
@@ -170,7 +170,7 @@ public class ServiceThread implements Runnable {
         //       are enabled in settings
         boolean connected = true;
         SharedPreferences globalPrefs = PreferenceManager.getDefaultSharedPreferences(mContext);
-        if (globalPrefs.getBoolean("status_pref_key_toggle_controller", false)) {
+        if (globalPrefs.getBoolean("main_pref_key_toggle_controller", false)) {
             connected = (connected && (mMicroController != null && mMicroController.isConnected()));
         }
 

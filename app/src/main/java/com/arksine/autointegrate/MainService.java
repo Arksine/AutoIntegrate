@@ -24,7 +24,7 @@ public class MainService extends Service {
     private static String TAG = "MainService";
 
     // Stop Reciever cleans up and stops the service when the stop button is pressed on
-    // the service notification
+    // the service notification, or when the device is ready to shutdown
     public class StopReciever extends BroadcastReceiver {
         public StopReciever() {
         }
@@ -32,7 +32,8 @@ public class MainService extends Service {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
-            if (getString(R.string.ACTION_STOP_SERVICE).equals(action)) {
+            if (action.equals(getString(R.string.ACTION_STOP_SERVICE)) ||
+                    action.equals(Intent.ACTION_SHUTDOWN)) {
                 // Because the call to destroyServiceThread blocks, we need to create
                 // a thread to stop the service so we don't block the ui thread
                 Thread stopThread = new Thread(new Runnable() {
@@ -70,6 +71,7 @@ public class MainService extends Service {
         // The code below registers a receiver that allows us
         // to stop the service through an action shown on the notification.
         IntentFilter filter = new IntentFilter(getString(R.string.ACTION_STOP_SERVICE));
+        filter.addAction(Intent.ACTION_SHUTDOWN);
         registerReceiver(mStopReceiver, filter);
 
         Intent stopIntent = new Intent(getString(R.string.ACTION_STOP_SERVICE));

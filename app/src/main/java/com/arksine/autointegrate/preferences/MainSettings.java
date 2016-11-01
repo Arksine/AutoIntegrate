@@ -40,11 +40,11 @@ public class MainSettings extends PreferenceFragment {
         super.onCreate(savedInstanceState);
         addPreferencesFromResource(R.xml.main_preferences);
         PreferenceScreen root = this.getPreferenceScreen();
-        SwitchPreference toggleService = (SwitchPreference) root.findPreference("status_pref_key_toggle_service");
-        SwitchPreference togglePower = (SwitchPreference) root.findPreference("status_pref_key_toggle_power");
-        SwitchPreference toggleMC = (SwitchPreference) root.findPreference("status_pref_key_toggle_controller");
-        //SwitchPreference toggleCamera = (SwitchPreference) root.findPreference("status_pref_key_toggle_camera");
-        //SwitchPreference toggleRadio = (SwitchPreference) root.findPreference("status_pref_key_toggle_radio");
+        SwitchPreference toggleService = (SwitchPreference) root.findPreference("main_pref_key_toggle_service");
+        SwitchPreference togglePower = (SwitchPreference) root.findPreference("main_pref_key_toggle_power");
+        SwitchPreference toggleMC = (SwitchPreference) root.findPreference("main_pref_key_toggle_controller");
+        //SwitchPreference toggleCamera = (SwitchPreference) root.findPreference("main_pref_key_toggle_camera");
+        //SwitchPreference toggleRadio = (SwitchPreference) root.findPreference("main_pref_key_toggle_radio");
         // Check to see if the service is on and set the toggleService preferences value accordingly
 
         if (UtilityFunctions.isServiceRunning(MainService.class, getActivity())) {
@@ -103,7 +103,7 @@ public class MainSettings extends PreferenceFragment {
 
     private void updateServiceStatus(String status) {
         PreferenceScreen root = this.getPreferenceScreen();
-        SwitchPreference toggleService = (SwitchPreference) root.findPreference("status_pref_key_toggle_service");
+        SwitchPreference toggleService = (SwitchPreference) root.findPreference("main_pref_key_toggle_service");
 
         // TODO: does calling "setChecked" in turn call the onPreferenceChangedListener?  If so,
         //       that is not behavior that we want.  Also, check to see if we are suspended.

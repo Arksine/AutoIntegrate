@@ -4,17 +4,17 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Build;
+import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.PowerManager;
+import android.os.Process;
 import android.os.SystemClock;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
-import android.support.annotation.NonNull;
-import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.view.KeyEvent;
 
-import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
 
 import java.io.BufferedReader;
@@ -24,21 +24,13 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.List;
-import java.util.Timer;
-import java.util.TimerTask;
 
 import eu.chainfire.libsuperuser.Shell;
 
-//TODO: This class doesn't need to be full of static functions.  It can be instantiated in the
-//      Service thread.  The Power Event receiver would just broadcast the wake and suspend
-//      event rather than call functions in this class directly
-//      The only functions that need to be static are the Nexus Specific
-//      Functions that set and get values written to files.  It would require a broadcast reciever
-//      to know when the main power manager setting is toggled
 
 /**
- * Static class handling kernel specific power commands for Nexus 2012 devices with Kangaroo or DC
- * Kernels.
+ * Handles Power management functionality (sleep, wake, etc).  Static functions read/write to
+ * sysfs Kernel storage to enable Kernel specific functionality.
  */
 
 public class IntegratedPowerManager {
@@ -64,10 +56,13 @@ public class IntegratedPowerManager {
             "android.permission.WRITE_SECURE_SETTINGS";
 
     private Context mContext;
+    private SharedPreferences mDefaultPrefs;
     private SystemFunctions mSystemFunctions;
     private PowerManager.WakeLock mScreenWakeLock = null;
+    private Handler mPowerHandler = null;
 
     private static volatile Boolean mIsRootAvailable = null;
+    private static volatile boolean mHasSignaturePermission = false;
 
 
 
@@ -81,7 +76,15 @@ public class IntegratedPowerManager {
                 "Screen On Wakelock");
         mScreenWakeLock.acquire();
         Log.i(TAG, "Wakelock Aquired");
-        checkRootAvailable();
+
+        HandlerThread hThread = new HandlerThread("PowerHandlerThread");
+        hThread.setPriority(Process.THREAD_PRIORITY_BACKGROUND);
+        hThread.start();
+        mPowerHandler = new Handler(hThread.getLooper());
+
+        mDefaultPrefs = PreferenceManager.getDefaultSharedPreferences(mContext);
+
+        initPriviledgedAccess();
 
     }
 
@@ -97,58 +100,31 @@ public class IntegratedPowerManager {
         mIsRootAvailable = null;
     }
 
-    private static boolean isRootInitialized() {
-        return (mIsRootAvailable != null);
-    }
+    private void initPriviledgedAccess() {
+        mHasSignaturePermission = (UtilityFunctions.hasPermission(mContext, DEVICE_POWER_PERMISSION) &&
+                UtilityFunctions.hasPermission(mContext, WRITE_SECURE_SETTINGS_PERMISSION));
 
-    /**
-     * TODO:  Need to use su (libsuperuser) to echo 1 to the following files:
-     * /sys/kernel/usbhost/usbhost_fixed_install_mode               Turns on fixed install mode, a necessary prereq to fast charge
-     * /sys/kernel/usbhost/usbhost_fastcharge_in_host_mode          Turns on fast charging
-     *
-     * It would be a good idea to implement getter functions to read a 1 or 0 to see if the above are enabled.
-     *
-     * The following files are changed by PowerEventMangager, but I don't believe they are implemented
-     * in the DC Kernel
-     * /sys/kernel/usbhost/usbhost_firm_sleep
-     * /sys/kernel/usbhost/usbhost_lock_usbdisk
-     *
-     * Will also need a Broadcast Receiver to receive power events and react when power is attached
-     * and detached.  This will be another class so I can declare it in the manifest.
-     *
-     * I need to start the service at boot (or atleast do it delayed), this may not
-     *  be something implemented though powermanager though.
-     *
-     *  On power removal the main service thread should be stopped, the device should go into Airplance
-     *  mode, and wakelocks need to be removed.  Anything that uses power should be disabled if possible
-     *
-     *  On power restoration the opposite should happen.  When fixed install mode is on this class
-     *  should request and hold a wakelock.
-     */
-
-    private void checkRootAvailable() {
         Thread checkSUthread = new Thread(new Runnable() {
             @Override
             public void run() {
                 mIsRootAvailable = Shell.SU.available();
                 Log.i(TAG,"Root availability status: " + mIsRootAvailable);
 
-                if (UtilityFunctions.hasPermission(mContext, DEVICE_POWER_PERMISSION) &&
-                    UtilityFunctions.hasPermission(mContext, WRITE_SECURE_SETTINGS_PERMISSION)) {
+                if (mHasSignaturePermission) {
                     Log.i(TAG, "Device has signature level permissions");
                     // Signature level system functions
                     mSystemFunctions = new SystemFunctions() {
                         @Override
                         public void turnOffScreen() {
-                            Timer timer = new Timer();
-                            TimerTask timedSleep = new TimerTask() {
+                            Runnable timedSleep = new Runnable() {
                                 @Override
                                 public void run() {
                                     iPowerManagerSleep();
                                 }
                             };
-                            //TODO: retreive time delay from settings
-                            timer.schedule(timedSleep, 2000);
+
+                            long delay = mDefaultPrefs.getLong("power_pref_key_screen_timeout", 1000);
+                            mPowerHandler.postDelayed(timedSleep, delay);
                         }
 
                         @Override
@@ -168,16 +144,16 @@ public class IntegratedPowerManager {
                     mSystemFunctions = new SystemFunctions() {
                         @Override
                         public void turnOffScreen() {
-                            Timer timer = new Timer();
-                            TimerTask timedSleep = new TimerTask() {
+                            Runnable timedSleep = new Runnable() {
                                 @Override
                                 public void run() {
                                     String command = "input keyevent " + String.valueOf(KeyEvent.KEYCODE_POWER);
                                     Shell.SU.run(command);
                                 }
                             };
-                            //TODO: retreive time delay from settings
-                            timer.schedule(timedSleep, 2000);
+
+                            long delay = mDefaultPrefs.getLong("power_pref_key_screen_timeout", 1000);
+                            mPowerHandler.postDelayed(timedSleep, delay);
                         }
 
                         @Override
@@ -217,72 +193,6 @@ public class IntegratedPowerManager {
         checkSUthread.start();
     }
 
-
-    public static boolean setFixedInstallMode(boolean enabled) {
-        if (!isRootInitialized()) {
-            Log.i(TAG, "Error, SU not initialized");
-            return false;
-        }
-
-        String num = enabled ? "1" : "0";
-        final String command = "echo " + num + " > " + FIXED_INSTALL_SETTINGS_FILE;
-
-        if (mIsRootAvailable) {
-            Thread rootThread = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    Shell.SU.run(command);
-                }
-            });
-            rootThread.start();
-
-            return true;
-        } else {
-            Log.e(TAG, "Error setting fixed install mode, Root not available");
-            return false;
-        }
-    }
-
-    public static boolean setFastchargeMode(boolean enabled) {
-        if (!isRootInitialized()) {
-            Log.i(TAG, "Error, SU not initialized");
-            return false;
-        }
-
-        String num = enabled ? "1" : "0";
-        final String command = "echo " + num + " > " + FAST_CHARGE_SETTINGS_FILE;
-
-        if (mIsRootAvailable) {
-            Thread rootThread = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    Shell.SU.run(command);
-                }
-            });
-            rootThread.start();
-            return true;
-        } else {
-            Log.e(TAG, "Error setting fast charge, Root not available");
-            return false;
-        }
-    }
-
-    public static boolean isUsbHostEnabled() {
-        String fileValue = getValueFromFile(USB_HOST_STATUS_FILE);
-        return fileValue.equals(SETTING_ENABLED);
-    }
-
-
-    public static boolean isFixedInstallEnabled() {
-        String fileValue = getValueFromFile(FIXED_INSTALL_SETTINGS_FILE);
-        return fileValue.equals(SETTING_ENABLED);
-    }
-
-    public static boolean isFastChargeEnabled() {
-        String fileValue = getValueFromFile(FAST_CHARGE_SETTINGS_FILE);
-        return fileValue.equals(SETTING_ENABLED);
-    }
-
     // This is blocking, do not call from UI thread
     public void goToSleep() {
 
@@ -292,11 +202,20 @@ public class IntegratedPowerManager {
             Log.i(TAG, "Wakelock Released");
         }
 
+        long audioDelay = mDefaultPrefs.getLong("power_pref_key_audio_focus_timeout", 0);
+        Runnable gainAudioFocus = new Runnable() {
+            @Override
+            public void run() {
+                AudioFocusManager.requestAudioFocus(mContext);
+            }
+        };
+        mPowerHandler.postDelayed(gainAudioFocus, audioDelay);
 
 
-        AudioFocusManager.requestAudioFocus(mContext);
+        if (mDefaultPrefs.getBoolean("power_pref_key_use_airplane_mode", false)) {
+            mSystemFunctions.toggleAirplaneMode(true);
+        }
 
-        mSystemFunctions.toggleAirplaneMode(true);
         mSystemFunctions.turnOffScreen();
 
     }
@@ -313,46 +232,14 @@ public class IntegratedPowerManager {
         AudioFocusManager.releaseAudioFocus(mContext);
 
 
-        mSystemFunctions.toggleAirplaneMode(false);
-
-
-    }
-
-    private static String getValueFromFile(String filePath) {
-        File settingsFile = new File(filePath);
-        if (settingsFile.exists()) {
-            BufferedReader reader;
-            try {
-                reader = new BufferedReader(new FileReader(settingsFile));
-            } catch (FileNotFoundException e) {
-                Log.e(TAG, "File not found: " + filePath);
-                return "0";
-            }
-
-            String fileValue;
-            try {
-                fileValue = reader.readLine().trim();
-            } catch (IOException e) {
-                Log.e(TAG, "Error reading file: " + filePath);
-                fileValue = "0";
-            }
-
-            try {
-                reader.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-
-            return fileValue;
-
-        } else {
-            Log.e(TAG, "File does not exist: " + filePath);
-            return "0";
+        if (mDefaultPrefs.getBoolean("power_pref_key_use_airplane_mode", false)) {
+            mSystemFunctions.toggleAirplaneMode(false);
         }
     }
 
+
+
     private void setScreenTimeout() {
-        SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(mContext);
 
         int currentScreenTimeout = -1;
         try {
@@ -364,11 +251,11 @@ public class IntegratedPowerManager {
 
         // Only store the timeout if it hasn't been previously stored.  This keeps us from
         // overwriting our currently stored timeout if the service is closed without restoring it
-        boolean storeTimeout = sharedPrefs.getBoolean("power_pref_store_screen_timeout_flag", false);
+        boolean storeTimeout = mDefaultPrefs.getBoolean("power_pref_store_screen_timeout_flag", false);
 
         // Store the previous screen timeout
         if (currentScreenTimeout != -1 && !storeTimeout) {
-            sharedPrefs.edit()
+            mDefaultPrefs.edit()
                     .putInt("power_pref_store_screen_timeout_value", currentScreenTimeout)
                     .putBoolean("power_pref_store_screen_timeout_flag", true)
                     .apply();
@@ -376,25 +263,23 @@ public class IntegratedPowerManager {
             Log.i(TAG, "Current Screen Timeout: " + currentScreenTimeout);
         }
 
-        //TODO: retreive timeout from settings...This doesn't work great, takes about
-        //      10 seconds to timeout (atleast on api 23).  Maybe there is another method I could
-        //      try that doesn't require root?
+        // Set Timeout to a minimal number.  The effect varies, because the timeout only occurs
+        // after the system has decided that the device has no activity.
         Settings.System.putInt(mContext.getContentResolver(),
                 Settings.System.SCREEN_OFF_TIMEOUT, 1000);
     }
 
     private void restoreScreenTimeout() {
-        SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(mContext);
 
-        boolean storeTimeout = sharedPrefs.getBoolean("power_pref_store_screen_timeout_flag", false);
+        boolean storeTimeout = mDefaultPrefs.getBoolean("power_pref_store_screen_timeout_flag", false);
 
         // Only restore if the previous timeout has been stored
         if (storeTimeout) {
-            sharedPrefs.edit()
+            mDefaultPrefs.edit()
                     .putBoolean("power_pref_store_screen_timeout_flag", false)
                     .apply();
 
-            int timeout =  sharedPrefs.getInt("power_pref_store_screen_timeout_value", 15000);
+            int timeout =  mDefaultPrefs.getInt("power_pref_store_screen_timeout_value", 15000);
             Settings.System.putInt(mContext.getContentResolver(),
                     Settings.System.SCREEN_OFF_TIMEOUT, timeout);
 
@@ -435,6 +320,112 @@ public class IntegratedPowerManager {
             e.printStackTrace();
         }
 
+    }
+
+    /**
+     * The functions below are Static Functions used to manipulate kernel settings.  This specifically
+     * applies to Kernels for the Nexus 7 2012 (Kangaroo Kernel, DC Kernel).  It may also work
+     * for Timur's Kernel.
+     */
+
+    // Warning, do not call this from the UI thread, it is blocking
+    public static Boolean checkRootAvailable() {
+        return mIsRootAvailable;
+    }
+
+    public static boolean hasSignaturePermission(Context context) {
+        return (UtilityFunctions.hasPermission(context, DEVICE_POWER_PERMISSION) &&
+                UtilityFunctions.hasPermission(context, WRITE_SECURE_SETTINGS_PERMISSION));
+    }
+
+    public static boolean setFixedInstallMode(boolean enabled) {
+
+        String num = enabled ? "1" : "0";
+        final String command = "echo " + num + " > " + FIXED_INSTALL_SETTINGS_FILE;
+
+        if (mIsRootAvailable) {
+            Thread rootThread = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    Shell.SU.run(command);
+                }
+            });
+            rootThread.start();
+
+            return true;
+        } else {
+            Log.e(TAG, "Error setting fixed install mode, Root not available");
+            return false;
+        }
+    }
+
+    public static boolean setFastchargeMode(boolean enabled) {
+
+        String num = enabled ? "1" : "0";
+        final String command = "echo " + num + " > " + FAST_CHARGE_SETTINGS_FILE;
+
+        if (mIsRootAvailable) {
+            Thread rootThread = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    Shell.SU.run(command);
+                }
+            });
+            rootThread.start();
+            return true;
+        } else {
+            Log.e(TAG, "Error setting fast charge, Root not available");
+            return false;
+        }
+    }
+
+    public static boolean isUsbHostEnabled() {
+        String fileValue = getValueFromFile(USB_HOST_STATUS_FILE);
+        return fileValue.equals(SETTING_ENABLED);
+    }
+
+
+    public static boolean isFixedInstallEnabled() {
+        String fileValue = getValueFromFile(FIXED_INSTALL_SETTINGS_FILE);
+        return fileValue.equals(SETTING_ENABLED);
+    }
+
+    public static boolean isFastChargeEnabled() {
+        String fileValue = getValueFromFile(FAST_CHARGE_SETTINGS_FILE);
+        return fileValue.equals(SETTING_ENABLED);
+    }
+
+    private static String getValueFromFile(String filePath) {
+        File settingsFile = new File(filePath);
+        if (settingsFile.exists()) {
+            BufferedReader reader;
+            try {
+                reader = new BufferedReader(new FileReader(settingsFile));
+            } catch (FileNotFoundException e) {
+                Log.e(TAG, "File not found: " + filePath);
+                return "0";
+            }
+
+            String fileValue;
+            try {
+                fileValue = reader.readLine().trim();
+            } catch (IOException e) {
+                Log.e(TAG, "Error reading file: " + filePath);
+                fileValue = "0";
+            }
+
+            try {
+                reader.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            return fileValue;
+
+        } else {
+            Log.e(TAG, "File does not exist: " + filePath);
+            return "0";
+        }
     }
 
  }

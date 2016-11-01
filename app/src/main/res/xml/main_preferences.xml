@@ -2,37 +2,42 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
     <SwitchPreference
         android:defaultValue="false"
-        android:title="@string/status_pref_toggle_service"
-        android:key="status_pref_key_toggle_service"
-        android:summaryOn="@string/status_pref_toggle_service_summ_on"
-        android:summaryOff="@string/status_pref_toggle_service_summ_off"
+        android:title="@string/main_pref_toggle_service"
+        android:key="main_pref_key_toggle_service"
+        android:summaryOn="@string/main_pref_toggle_service_summ_on"
+        android:summaryOff="@string/main_pref_toggle_service_summ_off"
         />
     <SwitchPreference
         android:defaultValue="false"
-        android:title="@string/status_pref_toggle_power"
-        android:key="status_pref_key_toggle_power"
+        android:title="@string/main_pref_toggle_power"
+        android:key="main_pref_key_toggle_power"
         android:persistent="true"
-        android:summaryOn="@string/status_pref_toggle_power_summ_on"
-        android:summaryOff="@string/status_pref_toggle_power_summ_off"/>
+        android:summaryOn="@string/main_pref_toggle_power_summ_on"
+        android:summaryOff="@string/main_pref_toggle_power_summ_off"/>
     <SwitchPreference
         android:defaultValue="true"
-        android:title="@string/status_pref_toggle_controller"
-        android:key="status_pref_key_toggle_controller"
+        android:title="@string/main_pref_toggle_controller"
+        android:key="main_pref_key_toggle_controller"
         android:persistent="true"
-        android:summaryOn="@string/status_pref_toggle_controller_summ_on"
-        android:summaryOff="@string/status_pref_toggle_controller_summ_off"/>
+        android:summaryOn="@string/main_pref_toggle_controller_summ_on"
+        android:summaryOff="@string/main_pref_toggle_controller_summ_off"/>
     <SwitchPreference
         android:defaultValue="false"
-        android:title="@string/status_pref_toggle_camera"
-        android:key="status_pref_key_toggle_camera"
+        android:title="@string/main_pref_toggle_camera"
+        android:key="main_pref_key_toggle_camera"
         android:persistent="true"
-        android:summaryOn="@string/status_pref_toggle_camera_summ_on"
-        android:summaryOff="@string/status_pref_toggle_camera_summ_off"/>
+        android:summaryOn="@string/main_pref_toggle_camera_summ_on"
+        android:summaryOff="@string/main_pref_toggle_camera_summ_off"/>
     <SwitchPreference
         android:defaultValue="false"
-        android:title="@string/status_pref_toggle_radio"
-        android:key="status_pref_key_toggle_radio"
+        android:title="@string/main_pref_toggle_radio"
+        android:key="main_pref_key_toggle_radio"
         android:persistent="true"
-        android:summaryOn="@string/status_pref_toggle_radio_summ_on"
-        android:summaryOff="@string/status_pref_toggle_radio_summ_off"/>
+        android:summaryOn="@string/main_pref_toggle_radio_summ_on"
+        android:summaryOff="@string/main_pref_toggle_radio_summ_off"/>
+    <CheckBoxPreference
+        android:key="main_pref_key_start_on_boot"
+        android:title="@string/main_pref_start_on_boot_title"
+        android:persistent="true"
+        android:defaultValue="true"/>
 </PreferenceScreen>

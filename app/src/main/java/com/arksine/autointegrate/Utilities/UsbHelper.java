@@ -1,12 +1,9 @@
 package com.arksine.autointegrate.utilities;
 
-import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.pm.ApplicationInfo;
-import android.content.pm.PackageManager;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
@@ -27,7 +24,6 @@ import com.felhr.usbserial.CDCSerialDevice;
 import com.felhr.usbserial.UsbSerialDevice;
 import com.felhr.usbserial.UsbSerialInterface;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -248,44 +244,7 @@ public class UsbHelper implements SerialHelper {
         return serialPortConnected;
     }
 
-    // The purpose of this function is to bypass the standard usb permission model and grant permission
-    // without requesting it from the user
-    private boolean grantAutomaticPermission(UsbDevice usbDevice)
-    {
-        try
-        {
 
-            PackageManager pkgManager=mContext.getPackageManager();
-            ApplicationInfo appInfo=pkgManager.getApplicationInfo(mContext.getPackageName(), PackageManager.GET_META_DATA);
-
-            Class serviceManagerClass=Class.forName("android.os.ServiceManager");
-            Method getServiceMethod=serviceManagerClass.getDeclaredMethod("getService",String.class);
-            getServiceMethod.setAccessible(true);
-            android.os.IBinder binder=(android.os.IBinder)getServiceMethod.invoke(null, Context.USB_SERVICE);
-
-            Class iUsbManagerClass=Class.forName("android.hardware.usb.IUsbManager");
-            Class stubClass=Class.forName("android.hardware.usb.IUsbManager$Stub");
-            Method asInterfaceMethod=stubClass.getDeclaredMethod("asInterface", android.os.IBinder.class);
-            asInterfaceMethod.setAccessible(true);
-            Object iUsbManager=asInterfaceMethod.invoke(null, binder);
-
-
-            System.out.println("UID : " + appInfo.uid + " " + appInfo.processName + " " + appInfo.permission);
-            final Method grantDevicePermissionMethod = iUsbManagerClass.getDeclaredMethod("grantDevicePermission", UsbDevice.class,int.class);
-            grantDevicePermissionMethod.setAccessible(true);
-            grantDevicePermissionMethod.invoke(iUsbManager, usbDevice,appInfo.uid);
-
-
-            Log.i(TAG, "Method OK : " + binder + "  " + iUsbManager);
-            return true;
-        }
-        catch(Exception e)
-        {
-            Log.e(TAG, "Error trying to assign automatic usb permission : ");
-            e.printStackTrace();
-            return false;
-        }
-    }
 
     // This thread opens a usb serial connection on the specified device
     private class ConnectionThread extends Thread {
@@ -305,7 +264,7 @@ public class UsbHelper implements SerialHelper {
 
                 // Attempt to grant permission automatically (will only work if installed as system app)
                 // If it fails, request permission the old fashioned way
-                if(!grantAutomaticPermission(mUsbDevice)) {
+                if(!HardwareReceiver.grantAutomaticUsbPermission(mUsbDevice, mContext)) {
                     HardwareReceiver.UsbCallback callback = new HardwareReceiver.UsbCallback() {
                         @Override
                         public void onUsbPermissionRequestComplete(boolean requestStatus) {
@@ -313,9 +272,8 @@ public class UsbHelper implements SerialHelper {
                             resumeConnectionThread();
                         }
                     };
-                    HardwareReceiver.setUsbPermissionCallback(mUsbDevice, callback);
-                    PendingIntent mPendingIntent = PendingIntent.getBroadcast(mContext, 0, new Intent(ACTION_USB_PERMISSION), 0);
-                    mUsbManager.requestPermission(mUsbDevice, mPendingIntent);
+
+                    HardwareReceiver.requestUsbPermission(mUsbDevice, callback, mContext);
 
                     synchronized (this) {
                         try {

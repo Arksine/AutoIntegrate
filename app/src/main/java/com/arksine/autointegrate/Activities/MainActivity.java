@@ -199,7 +199,7 @@ public class MainActivity extends AppCompatActivity {
                 title = "Main Settings";
                 break;
             case 1:     // Power Settings
-                if (sharedPrefs.getBoolean("status_pref_key_toggle_power", false)) {
+                if (sharedPrefs.getBoolean("main_pref_key_toggle_power", false)) {
                     fragment = new PowerSettings();
                     title = "Power Settings";
                 } else {
@@ -209,7 +209,7 @@ public class MainActivity extends AppCompatActivity {
                 }
                 break;
             case 2:     // Arduino Settings
-                if (sharedPrefs.getBoolean("status_pref_key_toggle_controller", false)) {
+                if (sharedPrefs.getBoolean("main_pref_key_toggle_controller", false)) {
                     fragment = new MicroControllerSettings();
                     title = "Controller Settings";
                     Log.i(TAG, "Controller Settings Selected");
@@ -220,7 +220,7 @@ public class MainActivity extends AppCompatActivity {
                 }
                 break;
             case 3:     // Camera Settings
-                if (sharedPrefs.getBoolean("status_pref_key_toggle_camera", false)) {
+                if (sharedPrefs.getBoolean("main_pref_key_toggle_camera", false)) {
                     fragment = new CameraSettings();
                     title = "Camera Settings";
                 } else {
@@ -230,7 +230,7 @@ public class MainActivity extends AppCompatActivity {
                 }
                 break;
             case 4:     // HD Radio Settings
-                if (sharedPrefs.getBoolean("status_pref_key_toggle_radio", false)) {
+                if (sharedPrefs.getBoolean("main_pref_key_toggle_radio", false)) {
                     fragment = new RadioSettings();
                     title = "HD Radio Settings";
                 } else {

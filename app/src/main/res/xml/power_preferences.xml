@@ -1,4 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <PreferenceCategory
+        android:title="@string/power_category_event">
+
+        <com.arksine.autointegrate.dialogs.DurationPreference
+            android:key="power_pref_key_screen_timeout"
+            android:title="@string/power_pref_screen_timeout_title"
+            android:persistent="true"
+            android:defaultValue="5000"/>
+
+        <com.arksine.autointegrate.dialogs.DurationPreference
+            android:key="power_pref_key_audio_focus_timeout"
+            android:title="@string/power_pref_audio_focus_timeout_title"
+            android:persistent="true"
+            android:defaultValue="3000"/>
+
+        <CheckBoxPreference
+            android:key="power_pref_key_use_airplane_mode"
+            android:title="@string/power_pref_enable_ap_mode_title"
+            android:persistent="true"
+            android:defaultValue="true"/>
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:title="@string/power_category_kernel">
+        <SwitchPreference
+            android:key="power_pref_key_fixed_install"
+            android:title="@string/power_pref_enable_fixed_install_mode"
+            android:persistent="true"
+            android:defaultValue="false"/>
+        <SwitchPreference
+            android:key="power_pref_key_fast_charging"
+            android:title="@string/power_pref_enable_fast_charge"
+            android:persistent="true"
+            android:defaultValue="false" />
+
+    </PreferenceCategory>
+
+
 
 </PreferenceScreen>

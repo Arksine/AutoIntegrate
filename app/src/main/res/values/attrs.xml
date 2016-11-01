@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="TimePicker">
+        <attr name="timePickerMode" format="integer">8</attr>
+    </declare-styleable>
+</resources>
