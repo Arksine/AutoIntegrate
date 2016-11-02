@@ -25,6 +25,11 @@ import com.arksine.autointegrate.utilities.HardwareReceiver;
 
 import java.util.HashMap;
 
+// TODO:  We are going to use the libUVCCamera android library to handle camera ops,
+//        however we need to alter it so it can accept a UsbDevice that we already
+//        granted permission.  We can possibly just create our own class in this
+//        app to manage it and call the necessary functions
+
 public class CameraActivity extends AppCompatActivity {
     private final static String TAG = "CameraActivity";
 

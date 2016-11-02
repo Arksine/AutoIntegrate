@@ -66,14 +66,6 @@
       <sourceFolder url="file://$MODULE_DIR$/src/normal/jni" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src/normal/rs" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src/normal/shaders" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/testNormal/res" type="java-test-resource" />
-      <sourceFolder url="file://$MODULE_DIR$/src/testNormal/resources" type="java-test-resource" />
-      <sourceFolder url="file://$MODULE_DIR$/src/testNormal/assets" type="java-test-resource" />
-      <sourceFolder url="file://$MODULE_DIR$/src/testNormal/aidl" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/src/testNormal/java" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/src/testNormal/jni" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/src/testNormal/rs" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/src/testNormal/shaders" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/src/androidTestNormal/res" type="java-test-resource" />
       <sourceFolder url="file://$MODULE_DIR$/src/androidTestNormal/resources" type="java-test-resource" />
       <sourceFolder url="file://$MODULE_DIR$/src/androidTestNormal/assets" type="java-test-resource" />
@@ -82,6 +74,14 @@
       <sourceFolder url="file://$MODULE_DIR$/src/androidTestNormal/jni" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/src/androidTestNormal/rs" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/src/androidTestNormal/shaders" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/src/testNormal/res" type="java-test-resource" />
+      <sourceFolder url="file://$MODULE_DIR$/src/testNormal/resources" type="java-test-resource" />
+      <sourceFolder url="file://$MODULE_DIR$/src/testNormal/assets" type="java-test-resource" />
+      <sourceFolder url="file://$MODULE_DIR$/src/testNormal/aidl" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/src/testNormal/java" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/src/testNormal/jni" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/src/testNormal/rs" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/src/testNormal/shaders" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/src/debug/res" type="java-resource" />
       <sourceFolder url="file://$MODULE_DIR$/src/debug/resources" type="java-resource" />
       <sourceFolder url="file://$MODULE_DIR$/src/debug/assets" type="java-resource" />
@@ -106,14 +106,6 @@
       <sourceFolder url="file://$MODULE_DIR$/src/main/jni" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src/main/rs" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src/main/shaders" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/androidTest/res" type="java-test-resource" />
-      <sourceFolder url="file://$MODULE_DIR$/src/androidTest/resources" type="java-test-resource" />
-      <sourceFolder url="file://$MODULE_DIR$/src/androidTest/assets" type="java-test-resource" />
-      <sourceFolder url="file://$MODULE_DIR$/src/androidTest/aidl" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/src/androidTest/java" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/src/androidTest/jni" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/src/androidTest/rs" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/src/androidTest/shaders" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/src/test/res" type="java-test-resource" />
       <sourceFolder url="file://$MODULE_DIR$/src/test/resources" type="java-test-resource" />
       <sourceFolder url="file://$MODULE_DIR$/src/test/assets" type="java-test-resource" />
@@ -122,9 +114,15 @@
       <sourceFolder url="file://$MODULE_DIR$/src/test/jni" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/src/test/rs" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/src/test/shaders" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/src/androidTest/res" type="java-test-resource" />
+      <sourceFolder url="file://$MODULE_DIR$/src/androidTest/resources" type="java-test-resource" />
+      <sourceFolder url="file://$MODULE_DIR$/src/androidTest/assets" type="java-test-resource" />
+      <sourceFolder url="file://$MODULE_DIR$/src/androidTest/aidl" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/src/androidTest/java" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/src/androidTest/jni" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/src/androidTest/rs" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/src/androidTest/shaders" isTestSource="true" />
       <excludeFolder url="file://$MODULE_DIR$/build/intermediates/blame" />
-      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/classes" />
-      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/dependency-cache" />
       <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/com.android.support.test.espresso/espresso-core/2.2.2/jars" />
       <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/com.android.support.test.espresso/espresso-idling-resource/2.2.2/jars" />
       <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/com.android.support.test/exposed-instrumentation-api-publish/0.5/jars" />
@@ -148,13 +146,11 @@
       <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/com.orhanobut/dialogplus/1.11/jars" />
       <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/eu.chainfire/libsuperuser/1.0.0.201608240809/jars" />
       <excludeFolder url="file://$MODULE_DIR$/build/intermediates/incremental" />
-      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/incremental-safeguard" />
       <excludeFolder url="file://$MODULE_DIR$/build/intermediates/manifests" />
       <excludeFolder url="file://$MODULE_DIR$/build/intermediates/res" />
       <excludeFolder url="file://$MODULE_DIR$/build/intermediates/rs" />
       <excludeFolder url="file://$MODULE_DIR$/build/intermediates/symbols" />
       <excludeFolder url="file://$MODULE_DIR$/build/outputs" />
-      <excludeFolder url="file://$MODULE_DIR$/build/tmp" />
     </content>
     <orderEntry type="jdk" jdkName="Android API 25 Platform" jdkType="Android SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
@@ -190,5 +186,6 @@
     <orderEntry type="library" exported="" scope="TEST" name="junit-4.12" level="project" />
     <orderEntry type="library" exported="" name="dialogplus-1.11" level="project" />
     <orderEntry type="library" exported="" name="recyclerview-v7-25.0.0" level="project" />
+    <orderEntry type="module" module-name="libuvccamera" exported="" />
   </component>
 </module>
