@@ -9,6 +9,7 @@ import android.preference.SwitchPreference;
 
 import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.power.IntegratedPowerManager;
+import com.arksine.autointegrate.utilities.UtilityFunctions;
 
 /**
  * Controls settings that allow the service to react to power events, as well as special kernel
@@ -60,10 +61,23 @@ public class PowerSettings extends PreferenceFragment {
     public void onResume() {
         super.onResume();
 
-        // TODO: If the service hasn't been started, these will return null.  Can I do something to
-        //       work around it?
-        boolean rootAvailable = IntegratedPowerManager.checkRootAvailable();
-        boolean signaturePermissionsAvailable = IntegratedPowerManager.hasSignaturePermission(getActivity());
+        Boolean rootAvailable = UtilityFunctions.isRootAvailable();
+        if (rootAvailable == null) {
+            UtilityFunctions.RootCallback callback = new UtilityFunctions.RootCallback() {
+                @Override
+                public void OnRootInitialized(boolean rootStatus) {
+                    initialize(rootStatus);
+                }
+            };
+            UtilityFunctions.initRoot(callback);
+        } else {
+            initialize(rootAvailable);
+        }
+
+    }
+
+    private void initialize(boolean rootAvailable) {
+        boolean signaturePermissionsAvailable = UtilityFunctions.hasSignaturePermission(getActivity());
         mApMode.setEnabled(rootAvailable || signaturePermissionsAvailable);
 
         mFixedInstallMode.setEnabled(rootAvailable);

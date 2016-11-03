@@ -94,6 +94,7 @@ public class MainActivity extends AppCompatActivity {
             selectItem(0);
         }
 
+        // Store a list of applications installed on the device
         UtilityFunctions.initAppList(this);
 
         // Make sure we are granted settings permission, launch dialog if necessary

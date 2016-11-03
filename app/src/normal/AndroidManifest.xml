@@ -4,8 +4,6 @@
           xmlns:tools="http://schemas.android.com/tools"
           tools:remove="android:sharedUserId">
 
-    <uses-permission android:name="android.permission.MANAGE_USB"
-                     tools:node="remove"/>
     <uses-permission android:name="android.permission.DEVICE_POWER"
                      tools:node="remove"/>
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS"

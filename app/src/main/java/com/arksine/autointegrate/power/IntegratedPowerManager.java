@@ -57,15 +57,9 @@ public class IntegratedPowerManager {
 
     private Context mContext;
     private SharedPreferences mDefaultPrefs;
-    private SystemFunctions mSystemFunctions;
+    private SystemFunctions mSystemFunctions = null;
     private PowerManager.WakeLock mScreenWakeLock = null;
     private Handler mPowerHandler = null;
-
-    private static volatile Boolean mIsRootAvailable = null;
-    private static volatile boolean mHasSignaturePermission = false;
-
-
-
 
     public IntegratedPowerManager(Context context){
         mContext = context;
@@ -84,8 +78,14 @@ public class IntegratedPowerManager {
 
         mDefaultPrefs = PreferenceManager.getDefaultSharedPreferences(mContext);
 
-        initPriviledgedAccess();
+        UtilityFunctions.RootCallback callback = new UtilityFunctions.RootCallback() {
+            @Override
+            public void OnRootInitialized(boolean rootStatus) {
+                initPrivledgedAccess(rootStatus);
+            }
+        };
 
+        UtilityFunctions.initRoot(callback);
     }
 
 
@@ -97,104 +97,98 @@ public class IntegratedPowerManager {
 
         mScreenWakeLock = null;
         restoreScreenTimeout();
-        mIsRootAvailable = null;
     }
 
-    private void initPriviledgedAccess() {
-        mHasSignaturePermission = (UtilityFunctions.hasPermission(mContext, DEVICE_POWER_PERMISSION) &&
-                UtilityFunctions.hasPermission(mContext, WRITE_SECURE_SETTINGS_PERMISSION));
+    private void initPrivledgedAccess(boolean rootStatus) {
+        boolean hasSignaturePermission = UtilityFunctions.hasSignaturePermission(mContext);
 
-        Thread checkSUthread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                mIsRootAvailable = Shell.SU.available();
-                Log.i(TAG,"Root availability status: " + mIsRootAvailable);
-
-                if (mHasSignaturePermission) {
-                    Log.i(TAG, "Device has signature level permissions");
-                    // Signature level system functions
-                    mSystemFunctions = new SystemFunctions() {
+        if (hasSignaturePermission) {
+            Log.i(TAG, "Device has signature level permissions");
+            // Signature level system functions
+            mSystemFunctions = new SystemFunctions() {
+                @Override
+                public void turnOffScreen() {
+                    Runnable timedSleep = new Runnable() {
                         @Override
-                        public void turnOffScreen() {
-                            Runnable timedSleep = new Runnable() {
-                                @Override
-                                public void run() {
-                                    iPowerManagerSleep();
-                                }
-                            };
-
-                            long delay = mDefaultPrefs.getLong("power_pref_key_screen_timeout", 1000);
-                            mPowerHandler.postDelayed(timedSleep, delay);
-                        }
-
-                        @Override
-                        public void toggleAirplaneMode(boolean status) {
-                            int value = status ? 1 : 0;
-                            Settings.Global.putInt(mContext.getContentResolver(),
-                                    Settings.Global.AIRPLANE_MODE_ON, value);
-
-                            Intent airplaneModeIntent = new Intent(Intent.ACTION_AIRPLANE_MODE_CHANGED);
-                            airplaneModeIntent.putExtra("state", status);
-                            mContext.sendBroadcast(airplaneModeIntent);
+                        public void run() {
+                            iPowerManagerSleep();
                         }
                     };
 
-                } else if (mIsRootAvailable) {
-                    // Root system functions
-                    mSystemFunctions = new SystemFunctions() {
-                        @Override
-                        public void turnOffScreen() {
-                            Runnable timedSleep = new Runnable() {
-                                @Override
-                                public void run() {
-                                    String command = "input keyevent " + String.valueOf(KeyEvent.KEYCODE_POWER);
-                                    Shell.SU.run(command);
-                                }
-                            };
-
-                            long delay = mDefaultPrefs.getLong("power_pref_key_screen_timeout", 1000);
-                            mPowerHandler.postDelayed(timedSleep, delay);
-                        }
-
-                        @Override
-                        public void toggleAirplaneMode(boolean status) {
-                            String value = status ? "1" : "0";
-                            String[] commands = new String[2];
-                            commands[0] = ("settings put global airplane_mode_on " + value + "\n");
-                            commands[1] = ("am broadcast -a android.intent.action.AIRPLANE_MODE --ez state "
-                                    + String.valueOf(status));
-
-                            List<String> output = Shell.SU.run(commands);
-                            for (String o: output) {
-                                Log.i(TAG, o + "\n");
-                            }
-                        }
-                    };
-                } else {
-                    /**
-                     * Neither Signature level permissions nor root available.  Screen timeout will
-                     * be set to minimum so the screen times out after the wakelock is released.
-                     * Initial screen timeout will be stored and returned to its original state
-                     * when service is shut down.
-                     */
-
-                    setScreenTimeout();
-
-                    mSystemFunctions = new SystemFunctions() {
-                        @Override
-                        public void turnOffScreen() {}
-
-                        @Override
-                        public void toggleAirplaneMode(boolean status) {}
-                    };
+                    long delay = mDefaultPrefs.getLong("power_pref_key_screen_timeout", 1000);
+                    mPowerHandler.postDelayed(timedSleep, delay);
                 }
-            }
-        });
-        checkSUthread.start();
+
+                @Override
+                public void toggleAirplaneMode(boolean status) {
+                    int value = status ? 1 : 0;
+                    Settings.Global.putInt(mContext.getContentResolver(),
+                            Settings.Global.AIRPLANE_MODE_ON, value);
+
+                    Intent airplaneModeIntent = new Intent(Intent.ACTION_AIRPLANE_MODE_CHANGED);
+                    airplaneModeIntent.putExtra("state", status);
+                    mContext.sendBroadcast(airplaneModeIntent);
+                }
+            };
+
+        } else if (rootStatus) {
+            // Root system functions
+            mSystemFunctions = new SystemFunctions() {
+                @Override
+                public void turnOffScreen() {
+                    Runnable timedSleep = new Runnable() {
+                        @Override
+                        public void run() {
+                            String command = "input keyevent " + String.valueOf(KeyEvent.KEYCODE_POWER);
+                            Shell.SU.run(command);
+                        }
+                    };
+
+                    long delay = mDefaultPrefs.getLong("power_pref_key_screen_timeout", 1000);
+                    mPowerHandler.postDelayed(timedSleep, delay);
+                }
+
+                @Override
+                public void toggleAirplaneMode(boolean status) {
+                    String value = status ? "1" : "0";
+                    String[] commands = new String[2];
+                    commands[0] = ("settings put global airplane_mode_on " + value + "\n");
+                    commands[1] = ("am broadcast -a android.intent.action.AIRPLANE_MODE --ez state "
+                            + String.valueOf(status));
+
+                    List<String> output = Shell.SU.run(commands);
+                    for (String o: output) {
+                        Log.i(TAG, o + "\n");
+                    }
+                }
+            };
+        } else {
+            /**
+             * Neither Signature level permissions nor root available.  Screen timeout will
+             * be set to minimum so the screen times out after the wakelock is released.
+             * Initial screen timeout will be stored and returned to its original state
+             * when service is shut down.
+             */
+
+            setScreenTimeout();
+
+            mSystemFunctions = new SystemFunctions() {
+                @Override
+                public void turnOffScreen() {}
+
+                @Override
+                public void toggleAirplaneMode(boolean status) {}
+            };
+        }
+
     }
 
     // This is blocking, do not call from UI thread
     public void goToSleep() {
+        if (mSystemFunctions == null) {
+            Log.w(TAG, "System Functions not set.");
+            return;
+        }
 
         // release wakelocked keeping screen on
         if (mScreenWakeLock.isHeld()) {
@@ -222,6 +216,10 @@ public class IntegratedPowerManager {
 
     // This is blocking, do not call from UI thread
     public void wakeUp() {
+        if (mSystemFunctions == null) {
+            Log.w(TAG, "System Functions not set.");
+            return;
+        }
 
         // release wakelocked keeping screen on
         if (!mScreenWakeLock.isHeld()) {
@@ -328,22 +326,12 @@ public class IntegratedPowerManager {
      * for Timur's Kernel.
      */
 
-    // Warning, do not call this from the UI thread, it is blocking
-    public static Boolean checkRootAvailable() {
-        return mIsRootAvailable;
-    }
-
-    public static boolean hasSignaturePermission(Context context) {
-        return (UtilityFunctions.hasPermission(context, DEVICE_POWER_PERMISSION) &&
-                UtilityFunctions.hasPermission(context, WRITE_SECURE_SETTINGS_PERMISSION));
-    }
-
     public static boolean setFixedInstallMode(boolean enabled) {
 
         String num = enabled ? "1" : "0";
         final String command = "echo " + num + " > " + FIXED_INSTALL_SETTINGS_FILE;
 
-        if (mIsRootAvailable) {
+        if (UtilityFunctions.isRootAvailable()) {
             Thread rootThread = new Thread(new Runnable() {
                 @Override
                 public void run() {
@@ -364,7 +352,7 @@ public class IntegratedPowerManager {
         String num = enabled ? "1" : "0";
         final String command = "echo " + num + " > " + FAST_CHARGE_SETTINGS_FILE;
 
-        if (mIsRootAvailable) {
+        if (UtilityFunctions.isRootAvailable()) {
             Thread rootThread = new Thread(new Runnable() {
                 @Override
                 public void run() {
@@ -427,5 +415,4 @@ public class IntegratedPowerManager {
             return "0";
         }
     }
-
  }

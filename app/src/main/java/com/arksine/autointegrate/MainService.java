@@ -121,7 +121,7 @@ public class MainService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
 
         if (!mHasWritePermission) {
-            Toast.makeText(this, "Write Settings Permission not granted, exiting",
+            Toast.makeText(this, "Write Settings Permission not granted, cannot start service",
                     Toast.LENGTH_SHORT).show();
             Log.e(TAG, "Permission WRITE_SETTINGS not granted, exiting service");
             return START_NOT_STICKY;

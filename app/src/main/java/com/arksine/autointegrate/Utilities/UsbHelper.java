@@ -131,6 +131,10 @@ public class UsbHelper implements SerialHelper {
             Log.i(TAG, "Device Name: " + uDevice.getDeviceName());
             Log.i(TAG, "Vendor: ID " + uDevice.getVendorId());
             Log.i(TAG, "Product ID: " + uDevice.getProductId());
+            Log.i(TAG, "Class: " + uDevice.getDeviceClass());
+            Log.i(TAG, "SubClass: " + uDevice.getDeviceSubclass());
+            Log.i(TAG, "Protocol: " + uDevice.getDeviceProtocol());
+
 
             String id = uDevice.getVendorId() + ":" + uDevice.getProductId() + ":"
                     + uDevice.getDeviceName();

@@ -39,13 +39,6 @@ android {
             signingConfig signingConfigs.standard
             targetSdkVersion 24
         }
-        system {
-            applicationId "com.arksine.autointegrate"
-            versionName "0.1-alpha-system"
-            minSdkVersion 19
-            signingConfig signingConfigs.standard
-            targetSdkVersion 24
-        }
         signature {
             applicationId "com.arksine.autointegrate"
             versionName "0.1-alpha-signature"

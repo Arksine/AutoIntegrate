@@ -118,19 +118,9 @@ public class HardwareReceiver extends BroadcastReceiver {
         }
     }
 
-    public static void setUsbPermissionCallback(UsbDevice device,
-                                                UsbCallback usbRequestComplete) {
-        if (device == null || usbRequestComplete == null) {
-            // passed bad parameters
-            Log.d(TAG, "Passed null parameter in setUsbPermissionCallback");
-            return;
-        }
-        requestedUsbDevice = device;
-        usbCallback = usbRequestComplete;
-    }
-
-    public static void requestUsbPermission(@NonNull UsbDevice device, @NonNull UsbCallback usbRequestComplete,
-                                            @NonNull Context context) {
+    public synchronized static void requestUsbPermission(@NonNull UsbDevice device,
+                                                         @NonNull UsbCallback usbRequestComplete,
+                                                         @NonNull Context context) {
 
         requestedUsbDevice = device;
         usbCallback = usbRequestComplete;

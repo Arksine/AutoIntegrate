@@ -7,4 +7,8 @@
     android:layout_height="match_parent"
     tools:context="com.arksine.autointegrate.activities.CameraActivity">
 
+    <SurfaceView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:id="@+id/camera_view"/>
 </FrameLayout>
