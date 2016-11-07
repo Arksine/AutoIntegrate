@@ -50,17 +50,13 @@ public class IntegratedPowerManager {
             "/sys/kernel/usbhost/usbhost_fastcharge_in_host_mode";
     private final static String SETTING_ENABLED = "1";
 
-    private final static String DEVICE_POWER_PERMISSION =
-            "android.permission.DEVICE_POWER";
-    private final static String WRITE_SECURE_SETTINGS_PERMISSION =
-            "android.permission.WRITE_SECURE_SETTINGS";
-
     private Context mContext;
     private SharedPreferences mDefaultPrefs;
     private SystemFunctions mSystemFunctions = null;
     private PowerManager.WakeLock mScreenWakeLock = null;
     private Handler mPowerHandler = null;
 
+    @SuppressWarnings("deprecation")
     public IntegratedPowerManager(Context context){
         mContext = context;
 
@@ -290,7 +286,7 @@ public class IntegratedPowerManager {
      */
     private void iPowerManagerSleep() {
         try {
-            Object iPowerManger;
+            Object iPowerManager;
             Class<?> ServiceManager = Class.forName("android.os.ServiceManager");
             Class<?> Stub = Class.forName("android.os.IPowerManager$Stub");
 
@@ -299,17 +295,17 @@ public class IntegratedPowerManager {
             getService.setAccessible(true);
             asInterface.setAccessible(true);
             IBinder iBinder = (IBinder) getService.invoke(null, Context.POWER_SERVICE);
-            iPowerManger = asInterface.invoke(null, iBinder);
+            iPowerManager = asInterface.invoke(null, iBinder);
 
             // Kitkat version of goToSleep only has 2 parameters, Lollipop and above have 3
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                Method goToSleep = iPowerManger.getClass().getMethod("goToSleep", long.class, int.class, int.class);
+                Method goToSleep = iPowerManager.getClass().getMethod("goToSleep", long.class, int.class, int.class);
                 goToSleep.setAccessible(true);
-                goToSleep.invoke(iPowerManger, SystemClock.uptimeMillis(), 0, 0);
+                goToSleep.invoke(iPowerManager, SystemClock.uptimeMillis(), 0, 0);
             } else {
-                Method goToSleep = iPowerManger.getClass().getMethod("goToSleep", long.class, int.class);
+                Method goToSleep = iPowerManager.getClass().getMethod("goToSleep", long.class, int.class);
                 goToSleep.setAccessible(true);
-                goToSleep.invoke(iPowerManger, SystemClock.uptimeMillis(), 0);
+                goToSleep.invoke(iPowerManager, SystemClock.uptimeMillis(), 0);
             }
 
             Log.i(TAG, "Successfully put device to sleep using reflection");

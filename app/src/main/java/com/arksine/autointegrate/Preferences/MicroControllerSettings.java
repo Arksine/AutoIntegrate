@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.preference.ListPreference;
 import android.preference.Preference;
@@ -12,13 +13,25 @@ import android.preference.PreferenceManager;
 import android.preference.PreferenceScreen;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
+import android.view.Gravity;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.ListView;
+import android.widget.Toast;
 
 import com.arksine.autointegrate.activities.ButtonLearningActivity;
+import com.arksine.autointegrate.adapters.AppListAdapter;
+import com.arksine.autointegrate.dialogs.ListPreferenceEx;
 import com.arksine.autointegrate.interfaces.SerialHelper;
 import com.arksine.autointegrate.R;
+import com.arksine.autointegrate.utilities.AppItem;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
 import com.arksine.autointegrate.utilities.BluetoothHelper;
 import com.arksine.autointegrate.utilities.UsbHelper;
+import com.orhanobut.dialogplus.DialogPlus;
+import com.orhanobut.dialogplus.OnItemClickListener;
 
 import java.util.ArrayList;
 
@@ -30,11 +43,11 @@ public class MicroControllerSettings extends PreferenceFragment {
 
     private static String TAG = "MicroControllerSettings";
 
-    // TODO: add preferences to reverse(camera)
-
     SerialHelper mSerialHelper;
     private String mDeviceType;
     private boolean mSettingChanged;
+
+    private DialogPlus mCameraAppDialog;
 
 
     private final BroadcastReceiver deviceListReciever = new BroadcastReceiver() {
@@ -56,17 +69,31 @@ public class MicroControllerSettings extends PreferenceFragment {
 
         mSettingChanged = false;
 
+        final SharedPreferences globalPrefs = PreferenceManager.getDefaultSharedPreferences(getActivity());
+
         PreferenceScreen root = this.getPreferenceScreen();
         PreferenceScreen editButtons = (PreferenceScreen) root.findPreference("controller_pref_key_edit_buttons");
         ListPreference selectDeviceType = (ListPreference) root.findPreference("controller_pref_key_select_device_type");
         ListPreference selectDevice = (ListPreference) root.findPreference("controller_pref_key_select_device");
         ListPreference selectBaudPref = (ListPreference) root.findPreference("controller_pref_key_select_baud");
+        ListPreferenceEx cameraCmdPref = (ListPreferenceEx) root.findPreference("controller_pref_key_select_camera_app");
+
+        buildAppListDialog(cameraCmdPref);
 
         mDeviceType = selectDeviceType.getValue();
         toggleBaudSelection();
         populateDeviceListView();
 
         selectBaudPref.setSummary(selectBaudPref.getEntry());
+
+
+        if (cameraCmdPref.getValue().equals("2")) {
+            String summary = globalPrefs
+                    .getString("controller_pref_key_camera_ex_app_summary", "No Application Selected");
+            cameraCmdPref.setSummary(summary);
+        } else {
+            cameraCmdPref.setSummary(cameraCmdPref.getEntry());
+        }
 
 
         // Check to see if the most recently connected device is the same as the one we are using,
@@ -149,6 +176,45 @@ public class MicroControllerSettings extends PreferenceFragment {
                 return true;
             }
         });
+
+
+        cameraCmdPref.setOnListItemClickListener(new ListPreferenceEx.ListItemClickListener() {
+            @Override
+            public void onListItemClick(Preference preference, String value) {
+                if (value.equals("2")) {
+                    mCameraAppDialog.show();
+                }
+            }
+        });
+
+        cameraCmdPref.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
+            @Override
+            public boolean onPreferenceChange(Preference preference, Object o) {
+                String value = (String)o;
+                ListPreferenceEx pref = (ListPreferenceEx) preference;
+                CharSequence[] entries = pref.getEntries();
+                int index = pref.findIndexOfValue(value);
+
+                switch (value) {
+                    case "0":
+                        pref.setSummary(entries[index]);
+                        break;
+                    case "1":
+                        boolean camEnabled = globalPrefs.getBoolean("main_pref_key_toggle_camera", false);
+                        if (camEnabled) {
+                            pref.setSummary(entries[index]);
+                        } else {
+                            Toast.makeText(getActivity(), "Camera Integraton Not Enabled",
+                                    Toast.LENGTH_SHORT).show();
+                            return false;
+                        }
+                        break;
+                }
+
+                mSettingChanged = true;
+                return true;
+            }
+        });
     }
 
     @Override
@@ -163,12 +229,6 @@ public class MicroControllerSettings extends PreferenceFragment {
     public void onDestroy() {
         super.onDestroy();
 
-        // Refresh the Microcontroller connection with new settings if settings have changed
-        //if (mSettingChanged) {
-            //refreshConnection();
-        //}
-
-       // LocalBroadcastManager.getInstance(getActivity()).unregisterReceiver(deviceListReciever);
     }
 
     @Override
@@ -204,6 +264,37 @@ public class MicroControllerSettings extends PreferenceFragment {
         }
     }
 
+    private void buildAppListDialog(final ListPreferenceEx listPref) {
+        final SharedPreferences globalPrefs = PreferenceManager.getDefaultSharedPreferences(getActivity());
+        // TODO: Rather than use default listholder, use custom viewholder with a filter
+        //       implemented so user can type name of app
+        int horizontalMargin = Math.round(getResources().getDimension(R.dimen.dialog_horizontal_margin));
+        int verticalMargin = Math.round(getResources().getDimension(R.dimen.dialog_vertical_margin));
+        AppListAdapter adapter = new AppListAdapter(getActivity(),
+                android.R.layout.simple_list_item_1, android.R.layout.simple_dropdown_item_1line);
+        mCameraAppDialog = DialogPlus.newDialog(getActivity())
+                .setAdapter(adapter)
+                .setOnItemClickListener(new OnItemClickListener() {
+                    @Override
+                    public void onItemClick(DialogPlus dialog, Object item, View view, int position) {
+                        AppItem appItem = (AppItem) item;
+                        String summary = "Launch App: " + appItem.getItemName();
+                        listPref.setSummary(summary);
+                        globalPrefs.edit()
+                                .putString("controller_pref_key_camera_ex_app", appItem.getPackageName())
+                                .putString("controller_pref_key_camera_ex_app_summary", summary)
+                                .apply();
+                        mSettingChanged = true;
+                        dialog.dismiss();
+                    }
+                })
+                .setContentWidth(ViewGroup.LayoutParams.WRAP_CONTENT)
+                .setContentHeight(ViewGroup.LayoutParams.WRAP_CONTENT)
+                .setMargin(horizontalMargin, verticalMargin, horizontalMargin, verticalMargin)
+                .setGravity(Gravity.CENTER)
+                .create();
+    }
+
 
     private void populateDeviceListView() {
 
@@ -221,15 +312,7 @@ public class MicroControllerSettings extends PreferenceFragment {
 
         }
 
-        ArrayList<String> devList = mSerialHelper.enumerateDevices();
-
-        // TODO: We need to check for the MJS cable here, and any other devices we want excluded.
-        //       That way we can remove them from the device list
-        // Make sure that we don't enumerate the MJS HD Radio Cable,
-        // VID 0x0403 (1027), PID 0x937C (37756)
-        //if ((ids[0].equals("1027") && ids[1].equals("37756"))) {
-        //  Log.d(TAG, "Skipped enumerating MJS cable");
-        //}
+        ArrayList<String> devList = mSerialHelper.enumerateSerialDevices();
 
         CharSequence[] entries;
         CharSequence[] entryValues;

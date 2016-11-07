@@ -29,7 +29,7 @@ public class PowerEventReceiver extends BroadcastReceiver {
         if (action.equals(Intent.ACTION_BOOT_COMPLETED)) {
 
             boolean startOnBoot = PreferenceManager.getDefaultSharedPreferences(context)
-                    .getBoolean("power_pref_key_start_on_boot", false);
+                    .getBoolean("main_pref_key_start_on_boot", false);
             if (startOnBoot) {
                 final Context bootContext = context;
                 Handler launchHandler = new Handler();

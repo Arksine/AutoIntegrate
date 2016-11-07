@@ -137,24 +137,25 @@ public class HardwareReceiver extends BroadcastReceiver {
     {
         try
         {
+            // TODO: reimplemented to clean up lint errors, need to test
+            Object iUsbManager;
+            Class<?> ServiceManager = Class.forName("android.os.ServiceManager");
+            Class<?> Stub = Class.forName("android.hardware.usb.IUsbManager$Stub");
 
             PackageManager pkgManager=context.getPackageManager();
             ApplicationInfo appInfo=pkgManager.getApplicationInfo(context.getPackageName(), PackageManager.GET_META_DATA);
 
-            Class serviceManagerClass=Class.forName("android.os.ServiceManager");
-            Method getServiceMethod=serviceManagerClass.getDeclaredMethod("getService",String.class);
+            Method getServiceMethod=ServiceManager.getDeclaredMethod("getService",String.class);
             getServiceMethod.setAccessible(true);
             android.os.IBinder binder=(android.os.IBinder)getServiceMethod.invoke(null, Context.USB_SERVICE);
 
-            Class iUsbManagerClass=Class.forName("android.hardware.usb.IUsbManager");
-            Class stubClass=Class.forName("android.hardware.usb.IUsbManager$Stub");
-            Method asInterfaceMethod=stubClass.getDeclaredMethod("asInterface", android.os.IBinder.class);
+            Method asInterfaceMethod=Stub.getDeclaredMethod("asInterface", android.os.IBinder.class);
             asInterfaceMethod.setAccessible(true);
-            Object iUsbManager=asInterfaceMethod.invoke(null, binder);
+            iUsbManager=asInterfaceMethod.invoke(null, binder);
 
 
             System.out.println("UID : " + appInfo.uid + " " + appInfo.processName + " " + appInfo.permission);
-            final Method grantDevicePermissionMethod = iUsbManagerClass.getDeclaredMethod("grantDevicePermission", UsbDevice.class,int.class);
+            final Method grantDevicePermissionMethod = iUsbManager.getClass().getDeclaredMethod("grantDevicePermission", UsbDevice.class,int.class);
             grantDevicePermissionMethod.setAccessible(true);
             grantDevicePermissionMethod.invoke(iUsbManager, usbDevice,appInfo.uid);
 

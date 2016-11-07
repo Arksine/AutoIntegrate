@@ -43,6 +43,13 @@
             android:defaultValue="false"
             android:persistent="true"/>
 
+        <com.arksine.autointegrate.dialogs.ListPreferenceEx
+            android:key="controller_pref_key_select_camera_app"
+            android:title="@string/controller_pref_reverse_camera"
+            android:entries="@array/controller_pref_reverse_camera_entries"
+            android:entryValues="@array/controller_pref_reverse_camera_values"
+            android:defaultValue="0"
+            android:persistent="true"/>
 
     </PreferenceCategory>
 

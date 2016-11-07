@@ -13,4 +13,8 @@
     <dimen name="dialog_control_space">4dp</dimen>
     <dimen name="dialog_min_width">500dp</dimen>
     <dimen name="dimmer_wizard_width">300dp</dimen>
+    <dimen name="listview_width">300dp</dimen>
+
+    <dimen name="dialog_horizontal_margin">16dp</dimen>
+    <dimen name="dialog_vertical_margin">16dp</dimen>
 </resources>

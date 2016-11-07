@@ -18,6 +18,7 @@ import android.widget.Toast;
 
 import com.arksine.autointegrate.activities.MainActivity;
 
+//TODO:  Rename App/Service/Package to Road Mage
 
 public class MainService extends Service {
 

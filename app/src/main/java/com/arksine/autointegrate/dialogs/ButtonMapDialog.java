@@ -17,7 +17,7 @@ import android.widget.Spinner;
 import android.widget.TextView;
 
 import com.arksine.autointegrate.R;
-import com.arksine.autointegrate.adapters.ApplicationAdapter;
+import com.arksine.autointegrate.adapters.AppListAdapter;
 import com.arksine.autointegrate.adapters.LearnedButtonAdapter;
 import com.arksine.autointegrate.microcontroller.ResistiveButton;
 import com.arksine.autointegrate.utilities.AppItem;
@@ -336,7 +336,7 @@ public class ButtonMapDialog {
                 break;
             case 4:     // Action Type: Application
                 actionSpinner.setVisibility(View.VISIBLE);
-                ApplicationAdapter appAdapter = new ApplicationAdapter(mContext);
+                AppListAdapter appAdapter = new AppListAdapter(mContext);
                 actionSpinner.setAdapter(appAdapter);
 
                 actionSpinner.setLayoutParams(actionParams);

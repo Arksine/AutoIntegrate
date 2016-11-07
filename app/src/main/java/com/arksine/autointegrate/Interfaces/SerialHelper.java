@@ -14,7 +14,7 @@ public interface SerialHelper {
     }
 
 
-    ArrayList<String> enumerateDevices();
+    ArrayList<String> enumerateSerialDevices();
     boolean connectDevice(String id, Callbacks cbs);
     void disconnect();
     String getConnectedId();

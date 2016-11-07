@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 import android.os.Handler;
@@ -14,6 +15,8 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Gravity;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -28,14 +31,20 @@ import com.serenegiant.usb.UVCCamera;
 
 import java.util.HashMap;
 
-// TODO:  Need to implement settings and retreive them.  Need a launcher to test the activity (can put it in settings
+/**
+ * TODO: UPDATE:11/5/2016: Building with NDK Toolchain 4.9 seems to reduce dropped frames on Nexus 7 2012.
+ *       Any kind of UI update causes them though.  The solution is likely a custom implementation
+ *       using the libuvc library that doesn't use libjpeg-turbo, but uses renderscript to do
+ *       conversion, which takes advantage of the GPU.
+ */
 
 public class CameraActivity extends AppCompatActivity {
     private final static String TAG = "CameraActivity";
-    private final static boolean DEBUG = false;
+    private final static boolean DEBUG = true;
 
     private SurfaceView mCameraView = null;
-    private Surface mPreviewSurface;
+    private SurfaceHolder mSurfaceHolder = null;
+    private Surface mPreviewSurface = null;
     private FrameLayout mRootLayout;
 
     private final Object mCamLock = new Object();
@@ -46,7 +55,6 @@ public class CameraActivity extends AppCompatActivity {
 
     private boolean mImmersive = true;
     private boolean mIsFullScreen = true;
-    private boolean mShowOptionalToasts = true;
 
     private Handler mActivityHandler = new Handler();
     private Runnable immersiveMsg = new Runnable() {
@@ -116,8 +124,8 @@ public class CameraActivity extends AppCompatActivity {
                     mUVCCamera.stopPreview();
                 }
                 mIsPreviewing = false;
+                mPreviewSurface = null;
             }
-            mPreviewSurface = null;
         }
     };
 
@@ -149,7 +157,7 @@ public class CameraActivity extends AppCompatActivity {
                     try {
 
                         mUVCCamera.setPreviewSize(UVCCamera.DEFAULT_PREVIEW_WIDTH,
-                                UVCCamera.DEFAULT_PREVIEW_HEIGHT, UVCCamera.FRAME_FORMAT_YUYV);
+                                UVCCamera.DEFAULT_PREVIEW_HEIGHT, UVCCamera.FRAME_FORMAT_MJPEG);
                         // TODO: set any other base variables here with other funtions, may as
                         // well catch everything in this try block
                     } catch (final IllegalArgumentException e) {
@@ -160,8 +168,7 @@ public class CameraActivity extends AppCompatActivity {
                         e.printStackTrace();
                     }
                     if ((mUVCCamera != null) && (mPreviewSurface != null)) {
-                        // TODO: in the future we may use the frame callback instead of built-in
-                        //       surface display...if we need to deinterlace
+                        if (DEBUG) Log.i(TAG, "Preview Starting");
                         mIsActive = true;
                         mUVCCamera.setPreviewDisplay(mPreviewSurface);
                         mUVCCamera.startPreview();
@@ -182,6 +189,7 @@ public class CameraActivity extends AppCompatActivity {
                         mPreviewSurface = null;
                     }
                     mIsActive = mIsPreviewing = false;
+
                 }
             }
         }
@@ -192,13 +200,17 @@ public class CameraActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        // TODO: need to add buttons or menu to toolbar to toggle Fullscreen and immersive mode
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_camera);
         mRootLayout = (FrameLayout) findViewById(R.id.activity_camera);
 
         mCameraView = (SurfaceView) findViewById(R.id.camera_view);
-        mCameraView.getHolder().addCallback(mCameraViewCallback);
+        //mCameraView.setFocusable(true);
+        //mCameraView.setBackgroundColor(Color.BLACK);
+
+        mSurfaceHolder = mCameraView.getHolder();
+        mSurfaceHolder.addCallback(mCameraViewCallback);
+
         mCameraView.setOnSystemUiVisibilityChangeListener
                 (new View.OnSystemUiVisibilityChangeListener() {
                     @Override
@@ -214,23 +226,20 @@ public class CameraActivity extends AppCompatActivity {
                     }
                 });
 
-
-
         mUsbMonitor = new USBMonitor(this, mConnectListener);
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
 
         SharedPreferences globalPrefs =
                 PreferenceManager.getDefaultSharedPreferences(this);
 
         mImmersive = globalPrefs.getBoolean("camera_pref_key_layout_immersive", true);
         mIsFullScreen = globalPrefs.getBoolean("camera_pref_key_layout_fullscreen", true);
-        mShowOptionalToasts = globalPrefs.getBoolean("camera_pref_key_layout_toasts", true);
 
         getSelectedUsbCamera();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
 
         if (!mIsReceiverRegistered) {
             mIsReceiverRegistered = true;
@@ -291,6 +300,26 @@ public class CameraActivity extends AppCompatActivity {
         if (hasFocus) {
             mRootLayout.post(setAspectRatio);
         }
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.camera_menu, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        int id = item.getItemId();
+        switch (id) {
+            case R.id.toggle_fullscreen:
+                mIsFullScreen = !mIsFullScreen;
+                setViewLayout();
+                break;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+        return true;
     }
 
     /**
@@ -389,6 +418,10 @@ public class CameraActivity extends AppCompatActivity {
             }
 
             mCameraView.setLayoutParams(params);
+
         }
+
+        if (DEBUG)
+            Log.i(TAG, "Current view size: " + mCameraView.getWidth() + "x" + mCameraView.getHeight());
     }
 }

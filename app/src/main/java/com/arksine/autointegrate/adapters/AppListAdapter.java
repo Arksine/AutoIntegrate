@@ -15,11 +15,16 @@ import com.arksine.autointegrate.utilities.UtilityFunctions;
  *  Array Adapter necessary to add applications with their icons to a spinner
  */
 
-public class ApplicationAdapter extends ArrayAdapter<AppItem> {
+public class AppListAdapter extends ArrayAdapter<AppItem> {
 
-    public ApplicationAdapter (Context context) {
+    public AppListAdapter(Context context) {
         super(context, android.R.layout.simple_spinner_item, UtilityFunctions.getAppItems());
         setDropDownViewResource(android.R.layout.simple_dropdown_item_1line);
+    }
+
+    public AppListAdapter(Context context, int itemLayout, int dropDownLayout) {
+        super(context, itemLayout, UtilityFunctions.getAppItems());
+        setDropDownViewResource(dropDownLayout);
     }
 
 

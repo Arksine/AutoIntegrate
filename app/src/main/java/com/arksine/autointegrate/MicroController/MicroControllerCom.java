@@ -146,8 +146,11 @@ public class MicroControllerCom {
             mSerialHelper = new BluetoothHelper(mContext);
         }
         else {
+
+            String baudrate = PreferenceManager.getDefaultSharedPreferences(mContext)
+                    .getString("controller_pref_key_select_baud", "9600");
             // user selected usb device
-            mSerialHelper = new UsbHelper(mContext);
+            mSerialHelper = new UsbHelper(mContext, Integer.valueOf(baudrate));
 
         }
 

@@ -10,8 +10,6 @@ import android.os.Build;
 import android.provider.Settings;
 import android.util.Log;
 
-import com.serenegiant.usb.DeviceFilter;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -114,12 +112,6 @@ public class UtilityFunctions {
 
     public static List<AppItem> getAppItems() {
         return mAppItems;
-    }
-
-    private static List<String> getUsbDeviceList(Context context, DeviceFilter filter) {
-        // TODO: Iterate through usb devices and compare to list above, return list matching filter
-        // USB Communication classes are 0x02 (2 decimal) and 0x0A (10 decimal), not sure I need both
-        return null;
     }
 
     public synchronized static void initRoot(final RootCallback cb) {

@@ -1,5 +1,4 @@
 apply plugin: 'com.android.library'
-import org.apache.tools.ant.taskdefs.condition.Os
 
 android {
     compileSdkVersion 25
@@ -9,12 +8,16 @@ android {
         minSdkVersion 19
         targetSdkVersion 24
 
-        ndk {
-
-            abiFilters 'x86', 'x86_64', 'armeabi', 'armeabi-v7a',
-                    'arm64-v8a'
+        externalNativeBuild {
+            ndkBuild {
+                arguments "NDK_TOOLCHAIN_VERSION:=4.9"
+            }
         }
 
+        ndk {
+            abiFilters 'x86', 'x86_64', 'armeabi-v7a',
+                    'arm64-v8a'
+        }
     }
 
     buildTypes {
@@ -23,9 +26,6 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
         }
     }
-
-
-
 
     externalNativeBuild {
         ndkBuild {

@@ -128,13 +128,10 @@ public class BluetoothHelper implements SerialHelper {
     }
 
     public boolean isBluetoothOn() {
-        if (mBluetoothAdapter == null)
-            return false;
-        else
-            return mBluetoothAdapter.isEnabled();
+        return mBluetoothAdapter != null && mBluetoothAdapter.isEnabled();
     }
 
-    public ArrayList<String> enumerateDevices() {
+    public ArrayList<String> enumerateSerialDevices() {
 
         if (!isBluetoothOn()) {
             return null;

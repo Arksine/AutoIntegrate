@@ -1,17 +1,20 @@
 package com.arksine.autointegrate.microcontroller;
 
+import android.app.Instrumentation;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.media.AudioManager;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
+import android.support.v4.content.LocalBroadcastManager;
 import android.util.ArrayMap;
 import android.util.Log;
 import android.view.KeyEvent;
 
 import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.activities.BrightnessChangeActivity;
+import com.arksine.autointegrate.activities.CameraActivity;
 import com.arksine.autointegrate.utilities.TaskerIntent;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
 import com.google.gson.Gson;
@@ -19,6 +22,8 @@ import com.google.gson.reflect.TypeToken;
 
 import java.lang.reflect.Type;
 import java.util.List;
+
+import eu.chainfire.libsuperuser.Shell;
 
 /**
  * Executes Android actions.  A class encapsulating a map is used rather than
@@ -40,8 +45,8 @@ public class CommandProcessor {
 
     private volatile boolean mIsHoldingBtn = false;
 
-    private boolean mIsCameraEnabled = false;
-    private Intent mCameraIntent;
+    private boolean mCameraIsOn = false;
+    private Intent mCameraIntent = null;
 
     private AudioManager mAudioManger;
     private int mPrevVolume;
@@ -54,6 +59,11 @@ public class CommandProcessor {
         void DimmerChange(int reading);
     }
     private BrightnessControl mBrightnessControl;
+
+    private interface ReverseExitListener {
+        void OnReverseOff();
+    }
+    private ReverseExitListener mReverseExitListener = null;
 
 
     public static class DimmerMode {
@@ -99,6 +109,8 @@ public class CommandProcessor {
         mMappedButtons = gson.fromJson(json, collectionType);
 
         initDimmer(); // initialize the dimmer interface
+
+        initReverseCommand();  // initialize reverse command
 
         mActions = new ArrayMap<>();
         populateBuiltInActions();
@@ -264,6 +276,59 @@ public class CommandProcessor {
 
     }
 
+    private void initReverseCommand() {
+        SharedPreferences globalPrefs = PreferenceManager.getDefaultSharedPreferences(mContext);
+        String camSetting = globalPrefs.getString("controller_pref_key_select_camera_app", "0");
+
+        switch (camSetting) {
+            case "0":       // No app set
+                mCameraIntent = new Intent(mContext, CameraActivity.class);
+                mCameraIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                mReverseExitListener = new ReverseExitListener() {
+                    @Override
+                    public void OnReverseOff() {
+                        Intent camExitIntent = new Intent(mContext.getString(R.string.ACTION_CLOSE_CAMERA));
+                        camExitIntent.setClass(mContext, CameraActivity.class);
+                        LocalBroadcastManager.getInstance(mContext).sendBroadcast(camExitIntent);
+                    }
+                };
+                break;
+            case "1":       // Integrated Cam Activity
+                String appPkg = globalPrefs.getString("controller_pref_key_camera_ex_app", "0");
+                mCameraIntent = mContext.getPackageManager().getLaunchIntentForPackage(appPkg);
+                mCameraIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                // With a custom app we will exit with a back button press if Signature Permissions
+                // or Root access is available
+                if (UtilityFunctions.hasPermission(mContext, "android.permission.INJECT_EVENTS")) {
+                    // System level permission granted
+                    mReverseExitListener = new ReverseExitListener() {
+                        @Override
+                        public void OnReverseOff() {
+                            Instrumentation inst = new Instrumentation();
+                            inst.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK);
+                        }
+                    };
+                } else if (UtilityFunctions.isRootAvailable()) {
+                    // Root granted
+                    mReverseExitListener = new ReverseExitListener() {
+                        @Override
+                        public void OnReverseOff() {
+                            String command = "input keyevent " + String.valueOf(KeyEvent.KEYCODE_BACK);
+                            Shell.SU.run(command);
+                        }
+                    };
+                }
+                break;
+
+            case "2":       // Custom App
+
+                break;
+            default:        // Unknown command
+                Log.wtf(TAG, "Unknown Camera Setting, this shouldnt happen");
+        }
+    }
+
+
     private boolean isAutoBrightnessOn() {
         int mode = -1;
         try {
@@ -388,23 +453,36 @@ public class CommandProcessor {
         mActions.put("Reverse On", new ActionRunnable() {
             @Override
             public void run() {
-                // TODO: launch integrated camera activity.  Need to check prefs to see if user
-                //       wants to use integrated uvc camera app or outside app
-                Log.i(TAG, "Send Launch Camera");
+                // launch user set camera activity.
+                if (mCameraIntent != null) {
+                    mCameraIsOn = true;
+                    mContext.startActivity(mCameraIntent);
+                    Log.i(TAG, "Send Launch Camera");
+                } else {
+                    Log.i(TAG, "Camera app not set");
+                }
             }
         });
         mActions.put("Reverse Off", new ActionRunnable() {
             @Override
             public void run() {
-                // TODO: Send intent to close integrated camera activity if integrated cam is enabled,
-                //       Could programatically run a tasker task to hit the "back" button otherwise
-                Log.i(TAG, "Send Close Camera");
+                if (mReverseExitListener != null) {
+                    mCameraIsOn = false;
+                    mReverseExitListener.OnReverseOff();
+                    Log.i(TAG, "Send Close Camera");
+                }
             }
         });
         mActions.put("Toggle Camera", new ActionRunnable() {
             @Override
             public void run() {
-                // TODO:
+                if (!mCameraIsOn && mCameraIntent != null) {
+                    mCameraIsOn = true;
+                    mContext.startActivity(mCameraIntent);
+                } else if (mCameraIsOn && mReverseExitListener != null) {
+                    mCameraIsOn = false;
+                    mReverseExitListener.OnReverseOff();
+                }
                 Log.i(TAG, "Send Toggle Camera");
             }
         });

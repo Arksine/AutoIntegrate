@@ -208,6 +208,8 @@ LOCAL_SRC_FILES += \
 LOCAL_CFLAGS += \
 	-DSIZEOF_SIZE_T=4 \
 
+LOCAL_ASMFLAGS += -DPIC
+
 else ifeq ($(TARGET_ARCH_ABI),mips)
 
 LOCAL_SRC_FILES += \
@@ -216,6 +218,7 @@ LOCAL_SRC_FILES += \
 
 LOCAL_CFLAGS += \
 	-DSIZEOF_SIZE_T=4 \
+
 
 else
 LOCAL_SRC_FILES += jsimd_none.c

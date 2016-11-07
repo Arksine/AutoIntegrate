@@ -44,6 +44,7 @@ public class UsbHelper implements SerialHelper {
     private UsbManager mUsbManager;
     private volatile UsbDevice mUsbDevice;
     private UsbSerialDevice mSerialPort;
+    private final int mBaudRate;
 
     private volatile boolean serialPortConnected = false;
     private SerialHelper.Callbacks mSerialHelperCallbacks;
@@ -86,14 +87,22 @@ public class UsbHelper implements SerialHelper {
         }
     };
 
-
     public UsbHelper(Context context) {
         this.mContext = context;
+        this.mBaudRate = 9600;
         mUsbManager = (UsbManager) mContext.getSystemService(Context.USB_SERVICE);
 
     }
 
-    public ArrayList<String> enumerateDevices() {
+
+    public UsbHelper(Context context, int baud) {
+        this.mContext = context;
+        this.mBaudRate = baud;
+        mUsbManager = (UsbManager) mContext.getSystemService(Context.USB_SERVICE);
+
+    }
+
+    public ArrayList<String> enumerateSerialDevices() {
 
         ArrayList<String> deviceList = new ArrayList<>(5);
 
@@ -102,43 +111,53 @@ public class UsbHelper implements SerialHelper {
         for (UsbDevice uDevice : usbDeviceList.values()) {
 
             String name;
-            // replace the name with the real name if android supports it
+
+            // Check for supported devices
+            if (UsbSerialDevice.isCdcDevice(uDevice)) {
+                name = "CDC serial device";
+            } else if (CH34xIds.isDeviceSupported(uDevice.getVendorId(), uDevice.getProductId())) {
+                name = "CH34x serial device";
+            } else if (CP210xIds.isDeviceSupported(uDevice.getVendorId(), uDevice.getProductId())) {
+                name = "CP210X serial device";
+            } else if (FTDISioIds.isDeviceSupported(uDevice.getVendorId(), uDevice.getProductId())) {
+                name = "FTDI serial device";
+            } else if (PL2303Ids.isDeviceSupported(uDevice.getVendorId(), uDevice.getProductId())) {
+                name = "PL2303 serial device";
+            } else if (XdcVcpIds.isDeviceSupported(uDevice.getVendorId(), uDevice.getProductId())) {
+                name = "Virtual serial device";
+            } else {
+                // not a supported USB Serial device, break
+                break;
+            }
+
+            // replace the name with the device driver name if on API 21 or above
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 name = uDevice.getProductName();
-            } else {
-                if (UsbSerialDevice.isCdcDevice(uDevice)) {
-                    name = "CDC serial device";
-                } else if (CH34xIds.isDeviceSupported(uDevice.getVendorId(), uDevice.getProductId())) {
-                    name = "CH34x serial device";
-                } else if (CP210xIds.isDeviceSupported(uDevice.getVendorId(), uDevice.getProductId())) {
-                    name = "CP210X serial device";
-                } else if (FTDISioIds.isDeviceSupported(uDevice.getVendorId(), uDevice.getProductId())) {
-                    name = "FTDI serial device";
-                } else if (PL2303Ids.isDeviceSupported(uDevice.getVendorId(), uDevice.getProductId())) {
-                    name = "PL2303 serial device";
-                } else if (XdcVcpIds.isDeviceSupported(uDevice.getVendorId(), uDevice.getProductId())) {
-                    name = "Virtual serial device";
-                } else {
-                    // not supported
-                    name = "Unknown USB Device";
-                }
             }
 
 
+            Log.v(TAG, "USB comm device found: " + name);
+            Log.v(TAG, "Device ID: " + uDevice.getDeviceId());
+            Log.v(TAG, "Device Name: " + uDevice.getDeviceName());
+            Log.v(TAG, "Vendor: ID " + uDevice.getVendorId());
+            Log.v(TAG, "Product ID: " + uDevice.getProductId());
+            Log.v(TAG, "Class: " + uDevice.getDeviceClass());
+            Log.v(TAG, "SubClass: " + uDevice.getDeviceSubclass());
+            Log.v(TAG, "Protocol: " + uDevice.getDeviceProtocol());
 
-            Log.i(TAG, "usb device found: " + name);
-            Log.i(TAG, "Device ID: " + uDevice.getDeviceId());
-            Log.i(TAG, "Device Name: " + uDevice.getDeviceName());
-            Log.i(TAG, "Vendor: ID " + uDevice.getVendorId());
-            Log.i(TAG, "Product ID: " + uDevice.getProductId());
-            Log.i(TAG, "Class: " + uDevice.getDeviceClass());
-            Log.i(TAG, "SubClass: " + uDevice.getDeviceSubclass());
-            Log.i(TAG, "Protocol: " + uDevice.getDeviceProtocol());
-
+            /**
+             * Don't add the MJS HD Radio cable to the list if its connected.  Its an FTDI serial
+             * comm device, but its specialized, not for MCU use
+             *
+             * MJS Cable - VID 0x0403 (1027), PID 0x937C (37756)
+              */
+            if ((uDevice.getVendorId() == 1027) && (uDevice.getProductId() ==  37756)) {
+                Log.v(TAG, "MJS Cable found, skipping from list");
+                break;
+            }
 
             String id = uDevice.getVendorId() + ":" + uDevice.getProductId() + ":"
                     + uDevice.getDeviceName();
-
             String entry = name + "\n" +  id;
             deviceList.add(entry);
         }
@@ -299,9 +318,8 @@ public class UsbHelper implements SerialHelper {
             mSerialPort = UsbSerialDevice.createUsbSerialDevice(mUsbDevice, mUsbConnection);
             if (mSerialPort != null) {
                 if (mSerialPort.open()) {
-                    String baudrate = PreferenceManager.getDefaultSharedPreferences(mContext)
-                            .getString("controller_pref_key_select_baud", "9600");
-                    mSerialPort.setBaudRate(Integer.valueOf(baudrate));
+
+                    mSerialPort.setBaudRate(mBaudRate);
                     mSerialPort.setDataBits(UsbSerialInterface.DATA_BITS_8);
                     mSerialPort.setStopBits(UsbSerialInterface.STOP_BITS_1);
                     mSerialPort.setParity(UsbSerialInterface.PARITY_NONE);
