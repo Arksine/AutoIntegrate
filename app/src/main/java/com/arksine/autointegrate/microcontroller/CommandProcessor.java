@@ -281,9 +281,12 @@ public class CommandProcessor {
         String camSetting = globalPrefs.getString("controller_pref_key_select_camera_app", "0");
 
         switch (camSetting) {
-            case "0":       // No app set
+            case "0":       // No App set
+
+                break;
+            case "1":       // Integrated Cam Activity
                 mCameraIntent = new Intent(mContext, CameraActivity.class);
-                mCameraIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                mCameraIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 mReverseExitListener = new ReverseExitListener() {
                     @Override
                     public void OnReverseOff() {
@@ -293,10 +296,10 @@ public class CommandProcessor {
                     }
                 };
                 break;
-            case "1":       // Integrated Cam Activity
+            case "2":       // Custom App
                 String appPkg = globalPrefs.getString("controller_pref_key_camera_ex_app", "0");
                 mCameraIntent = mContext.getPackageManager().getLaunchIntentForPackage(appPkg);
-                mCameraIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                mCameraIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 // With a custom app we will exit with a back button press if Signature Permissions
                 // or Root access is available
                 if (UtilityFunctions.hasPermission(mContext, "android.permission.INJECT_EVENTS")) {
@@ -320,9 +323,6 @@ public class CommandProcessor {
                 }
                 break;
 
-            case "2":       // Custom App
-
-                break;
             default:        // Unknown command
                 Log.wtf(TAG, "Unknown Camera Setting, this shouldnt happen");
         }
@@ -357,7 +357,7 @@ public class CommandProcessor {
         Intent brightActivityIntent = new Intent(mContext,
                 BrightnessChangeActivity.class);
         brightActivityIntent.putExtra("Brightness", brightness);
-        brightActivityIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        brightActivityIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         mContext.startActivity(brightActivityIntent);
     }
 

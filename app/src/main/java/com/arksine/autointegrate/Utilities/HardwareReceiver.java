@@ -137,7 +137,6 @@ public class HardwareReceiver extends BroadcastReceiver {
     {
         try
         {
-            // TODO: reimplemented to clean up lint errors, need to test
             Object iUsbManager;
             Class<?> ServiceManager = Class.forName("android.os.ServiceManager");
             Class<?> Stub = Class.forName("android.hardware.usb.IUsbManager$Stub");
@@ -165,7 +164,8 @@ public class HardwareReceiver extends BroadcastReceiver {
         }
         catch(Exception e)
         {
-            Log.e(TAG, "Error trying to assign automatic usb permission : " + usbDevice.getDeviceName());
+            Log.w(TAG, "SignatureOrSystem permission not available, " +
+                    "cannot assign automatic usb permission : " + usbDevice.getDeviceName());
             e.printStackTrace();
             return false;
         }

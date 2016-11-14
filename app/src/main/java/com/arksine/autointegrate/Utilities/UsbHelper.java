@@ -8,7 +8,6 @@ import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
 import android.os.Build;
-import android.preference.PreferenceManager;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.widget.Toast;
@@ -44,7 +43,9 @@ public class UsbHelper implements SerialHelper {
     private UsbManager mUsbManager;
     private volatile UsbDevice mUsbDevice;
     private UsbSerialDevice mSerialPort;
-    private final int mBaudRate;
+
+
+    private UsbSerialSettings mUsbSettings;
 
     private volatile boolean serialPortConnected = false;
     private SerialHelper.Callbacks mSerialHelperCallbacks;
@@ -89,15 +90,15 @@ public class UsbHelper implements SerialHelper {
 
     public UsbHelper(Context context) {
         this.mContext = context;
-        this.mBaudRate = 9600;
+        mUsbSettings = new UsbSerialSettings();
         mUsbManager = (UsbManager) mContext.getSystemService(Context.USB_SERVICE);
 
     }
 
 
-    public UsbHelper(Context context, int baud) {
+    public UsbHelper(Context context, UsbSerialSettings settings) {
         this.mContext = context;
-        this.mBaudRate = baud;
+        this.mUsbSettings = settings;
         mUsbManager = (UsbManager) mContext.getSystemService(Context.USB_SERVICE);
 
     }
@@ -319,11 +320,11 @@ public class UsbHelper implements SerialHelper {
             if (mSerialPort != null) {
                 if (mSerialPort.open()) {
 
-                    mSerialPort.setBaudRate(mBaudRate);
-                    mSerialPort.setDataBits(UsbSerialInterface.DATA_BITS_8);
-                    mSerialPort.setStopBits(UsbSerialInterface.STOP_BITS_1);
-                    mSerialPort.setParity(UsbSerialInterface.PARITY_NONE);
-                    mSerialPort.setFlowControl(UsbSerialInterface.FLOW_CONTROL_OFF);
+                    mSerialPort.setBaudRate(mUsbSettings.baudRate);
+                    mSerialPort.setDataBits(mUsbSettings.dataBits);
+                    mSerialPort.setStopBits(mUsbSettings.stopBits);
+                    mSerialPort.setParity(mUsbSettings.parity);
+                    mSerialPort.setFlowControl(mUsbSettings.flowControl);
                     mSerialPort.read(mCallback);
 
                     // since connection is successful, register the receiver

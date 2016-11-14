@@ -21,6 +21,10 @@
     <string name="ACTION_DATA_RECIEVED">com.arksine.autointegrate.ACTION_DATA_RECIEVED"</string>
     <string name="EXTRA_COMMAND">com.arksine.autointegrate.EXTRA_COMMAND</string>
     <string name="EXTRA_DATA">com.arksine.autointegrate.EXTRA_DATA</string>
+    <string name="EXTRA_OPERATION">com.arksine.autointegrate.EXTRA_OPERATION</string>
+
+    <string name="ACTION_SEND_RADIO_COMMAND">com.arksine.autointegrate.ACTION_SEND_RADIO_COMMAND</string>
+    <string name="ACTION_RADIO_DATA_REFRESHED">com.arksine.autointegrate.ACTION_RADIO_DATA_REFRESHED</string>
 
     <string name="ACTION_USB_PERMISSION">com.arksine.autointegrate.USB_PERMISSION</string>
     <string name="ACTION_USB_ATTACHED">android.hardware.usb.action.USB_DEVICE_ATTACHED</string>

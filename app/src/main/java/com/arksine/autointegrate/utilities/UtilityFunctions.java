@@ -22,6 +22,7 @@ import eu.chainfire.libsuperuser.Shell;
 public class UtilityFunctions {
 
     private final static String TAG = "UtilityFunctions";
+    private final static Object ROOTLOCK = new Object();
 
     private final static String DEVICE_POWER_PERMISSION =
             "android.permission.DEVICE_POWER";
@@ -114,18 +115,19 @@ public class UtilityFunctions {
         return mAppItems;
     }
 
-    public synchronized static void initRoot(final RootCallback cb) {
-        if (mIsRootAvailable == null) {
-            Thread checkSUthread = new Thread(new Runnable() {
-                @Override
-                public void run() {
+    public static void initRoot(final RootCallback cb) {
+
+        Thread checkSUthread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                synchronized (ROOTLOCK) {
                     mIsRootAvailable = Shell.SU.available();
                     Log.i(TAG, "Root availability status: " + mIsRootAvailable);
                     cb.OnRootInitialized(mIsRootAvailable);
                 }
-            });
-            checkSUthread.start();
-        }
+            }
+        });
+        checkSUthread.start();
     }
 
     public static Boolean isRootAvailable() {
@@ -135,6 +137,23 @@ public class UtilityFunctions {
     public static boolean hasSignaturePermission(Context context) {
         return (hasPermission(context, DEVICE_POWER_PERMISSION) &&
                 hasPermission(context, WRITE_SECURE_SETTINGS_PERMISSION));
+    }
+
+    final private static char[] hexArray = "0123456789ABCDEF".toCharArray();
+    public static String bytesToHex(byte[] bytes) {
+        char[] hexChars = new char[bytes.length * 3];
+        for ( int j = 0; j < bytes.length; j++ ) {
+            int v = bytes[j] & 0xFF;
+            hexChars[j * 3] = hexArray[v >>> 4];
+            hexChars[j * 3 + 1] = hexArray[v & 0x0F];
+            if (j > 0 && j % 14 == 0 ) {
+                // newline every 15 bytes (15th byte is 14th index)
+                hexChars[j * 3 + 2] = '\n';
+            } else {
+                hexChars[j * 3 + 2] = ' ';
+            }
+        }
+        return new String(hexChars);
     }
 
 }

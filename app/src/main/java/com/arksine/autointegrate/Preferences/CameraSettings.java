@@ -45,7 +45,7 @@ public class CameraSettings extends PreferenceFragment {
             public boolean onPreferenceClick(Preference preference) {
                 Context context = getActivity();
                 Intent launchCameraIntent = new Intent(context, CameraActivity.class);
-                launchCameraIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                launchCameraIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 context.startActivity(launchCameraIntent);
 
                 return true;

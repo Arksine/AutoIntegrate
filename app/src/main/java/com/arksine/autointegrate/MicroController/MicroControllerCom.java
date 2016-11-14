@@ -16,33 +16,23 @@ import android.util.Log;
 
 import com.arksine.autointegrate.interfaces.SerialHelper;
 import com.arksine.autointegrate.R;
+import com.arksine.autointegrate.radio.RadioController;
 import com.arksine.autointegrate.utilities.BluetoothHelper;
+import com.arksine.autointegrate.utilities.SerialCom;
 import com.arksine.autointegrate.utilities.UsbHelper;
+import com.arksine.autointegrate.utilities.UsbSerialSettings;
 
-// TODO:  Create a base class serialcom that ArudinoCom extends.  Much of the functionality
-//        is the same as will be necessary for RadioCom.  connect() would need to be
-//        overridden, the Handler is different, and t
+// TODO:  Base class created, needs testing
+
 /**
  * Class MicroControllerCom
  *
  * This class handles serial communication with the micro controller.  First, it establishes
  * a serial connection and confirms that the micro controller is connected.
  */
-public class MicroControllerCom {
+public class MicroControllerCom extends SerialCom{
 
     private static final String TAG = "MicroControllerCom";
-
-    private volatile boolean mConnected = false;
-    private Context mContext;
-
-    private volatile boolean mIsWaiting = false;
-    private volatile boolean mDeviceError = false;
-
-    private SerialHelper mSerialHelper;
-    private SerialHelper.Callbacks mCallbacks;
-
-    private volatile byte[] mReceivedBuffer = new byte[256];
-    private volatile int mReceivedBytes = 0;
 
     private ControllerInputHandler mInputHandler;
 
@@ -63,10 +53,12 @@ public class MicroControllerCom {
     private final WriteReciever writeReciever = new WriteReciever();
     private boolean isWriteReceiverRegistered = false;
 
+    private volatile byte[] mReceivedBuffer = new byte[256];
+    private volatile int mReceivedBytes = 0;
+
 
     public MicroControllerCom(Context context, boolean learningMode) {
-
-        mContext = context;
+        super(context);
 
         HandlerThread thread = new HandlerThread("ControllerMessageHandler",
                 Process.THREAD_PRIORITY_BACKGROUND);
@@ -116,13 +108,8 @@ public class MicroControllerCom {
 
     }
 
-    private synchronized void resumeThread() {
-        if (mIsWaiting) {
-            mIsWaiting = false;
-            notify();
-        }
-    }
 
+    @Override
     public boolean connect() {
 
         // If we are currently connected to a device, we need to disconnect.
@@ -150,7 +137,8 @@ public class MicroControllerCom {
             String baudrate = PreferenceManager.getDefaultSharedPreferences(mContext)
                     .getString("controller_pref_key_select_baud", "9600");
             // user selected usb device
-            mSerialHelper = new UsbHelper(mContext, Integer.valueOf(baudrate));
+            UsbSerialSettings settings = new UsbSerialSettings(Integer.valueOf(baudrate));
+            mSerialHelper = new UsbHelper(mContext, settings);
 
         }
 
@@ -175,11 +163,6 @@ public class MicroControllerCom {
         }
 
         if (mConnected) {
-            //Register write data receiver
-            IntentFilter sendDataFilter = new IntentFilter(mContext.getString(R.string.ACTION_SEND_DATA));
-            mContext.registerReceiver(writeReciever, sendDataFilter);
-            isWriteReceiverRegistered = true;
-
             mDeviceError = false;
 
             // Tell the Arudino that it is time to start
@@ -189,7 +172,13 @@ public class MicroControllerCom {
                 mSerialHelper.disconnect();
                 mConnected = false;
                 mSerialHelper = null;
-            } else {
+            } else {   // Connection was successful
+
+                //Register write data receiver
+                IntentFilter sendDataFilter = new IntentFilter(mContext.getString(R.string.ACTION_SEND_DATA));
+                mContext.registerReceiver(writeReciever, sendDataFilter);
+                isWriteReceiverRegistered = true;
+
                 // Its possible that usb device location changes, so we will put the most recently
                 // connected Id in a preference that the Arudino Settings fragment can check
                 PreferenceManager.getDefaultSharedPreferences(mContext).edit()
@@ -206,10 +195,7 @@ public class MicroControllerCom {
 
     }
 
-    public boolean isConnected() {
-        return mConnected;
-    }
-
+    @Override
     public void disconnect() {
         mConnected = false;
 

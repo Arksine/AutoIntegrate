@@ -57,7 +57,7 @@ public class IntegratedPowerManager {
     private Handler mPowerHandler = null;
 
     @SuppressWarnings("deprecation")
-    public IntegratedPowerManager(Context context){
+    public IntegratedPowerManager(Context context, boolean rootStatus){
         mContext = context;
 
         PowerManager pm = (PowerManager) mContext.getSystemService(Context.POWER_SERVICE);
@@ -74,14 +74,7 @@ public class IntegratedPowerManager {
 
         mDefaultPrefs = PreferenceManager.getDefaultSharedPreferences(mContext);
 
-        UtilityFunctions.RootCallback callback = new UtilityFunctions.RootCallback() {
-            @Override
-            public void OnRootInitialized(boolean rootStatus) {
-                initPrivledgedAccess(rootStatus);
-            }
-        };
-
-        UtilityFunctions.initRoot(callback);
+        initPrivilegedAccess(rootStatus);
     }
 
 
@@ -95,7 +88,7 @@ public class IntegratedPowerManager {
         restoreScreenTimeout();
     }
 
-    private void initPrivledgedAccess(boolean rootStatus) {
+    private void initPrivilegedAccess(boolean rootStatus) {
         boolean hasSignaturePermission = UtilityFunctions.hasSignaturePermission(mContext);
 
         if (hasSignaturePermission) {

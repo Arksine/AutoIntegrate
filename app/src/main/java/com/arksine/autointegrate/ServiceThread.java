@@ -57,11 +57,15 @@ public class ServiceThread implements Runnable {
             isReceiverRegistered = true;
         }
 
-        mPowerManager = new IntegratedPowerManager(mContext);
-
+        UtilityFunctions.RootCallback callback = new UtilityFunctions.RootCallback() {
+            @Override
+            public void OnRootInitialized(boolean rootStatus) {
+                mPowerManager = new IntegratedPowerManager(mContext, rootStatus);
+                notifyServiceThread();
+            }
+        };
+        UtilityFunctions.initRoot(callback);
     }
-
-
 
     // Broadcast Receiver that responds to events sent to alter the service thread
     private boolean isReceiverRegistered = false;
@@ -96,6 +100,19 @@ public class ServiceThread implements Runnable {
     public void run() {
         SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(mContext);
         int connectionAttempts = 1;
+
+        // Check to see if root is initialized.  If not, we will wait until notified by the RootCallback
+        synchronized (this) {
+            if (UtilityFunctions.isRootAvailable() == null) {
+                try {
+                    isWaiting = true;
+                    wait();
+                } catch (InterruptedException e) {
+                    isWaiting = false;
+                    Log.i(TAG, e.getMessage());
+                }
+            }
+        }
 
         while (serviceThreadRunning) {
 
@@ -247,7 +264,7 @@ public class ServiceThread implements Runnable {
         mLocalBM.sendBroadcast(statusChangedIntent);
     }
 
-    public synchronized void notifyServiceThread() {
+    private synchronized void notifyServiceThread() {
         if (isWaiting) {
             isWaiting = false;
             notify();
