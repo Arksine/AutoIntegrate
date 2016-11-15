@@ -18,13 +18,11 @@ public class RadioCommand {
     private final String mCommandName;
     private final byte[] mCommandBytes;
     private final int mDataType;
-    private volatile Object mData;
 
     RadioCommand(String name, int type, byte[] bytes) {
         mCommandName = name;
         mDataType = type;
         mCommandBytes = bytes;
-        mData = null;
     }
 
     public String getCommandName() {
@@ -39,12 +37,5 @@ public class RadioCommand {
         return mDataType;
     }
 
-    public synchronized Object getData() {
-        return mData;
-    }
-
-    public synchronized void setData(Object mData) {
-        this.mData = mData;
-    }
 
 }

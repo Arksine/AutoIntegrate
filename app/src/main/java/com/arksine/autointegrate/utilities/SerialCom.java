@@ -1,7 +1,6 @@
 package com.arksine.autointegrate.utilities;
 
-import android.content.Context;
-
+import com.arksine.autointegrate.MainService;
 import com.arksine.autointegrate.interfaces.SerialHelper;
 
 /**
@@ -12,7 +11,7 @@ import com.arksine.autointegrate.interfaces.SerialHelper;
 public abstract class SerialCom {
 
     protected volatile boolean mConnected = false;
-    protected Context mContext;
+    protected MainService mService;
 
     protected volatile boolean mIsWaiting = false;
     protected volatile boolean mDeviceError = false;
@@ -20,8 +19,8 @@ public abstract class SerialCom {
     protected SerialHelper mSerialHelper;
     protected SerialHelper.Callbacks mCallbacks;
 
-    public SerialCom(Context context) {
-        mContext = context;
+    public SerialCom(MainService service) {
+        mService = service;
     }
 
     protected synchronized void resumeThread() {

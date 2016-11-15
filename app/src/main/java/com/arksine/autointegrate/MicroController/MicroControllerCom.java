@@ -5,7 +5,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
-import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Message;
@@ -14,9 +13,9 @@ import android.preference.PreferenceManager;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
+import com.arksine.autointegrate.MainService;
 import com.arksine.autointegrate.interfaces.SerialHelper;
 import com.arksine.autointegrate.R;
-import com.arksine.autointegrate.radio.RadioController;
 import com.arksine.autointegrate.utilities.BluetoothHelper;
 import com.arksine.autointegrate.utilities.SerialCom;
 import com.arksine.autointegrate.utilities.UsbHelper;
@@ -41,10 +40,10 @@ public class MicroControllerCom extends SerialCom{
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
-            if (mContext.getString(R.string.ACTION_SEND_DATA).equals(action)) {
+            if (mService.getString(R.string.ACTION_SEND_DATA).equals(action)) {
                 // stops all queued services
-                String command = intent.getStringExtra(mContext.getString(R.string.EXTRA_COMMAND));
-                String data = intent.getStringExtra(mContext.getString(R.string.EXTRA_DATA));
+                String command = intent.getStringExtra(mService.getString(R.string.EXTRA_COMMAND));
+                String data = intent.getStringExtra(mService.getString(R.string.EXTRA_DATA));
                 String out = "<" + command + ":" + data + ">";
                 mSerialHelper.writeString(out);
             }
@@ -57,15 +56,15 @@ public class MicroControllerCom extends SerialCom{
     private volatile int mReceivedBytes = 0;
 
 
-    public MicroControllerCom(Context context, boolean learningMode) {
-        super(context);
+    public MicroControllerCom(MainService service, boolean learningMode) {
+        super(service);
 
         HandlerThread thread = new HandlerThread("ControllerMessageHandler",
                 Process.THREAD_PRIORITY_BACKGROUND);
         thread.start();
         Looper mInputLooper = thread.getLooper();
 
-        mInputHandler = new ControllerInputHandler(mInputLooper, mContext, learningMode);
+        mInputHandler = new ControllerInputHandler(mInputLooper, mService, learningMode);
 
         mCallbacks = new SerialHelper.Callbacks() {
             @Override
@@ -100,9 +99,9 @@ public class MicroControllerCom extends SerialCom{
             public void OnDeviceError() {
                 Log.i(TAG, "Device Error, disconnecting");
                 mDeviceError = true;
-                Intent refreshConnection = new Intent(mContext
+                Intent refreshConnection = new Intent(mService
                         .getString(R.string.ACTION_REFRESH_CONTROLLER_CONNECTION));
-                LocalBroadcastManager.getInstance(mContext).sendBroadcast(refreshConnection);
+                LocalBroadcastManager.getInstance(mService).sendBroadcast(refreshConnection);
             }
         };
 
@@ -118,7 +117,7 @@ public class MicroControllerCom extends SerialCom{
         }
 
         final SharedPreferences sharedPrefs =
-                PreferenceManager.getDefaultSharedPreferences(mContext);
+                PreferenceManager.getDefaultSharedPreferences(mService);
 
         // No device selected, exit
         final String devId = sharedPrefs.getString("controller_pref_key_select_device", "NO_DEVICE");
@@ -130,15 +129,15 @@ public class MicroControllerCom extends SerialCom{
         String deviceType = sharedPrefs.getString("controller_pref_key_select_device_type", "BLUETOOTH");
         if (deviceType.equals("BLUETOOTH")) {
             // user selected bluetooth device
-            mSerialHelper = new BluetoothHelper(mContext);
+            mSerialHelper = new BluetoothHelper(mService);
         }
         else {
 
-            String baudrate = PreferenceManager.getDefaultSharedPreferences(mContext)
+            String baudrate = PreferenceManager.getDefaultSharedPreferences(mService)
                     .getString("controller_pref_key_select_baud", "9600");
             // user selected usb device
             UsbSerialSettings settings = new UsbSerialSettings(Integer.valueOf(baudrate));
-            mSerialHelper = new UsbHelper(mContext, settings);
+            mSerialHelper = new UsbHelper(mService, settings);
 
         }
 
@@ -175,13 +174,13 @@ public class MicroControllerCom extends SerialCom{
             } else {   // Connection was successful
 
                 //Register write data receiver
-                IntentFilter sendDataFilter = new IntentFilter(mContext.getString(R.string.ACTION_SEND_DATA));
-                mContext.registerReceiver(writeReciever, sendDataFilter);
+                IntentFilter sendDataFilter = new IntentFilter(mService.getString(R.string.ACTION_SEND_DATA));
+                mService.registerReceiver(writeReciever, sendDataFilter);
                 isWriteReceiverRegistered = true;
 
                 // Its possible that usb device location changes, so we will put the most recently
                 // connected Id in a preference that the Arudino Settings fragment can check
-                PreferenceManager.getDefaultSharedPreferences(mContext).edit()
+                PreferenceManager.getDefaultSharedPreferences(mService).edit()
                         .putString("controller_pref_key_connected_id", mSerialHelper.getConnectedId())
                         .apply();
                 Log.i(TAG, "Sucessfully connected to Micro Controller");
@@ -218,7 +217,7 @@ public class MicroControllerCom extends SerialCom{
         }
 
         if (isWriteReceiverRegistered) {
-            mContext.unregisterReceiver(writeReciever);
+            mService.unregisterReceiver(writeReciever);
             isWriteReceiverRegistered = false;
         }
     }

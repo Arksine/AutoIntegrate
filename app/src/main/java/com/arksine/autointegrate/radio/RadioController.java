@@ -1,18 +1,16 @@
 package com.arksine.autointegrate.radio;
 
-import android.content.Context;
-import android.content.Intent;
-import android.os.Handler;
+import android.os.RemoteException;
 import android.util.ArrayMap;
 import android.util.Log;
 
-import com.arksine.autointegrate.R;
+import com.arksine.autointegrate.MainService;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.Calendar;
+
 
 /**
  * Handles parsing of Radio Packet Data recieved from the radio, as well as building packets
@@ -21,17 +19,12 @@ import java.util.Calendar;
 
 public class RadioController {
 
-    interface RadioDataCallback {
-        void OnRadioDataReceived(String command);
-    }
-    private RadioDataCallback radioDataCallback = null;
-
     private static final String TAG = "RadioController";
     private static final boolean DEBUG = true;
-    private static final int REFRESH_DELAY = 500;         // milliseconds
-    private static final int STREAM_LOCK_TIMEOUT = 10;    // seconds
 
-    private Context mContext = null;
+    private final Object LOCK = new Object();
+
+    private MainService mService = null;
     private boolean mSeekAll = false;
     private long mLastTimeRefreshed = 0;
 
@@ -48,15 +41,49 @@ public class RadioController {
 
     private ArrayMap<Integer, String> mHdTitles = new ArrayMap<>(5);
     private ArrayMap<Integer, String> mHdArtists = new ArrayMap<>(5);
+    private final ArrayMap<String, Object> mHdValues = new ArrayMap<>(26);
 
 
-    public RadioController(Context context) {
-        mContext = context;
+    public RadioController(MainService service) {
+        mService = service;
+        initHdValues();
     }
 
-    public void setRadioDataCallback(RadioDataCallback cb) {
-        radioDataCallback = cb;
+    private void initHdValues() {
+        mHdValues.put("power", false);
+        mHdValues.put("mute", false);
+        mHdValues.put("signal_strength", 0);
+        mHdValues.put("tune", new TuneInfo());
+        mHdValues.put("seek", 0);
+        mHdValues.put("hd_active", false);
+        mHdValues.put("hd_stream_lock", false);
+        mHdValues.put("hd_signal_strength", 0);
+        mHdValues.put("hd_sub_channel", 0);
+        mHdValues.put("hd_sub_channel_count", 0);
+        mHdValues.put("hd_enable_hd_tuner", false);
+        mHdValues.put("hd_title", new HDSongInfo());
+        mHdValues.put("hd_artist", new HDSongInfo());
+        mHdValues.put("hd_callsign", "");
+        mHdValues.put("hd_station_name", "");
+        mHdValues.put("hd_unique_id", "");
+        mHdValues.put("hd_api_version", "");
+        mHdValues.put("hd_hw_version", "");
+        mHdValues.put("rds_enable", false);
+        mHdValues.put("rds_genre", "");
+        mHdValues.put("rds_program_service", "");
+        mHdValues.put("rds_radio_text", "");
+        mHdValues.put("volume", 0);
+        mHdValues.put("bass", 0);
+        mHdValues.put("treble", 0);
+        mHdValues.put("compression", 0);
     }
+
+    public Object getHdValue(String key) {
+        synchronized (LOCK) {
+            return mHdValues.get(key);
+        }
+    }
+
 
     public void parseDataPacket(byte[] data) {
         /**
@@ -89,6 +116,7 @@ public class RadioController {
         String radioCmd = command.getCommandName();
         int dataType = command.getDataType();
         byte[] stringBytes;
+        int callbackCount = 0;
 
         switch (dataType) {
             case RadioCommand.Type.INT:
@@ -98,16 +126,37 @@ public class RadioController {
 
                 setHdValue(radioCmd, intVal);
 
+                callbackCount = mService.mRadioCallbacks.beginBroadcast();
+                for (int i = 0; i < callbackCount; i++) {
+                    try {
+                        mService.mRadioCallbacks.getBroadcastItem(i)
+                                .OnIntegerValueReceived(radioCmd, intVal);
+                    } catch (RemoteException e) {
+                        e.printStackTrace();
+                    }
+                }
+
                 break;
             case RadioCommand.Type.BOOLEAN:
                 int boolVal = msgBuf.getInt();
-
+                boolean status;
                 if (boolVal == 1) {
-                    setHdValue(radioCmd, true);
+                    status = true;
                 } else if (boolVal == 0) {
-                    setHdValue(radioCmd, false);
+                    status = false;
                 } else {
                     Log.i(TAG, "Invalid boolean value: " + boolVal);
+                    return;
+                }
+                setHdValue(radioCmd, status);
+                callbackCount = mService.mRadioCallbacks.beginBroadcast();
+                for (int i = 0; i < callbackCount; i++) {
+                    try {
+                        mService.mRadioCallbacks.getBroadcastItem(i)
+                                .OnBooleanValueReceived(radioCmd, status);
+                    } catch (RemoteException e) {
+                        e.printStackTrace();
+                    }
                 }
                 break;
 
@@ -120,6 +169,16 @@ public class RadioController {
                 if (DEBUG) Log.d(TAG, "Null Portion: " + nullBuf +"\nConverted String: \n" + msg);
 
                 setHdValue(radioCmd, msg);
+
+                callbackCount = mService.mRadioCallbacks.beginBroadcast();
+                for (int i = 0; i < callbackCount; i++) {
+                    try {
+                        mService.mRadioCallbacks.getBroadcastItem(i)
+                                .OnStringValueReceived(radioCmd, msg);
+                    } catch (RemoteException e) {
+                        e.printStackTrace();
+                    }
+                }
                 break;
 
             case RadioCommand.Type.TUNEINFO:
@@ -135,6 +194,16 @@ public class RadioController {
                 }
                 tuneInfo.frequency = msgBuf.getInt();
                 setHdValue(radioCmd, tuneInfo);
+
+                callbackCount = mService.mRadioCallbacks.beginBroadcast();
+                for (int i = 0; i < callbackCount; i++) {
+                    try {
+                        mService.mRadioCallbacks.getBroadcastItem(i)
+                                .OnTuneReply(radioCmd, tuneInfo.band, tuneInfo.frequency);
+                    } catch (RemoteException e) {
+                        e.printStackTrace();
+                    }
+                }
                 break;
             case RadioCommand.Type.HDSONGINFO:
                 HDSongInfo songInfo = new HDSongInfo();
@@ -144,14 +213,27 @@ public class RadioController {
                     return;
                 }
 
+                // TODO: do I need to get an empty integer here?
+
                 stringBytes = new byte[msgBuf.remaining()];
                 msgBuf.get(stringBytes);
                 songInfo.description = new String(stringBytes);
 
                 setHdValue(radioCmd, songInfo);
 
-                if (HDRadioDefs.getCommandData("hd_sub_channel") == null) {
+                Object subChannel = mHdValues.get("hd_sub_channel");
+                if (subChannel == null || (int)subChannel == 0){
                     setHdValue("hd_sub_channel", songInfo.subchannel);
+                }
+
+                callbackCount = mService.mRadioCallbacks.beginBroadcast();
+                for (int i = 0; i < callbackCount; i++) {
+                    try {
+                        mService.mRadioCallbacks.getBroadcastItem(i)
+                                .OnHdSongInfoReceived(radioCmd, songInfo.description, songInfo.subchannel);
+                    } catch (RemoteException e) {
+                        e.printStackTrace();
+                    }
                 }
                 break;
             case RadioCommand.Type.NONE:
@@ -162,66 +244,66 @@ public class RadioController {
         }
     }
 
+    // TODO: This function should actually be implemented in the calling activity.  That activity
+    //       Should be responsible for tracking data, doing it in the service means we need  to
+    //       pass a map of values every time a callback is executed.  There are a few variables
+    //       I need to track here (power, stream lock)
     private void setHdValue(String key, Object value) {
-        boolean refresh = true;
-        RadioCommand cmd = HDRadioDefs.getRadioCommand(key);
-        if (cmd != null) {
-            switch (key) {
-                case "hd_sub_channel":
-                    int index = (int) value;
-                    HDRadioDefs.setCommandData("hd_title", mHdTitles.get(index));
-                    HDRadioDefs.setCommandData("hd_artist", mHdArtists.get(index));
-                    break;
-                case "tune":
-                    // reset values when we tune to a new channel
-                    HDRadioDefs.setCommandData("hd_sub_channel", 0);
-                    HDRadioDefs.setCommandData("hd_sub_channel_count", 0);
-                    HDRadioDefs.setCommandData("hd_active", false);
-                    HDRadioDefs.setCommandData("hd_stream_lock", false);
-                    HDRadioDefs.setCommandData("rds_enable", false);
-                    HDRadioDefs.setCommandData("rds_genre", "");
-                    HDRadioDefs.setCommandData("rds_program_service", "");
-                    HDRadioDefs.setCommandData("rds_radio_text", "");
-                    HDRadioDefs.setCommandData("hd_callsign", "");
-                    HDRadioDefs.setCommandData("hd_station_name", "");
-                    HDRadioDefs.setCommandData("hd_title", "");
-                    HDRadioDefs.setCommandData("hd_artist", "");
-                    mHdArtists.clear();
-                    mHdTitles.clear();
-                    break;
-                case "hd_title":
-                    HDSongInfo val = (HDSongInfo)value;
-                    mHdTitles.put(val.subchannel, val.description);
-                    break;
-                case "hd_artist":
-                    HDSongInfo val2 = (HDSongInfo)value;
-                    mHdArtists.put(val2.subchannel, val2.description);
-                    break;
-                case "power":
-                    break;
-                case "mute":
-                    break;
-                case "volume":
-                    break;
-                case "bass":
-                    break;
-                case "treble":
-                    break;
-                case "compression":
-                    break;
-                default:
-                    refresh = false;
+        synchronized (LOCK) {
+            RadioCommand cmd = HDRadioDefs.getRadioCommand(key);
+            if (cmd != null) {
+                switch (key) {
+                    case "hd_sub_channel":
+                        int index = (int) value;
+                        mHdValues.put("hd_title", mHdTitles.get(index));
+                        mHdValues.put("hd_artist", mHdArtists.get(index));
+                        break;
+                    case "tune":
+                        // reset values when we tune to a new channel
+                        mHdValues.put("hd_sub_channel", 0);
+                        mHdValues.put("hd_sub_channel_count", 0);
+                        mHdValues.put("hd_active", false);
+                        mHdValues.put("hd_stream_lock", false);
+                        mHdValues.put("rds_enable", false);
+                        mHdValues.put("rds_genre", "");
+                        mHdValues.put("rds_program_service", "");
+                        mHdValues.put("rds_radio_text", "");
+                        mHdValues.put("hd_callsign", "");
+                        mHdValues.put("hd_station_name", "");
+                        mHdValues.put("hd_title", "");
+                        mHdValues.put("hd_artist", "");
+                        mHdArtists.clear();
+                        mHdTitles.clear();
+                        break;
+                    case "hd_title":
+                        HDSongInfo val = (HDSongInfo) value;
+                        mHdTitles.put(val.subchannel, val.description);
+                        break;
+                    case "hd_artist":
+                        HDSongInfo val2 = (HDSongInfo) value;
+                        mHdArtists.put(val2.subchannel, val2.description);
+                        break;
+                    case "power":
+                        break;
+                    case "mute":
+                        break;
+                    case "volume":
+                        break;
+                    case "bass":
+                        break;
+                    case "treble":
+                        break;
+                    case "compression":
+                        break;
+                    default:
+                }
+
+                mHdValues.put(key, value);
+
+
+            } else {
+                Log.i(TAG, "Error setting HD value");
             }
-
-            cmd.setData(value);
-
-            // TODO: This handles IPC for activities within the package until AIDL is implemented
-            if (radioDataCallback != null) {
-                radioDataCallback.OnRadioDataReceived(key);
-            }
-
-        } else {
-            Log.i(TAG, "Error setting HD value");
         }
     }
 
@@ -233,7 +315,9 @@ public class RadioController {
         return mSeekAll;
     }
 
-    public byte[] buildRadioPacket(String command, String op, String extra) {
+    // TODO: change the extra from string back to object, as with IPC we have a better idea of
+    //       what object is coming
+    public byte[] buildRadioPacket(String command, String op, Object data) {
 
         byte[] dataPacket;
         byte lengthByte;
@@ -244,7 +328,7 @@ public class RadioController {
                 dataPacket = buildGetDataPacket(command);
                 break;
             case "set":
-                dataPacket = buildSetDataPacket(command, extra);
+                dataPacket = buildSetDataPacket(command, data);
                 break;
             default:
                 Log.i(TAG, "Invalid operation, must be get or set");
@@ -319,7 +403,7 @@ public class RadioController {
         return dataBuf.array();
     }
 
-    private byte[] buildSetDataPacket(String command, String extra) {
+    private byte[] buildSetDataPacket(String command, Object data) {
         ByteBuffer dataBuf = ByteBuffer.allocate(256);  // 256 is absolute maximum length of packet
         dataBuf.order(ByteOrder.LITTLE_ENDIAN);
 
@@ -336,8 +420,12 @@ public class RadioController {
         switch (command) {
             case "power":           // set boolean item
             case "mute":
+                if (!(data instanceof Boolean)) {
+                    Log.i(TAG, "Invalid boolean data received for command: " + command);
+                    return null;
+                }
 
-                boolean statusOn = Boolean.parseBoolean(extra);
+                boolean statusOn = (boolean) data;
                 if (statusOn) {
                     dataBuf.put(HDRadioDefs.getCommandBytes("one"));
                 } else {
@@ -350,7 +438,12 @@ public class RadioController {
             case "treble":
             case "compression":
             case "hd_sub_channel":
-                int val = Integer.parseInt(extra);
+                if (!(data instanceof Integer)) {
+                    Log.i(TAG, "Invalid integer data received for command: " + command);
+                    return null;
+                }
+
+                int val = (int) data;
 
                 if (DEBUG) Log.i(TAG, "Setting value for " + command + ": " + val);
 
@@ -365,30 +458,26 @@ public class RadioController {
                 break;
 
             case "tune":
-                String[] vals = extra.split(":");
-
-                if (vals.length ==  1) {
-                    if (!extra.equals("up") || !extra.equals("down")) {
+                if (data instanceof String) {
+                    String direction = (String)data;
+                    if (!direction.equals("up") || !direction.equals("down")) {
                         Log.i(TAG, "Direction is not valid for tune command");
                         return null;
                     }
                     dataBuf.put(HDRadioDefs.getConstantBytes("zero"));     // pad with 8 zero bytes
                     dataBuf.put(HDRadioDefs.getConstantBytes("zero"));
-                    dataBuf.put(HDRadioDefs.getConstantBytes(extra));
+                    dataBuf.put(HDRadioDefs.getConstantBytes(direction));
                 }
-                else if (vals.length == 2) {
-                    String band = vals[0];
-                    int frequency = Integer.parseInt(vals[1]);
-                    byte[] bandBytes = HDRadioDefs.getBandBytes(band.toLowerCase());
+                else if (data instanceof TuneInfo) {
+                    TuneInfo info = (TuneInfo)data;
+                    byte[] bandBytes = HDRadioDefs.getBandBytes(info.band.toLowerCase());
                     if (bandBytes == null) {
                         Log.i(TAG, "Band is not valid for tune command");
                         return null;
                     }
                     dataBuf.put(bandBytes);
-                    dataBuf.putInt(frequency);
-                    // TODO: After requesting this packet and sending it to the radio, the
-                    //       Radiocomm class should follow up by sending the subchannel if it
-                    //       is HD
+                    dataBuf.putInt(info.frequency);
+
                 } else {
                     // The data is incorrect
                     Log.i(TAG, "Extra data is not valid for tune command");
@@ -397,14 +486,18 @@ public class RadioController {
 
                 break;
             case "seek":
-                // should be "up" or "down"
-                if (!extra.equals("up") || !extra.equals("down")) {
+                if (!(data instanceof String)) {
+                    Log.i(TAG, "Invalid String data received for command: " + command);
+                    return null;
+                }
+                String direction = (String)data;
+                if (!direction.equals("up") || !direction.equals("down")) {
                     Log.i(TAG, "Direction is not valid for tune command");
                     return null;
                 }
                 dataBuf.put(HDRadioDefs.getConstantBytes("seek_id"));
                 dataBuf.put(HDRadioDefs.getConstantBytes("zero"));
-                dataBuf.put(HDRadioDefs.getConstantBytes(extra));
+                dataBuf.put(HDRadioDefs.getConstantBytes(direction));
 
                 if (mSeekAll) {
                     dataBuf.put(HDRadioDefs.getConstantBytes("seek_all"));

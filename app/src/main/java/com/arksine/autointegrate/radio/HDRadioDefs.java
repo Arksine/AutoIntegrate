@@ -178,21 +178,4 @@ public class HDRadioDefs {
         return mCommands.get(key);
     }
 
-    public static void setCommandData(String key, Object data) {
-        RadioCommand cmd = mCommands.get(key);
-        if (cmd != null) {
-            cmd.setData(data);
-        }
-    }
-
-    public static Object getCommandData(String key) {
-        RadioCommand cmd = mCommands.get(key);
-        if (cmd != null) {
-            return cmd.getData();
-        } else {
-            return null;
-        }
-    }
-
-
 }

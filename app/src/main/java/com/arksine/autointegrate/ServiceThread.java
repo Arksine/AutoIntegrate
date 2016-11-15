@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit;
 public class ServiceThread implements Runnable {
     private static String TAG = "ServiceThread";
 
-    private Context mContext;
+    private MainService mService;
     private ExecutorService EXECUTOR = Executors.newCachedThreadPool(new BackgroundThreadFactory());
 
     private Future mMainThreadFuture = null;
@@ -42,16 +42,16 @@ public class ServiceThread implements Runnable {
 
     private LocalBroadcastManager mLocalBM;
 
-    ServiceThread(Context context) {
-        mContext = context;
-        mLocalBM = LocalBroadcastManager.getInstance(mContext);
+    ServiceThread(MainService svc) {
+        mService = svc;
+        mLocalBM = LocalBroadcastManager.getInstance(mService);
 
         if (!isReceiverRegistered) {
             // Register the receiver for local broadcasts
-            IntentFilter filter = new IntentFilter(mContext.getString(R.string.ACTION_WAKE_DEVICE));
-            filter.addAction(mContext.getString(R.string.ACTION_REFRESH_CONTROLLER_CONNECTION));
-            filter.addAction(mContext.getString(R.string.ACTION_REFRESH_RADIO_CONNECTION));
-            filter.addAction(mContext.getString(R.string.ACTION_SUSPEND_DEVICE));
+            IntentFilter filter = new IntentFilter(mService.getString(R.string.ACTION_WAKE_DEVICE));
+            filter.addAction(mService.getString(R.string.ACTION_REFRESH_CONTROLLER_CONNECTION));
+            filter.addAction(mService.getString(R.string.ACTION_REFRESH_RADIO_CONNECTION));
+            filter.addAction(mService.getString(R.string.ACTION_SUSPEND_DEVICE));
 
             mLocalBM.registerReceiver(mServiceThreadReceiver, filter);
             isReceiverRegistered = true;
@@ -60,7 +60,7 @@ public class ServiceThread implements Runnable {
         UtilityFunctions.RootCallback callback = new UtilityFunctions.RootCallback() {
             @Override
             public void OnRootInitialized(boolean rootStatus) {
-                mPowerManager = new IntegratedPowerManager(mContext, rootStatus);
+                mPowerManager = new IntegratedPowerManager(mService, rootStatus);
                 notifyServiceThread();
             }
         };
@@ -74,22 +74,22 @@ public class ServiceThread implements Runnable {
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
 
-            if (mContext.getString(R.string.ACTION_WAKE_DEVICE).equals(action)) {
+            if (mService.getString(R.string.ACTION_WAKE_DEVICE).equals(action)) {
                 if (serviceSuspended) {
                     EXECUTOR.execute(wakeUpDevice);
                     Log.i(TAG, "Service resumed.");
                 }
-            } else if (mContext.getString(R.string.ACTION_SUSPEND_DEVICE).equals(action)) {
+            } else if (mService.getString(R.string.ACTION_SUSPEND_DEVICE).equals(action)) {
                 // Stop the main thread, but do not destroy the the ExecutorService so the thread
                 // can be restarted
                 EXECUTOR.execute(suspendDevice);
 
-            } else if (mContext.getString(R.string.ACTION_REFRESH_CONTROLLER_CONNECTION).equals(action)) {
+            } else if (mService.getString(R.string.ACTION_REFRESH_CONTROLLER_CONNECTION).equals(action)) {
                 Log.i(TAG, "Refresh MicroController Connection");
                 mLearningMode = intent.getBooleanExtra("LearningMode", false);
                 EXECUTOR.execute(stopMicroControllerConnection);
 
-            } else if (mContext.getString(R.string.ACTION_REFRESH_RADIO_CONNECTION).equals(action)) {
+            } else if (mService.getString(R.string.ACTION_REFRESH_RADIO_CONNECTION).equals(action)) {
                 Log.i(TAG, "Refresh Radio Thread");
                 //TODO: stopRadioThread();
             }
@@ -98,7 +98,7 @@ public class ServiceThread implements Runnable {
 
     @Override
     public void run() {
-        SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(mContext);
+        SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(mService);
         int connectionAttempts = 1;
 
         // Check to see if root is initialized.  If not, we will wait until notified by the RootCallback
@@ -128,7 +128,7 @@ public class ServiceThread implements Runnable {
 
                 // If the MicroController connection hasn't been established, do so.
                 if (mMicroController == null || !mMicroController.isConnected()) {
-                    mMicroController = new MicroControllerCom(mContext, mLearningMode);
+                    mMicroController = new MicroControllerCom(mService, mLearningMode);
                     if (mMicroController.connect()) {
                         Log.i(TAG, "Micro Controller connection established");
                     } else {
@@ -186,7 +186,7 @@ public class ServiceThread implements Runnable {
         // TODO: as more connections are added, add them to statement below, but ONLY if they
         //       are enabled in settings
         boolean connected = true;
-        SharedPreferences globalPrefs = PreferenceManager.getDefaultSharedPreferences(mContext);
+        SharedPreferences globalPrefs = PreferenceManager.getDefaultSharedPreferences(mService);
         if (globalPrefs.getBoolean("main_pref_key_toggle_controller", false)) {
             connected = (connected && (mMicroController != null && mMicroController.isConnected()));
         }
@@ -219,15 +219,16 @@ public class ServiceThread implements Runnable {
         mMainThreadFuture = EXECUTOR.submit(this);
 
         // Send intent to status fragment so it knows service status has changed
-        PreferenceManager.getDefaultSharedPreferences(mContext).edit()
+        PreferenceManager.getDefaultSharedPreferences(mService).edit()
                 .putBoolean("service_suspended", false).apply();
-        Intent statusChangedIntent = new Intent(mContext.getString(R.string.ACTION_SERVICE_STATUS_CHANGED));
-        statusChangedIntent.setClass(mContext, MainSettings.class);
+        Intent statusChangedIntent = new Intent(mService.getString(R.string.ACTION_SERVICE_STATUS_CHANGED));
+        statusChangedIntent.setClass(mService, MainSettings.class);
         statusChangedIntent.putExtra("service_status", "On");
         mLocalBM.sendBroadcast(statusChangedIntent);
     }
 
     // Only call this when you are ready to shut down the service, as it shuts down the executor.
+
     // DO NOT call on the UI thread, as it is blocking.
     public void destroyServiceThread() {
         serviceThreadRunning = false;
@@ -258,10 +259,12 @@ public class ServiceThread implements Runnable {
         mPowerManager.destroy();
 
         // Send intent to status fragment so it knows service status has changed
-        Intent statusChangedIntent = new Intent(mContext.getString(R.string.ACTION_SERVICE_STATUS_CHANGED));
-        statusChangedIntent.setClass(mContext, MainSettings.class);
+        Intent statusChangedIntent = new Intent(mService.getString(R.string.ACTION_SERVICE_STATUS_CHANGED));
+        statusChangedIntent.setClass(mService, MainSettings.class);
         statusChangedIntent.putExtra("service_status", "Off");
         mLocalBM.sendBroadcast(statusChangedIntent);
+
+        mService.stopSelf();
     }
 
     private synchronized void notifyServiceThread() {
@@ -342,10 +345,10 @@ public class ServiceThread implements Runnable {
             stopMainThread.run();
 
             // Broadcast Intent to Status Fragment notifying that service status has changed
-            PreferenceManager.getDefaultSharedPreferences(mContext).edit()
+            PreferenceManager.getDefaultSharedPreferences(mService).edit()
                     .putBoolean("service_suspended", true).apply();
-            Intent statusChangedIntent = new Intent(mContext.getString(R.string.ACTION_SERVICE_STATUS_CHANGED));
-            statusChangedIntent.setClass(mContext, MainSettings.class);
+            Intent statusChangedIntent = new Intent(mService.getString(R.string.ACTION_SERVICE_STATUS_CHANGED));
+            statusChangedIntent.setClass(mService, MainSettings.class);
             statusChangedIntent.putExtra("service_status", "Suspended");
             mLocalBM.sendBroadcast(statusChangedIntent);
 

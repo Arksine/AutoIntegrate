@@ -9,7 +9,7 @@ import android.util.Log;
 import java.nio.ByteBuffer;
 
 /**
- * Created by Eric on 11/7/2016.
+ * Receives serial data from the RadioCom class and deciphers the datapacket
  */
 
 public class RadioMessageHandler extends Handler {

@@ -1,10 +1,9 @@
-package com.arksine.autointegrate.interfaces;
+// IRadioControl.aidl
+package com.arksine.autointegrate;
 
-/**
- * Provides and interface for Activities within the package context to control the HD radio
- */
+// Declare any non-default types here with import statements
 
-public interface RadioControlInterface {
+interface IRadioControl {
     void setSeekAll(boolean seekAll);
     boolean getSeekAll();
 

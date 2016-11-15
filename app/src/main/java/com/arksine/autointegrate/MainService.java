@@ -12,6 +12,8 @@ import android.graphics.BitmapFactory;
 import android.graphics.drawable.Icon;
 import android.os.Build;
 import android.os.IBinder;
+import android.os.RemoteCallbackList;
+import android.os.RemoteException;
 import android.provider.Settings;
 import android.util.Log;
 import android.widget.Toast;
@@ -41,7 +43,6 @@ public class MainService extends Service {
                     @Override
                     public void run() {
                         mServiceThread.destroyServiceThread();
-                        stopSelf();
                     }
                 });
                 stopThread.start();
@@ -49,6 +50,10 @@ public class MainService extends Service {
         }
     }
     private final StopReciever mStopReceiver = new StopReciever();
+
+    public final RemoteCallbackList<IRadioControlCallback> mRadioCallbacks
+            = new RemoteCallbackList<IRadioControlCallback>();
+
     private ServiceThread mServiceThread;
     private boolean mHasWritePermission;
 
@@ -141,7 +146,7 @@ public class MainService extends Service {
 
     @Override
     public IBinder onBind(Intent intent) {
-        // this service isn't bound to any app
+        // TODO: Implement onBind
         return null;
     }
 
@@ -159,5 +164,102 @@ public class MainService extends Service {
         return Bitmap.createScaledBitmap(icon, (int)(icon.getWidth() * scaleMultiplier),
                 (int)(icon.getHeight() * scaleMultiplier), false);
     }
+
+    private final IRadioControl.Stub mRadioBinder = new IRadioControl.Stub() {
+        @Override
+        public void setSeekAll(boolean seekAll) throws RemoteException {
+
+        }
+
+        @Override
+        public boolean getSeekAll() throws RemoteException {
+            return false;
+        }
+
+        @Override
+        public void togglePower(boolean status) throws RemoteException {
+
+        }
+
+        @Override
+        public void toggleMute(boolean status) throws RemoteException {
+
+        }
+
+        @Override
+        public void setVolume(int volume) throws RemoteException {
+
+        }
+
+        @Override
+        public void setVolumeUp() throws RemoteException {
+
+        }
+
+        @Override
+        public void setVolumeDown() throws RemoteException {
+
+        }
+
+        @Override
+        public void setBass(int bass) throws RemoteException {
+
+        }
+
+        @Override
+        public void setBassUp() throws RemoteException {
+
+        }
+
+        @Override
+        public void setBassDown() throws RemoteException {
+
+        }
+
+        @Override
+        public void setTreble(int treble) throws RemoteException {
+
+        }
+
+        @Override
+        public void setTrebleUp() throws RemoteException {
+
+        }
+
+        @Override
+        public void setTrebleDown() throws RemoteException {
+
+        }
+
+        @Override
+        public void tune(String band, int frequency, int subchannel) throws RemoteException {
+
+        }
+
+        @Override
+        public void tuneUp() throws RemoteException {
+
+        }
+
+        @Override
+        public void tuneDown() throws RemoteException {
+
+        }
+
+        @Override
+        public void seekUp() throws RemoteException {
+
+        }
+
+        @Override
+        public void seekDown() throws RemoteException {
+
+        }
+
+        @Override
+        public void requestUpdate(String key) throws RemoteException {
+
+        }
+    };
 
 }
