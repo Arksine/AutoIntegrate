@@ -1,4 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <PreferenceScreen
+        android:key="radio_pref_key_launch_activity"
+        android:title="@string/radio_pref_launch_hd_radio"/>
+
+    <CheckBoxPreference
+        android:key="radio_pref_request_audio_focus"
+        android:title="@string/radio_pref_request_audio_focus"
+        android:summary="@string/radio_pref_request_audio_focus_summary"
+        android:defaultValue="false"/>
+
+    <CheckBoxPreference
+        android:key="radio_pref_use_media_buttons"
+        android:title="@string/radio_pref_use_media_buttons"
+        android:summary="@string/radio_pref_use_media_buttons_summary"
+        android:defaultValue="false"
+        android:dependency="radio_pref_request_audio_focus"/>
 
 </PreferenceScreen>

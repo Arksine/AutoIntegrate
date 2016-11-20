@@ -14,6 +14,7 @@ import android.util.Log;
 
 import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.activities.CameraActivity;
+import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
 
 import java.util.ArrayList;
@@ -79,27 +80,42 @@ public class CameraSettings extends PreferenceFragment {
 
             // Check for UVC Device class values
             if (uDevice.getDeviceClass() == 239 && uDevice.getDeviceSubclass() == 2) {
+
                 CharSequence name = "UVC Capture Device";
                 CharSequence value;
 
-                // replace the name with the device driver name if on API 21 or above
+                DLog.v(TAG, "UVC Camera Device found: " + name);
+                DLog.v(TAG, "Device ID: " + uDevice.getDeviceId());
+                DLog.v(TAG, "Device Name: " + uDevice.getDeviceName());
+                DLog.v(TAG, "Vendor: ID " + uDevice.getVendorId());
+                DLog.v(TAG, "Product ID: " + uDevice.getProductId());
+                DLog.v(TAG, "Class: " + uDevice.getDeviceClass());
+                DLog.v(TAG, "SubClass: " + uDevice.getDeviceSubclass());
+                DLog.v(TAG, "Protocol: " + uDevice.getDeviceProtocol());
+
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    name = uDevice.getProductName();
+                    DLog.v(TAG, "Manufacturer: " + uDevice.getManufacturerName());
+                    DLog.v(TAG, "Serial Number: " + uDevice.getSerialNumber());
                 }
+
 
                 String pid = Integer.toHexString(uDevice.getProductId());
                 String vid = Integer.toHexString(uDevice.getVendorId());
                 vid = UtilityFunctions.addLeadingZeroes(vid, 4);
                 pid = UtilityFunctions.addLeadingZeroes(pid, 4);
 
-                name = name + "\nVID:0x" + vid + " PID:0x" + pid + "\n" + uDevice.getDeviceName();
-
-                value = uDevice.getVendorId() + ":" + uDevice.getProductId() + ":"
-                        + uDevice.getDeviceName();
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    name = uDevice.getProductName() + "\nVID:0x" + vid + " PID:0x" + pid + "\n"
+                            + uDevice.getSerialNumber();
+                    value = uDevice.getVendorId() + ":" + uDevice.getProductId() + ":"
+                            + uDevice.getSerialNumber();
+                } else {
+                    name = name + "\nVID:0x" + vid + " PID:0x" + pid;
+                    value = uDevice.getVendorId() + ":" + uDevice.getProductId();
+                }
 
                 entries.add(name);
                 entryValues.add(value);
-
             }
         }
 

@@ -1,5 +1,9 @@
 package com.arksine.autointegrate.interfaces;
 
+import android.provider.MediaStore;
+
+import com.arksine.autointegrate.radio.RadioKey;
+
 /**
  * Provides and interface for Activities within the package context to control the HD radio
  */
@@ -9,6 +13,8 @@ public interface RadioControlInterface {
     boolean getSeekAll();
 
     void togglePower(boolean status);
+    boolean getPowerStatus();
+
     void toggleMute(boolean status);
 
     void setVolume(int volume);
@@ -24,12 +30,13 @@ public interface RadioControlInterface {
     void setTrebleDown();
 
 
-    void tune(String band, int frequency, int subchannel);
+    void tune(RadioKey.Band band, int frequency, int subchannel);
     void tuneUp();
     void tuneDown();
 
     void seekUp();
     void seekDown();
 
-    void requestUpdate(String key);
+    void requestUpdate(RadioKey.Command key);
+    Object getHdValue(RadioKey.Command key);
 }

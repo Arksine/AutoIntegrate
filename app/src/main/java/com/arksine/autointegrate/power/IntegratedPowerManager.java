@@ -15,6 +15,7 @@ import android.provider.Settings;
 import android.util.Log;
 import android.view.KeyEvent;
 
+import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
 
 import java.io.BufferedReader;
@@ -65,7 +66,7 @@ public class IntegratedPowerManager {
                         | PowerManager.ACQUIRE_CAUSES_WAKEUP,
                 "Screen On Wakelock");
         mScreenWakeLock.acquire();
-        Log.i(TAG, "Wakelock Aquired");
+        DLog.v(TAG, "Wakelock Aquired");
 
         HandlerThread hThread = new HandlerThread("PowerHandlerThread");
         hThread.setPriority(Process.THREAD_PRIORITY_BACKGROUND);
@@ -81,7 +82,7 @@ public class IntegratedPowerManager {
     public void destroy() {
         if (mScreenWakeLock != null && mScreenWakeLock.isHeld()) {
             mScreenWakeLock.release();
-            Log.i(TAG, "Wakelock Released");
+            DLog.v(TAG, "Wakelock Released");
         }
 
         mScreenWakeLock = null;
@@ -147,7 +148,7 @@ public class IntegratedPowerManager {
 
                     List<String> output = Shell.SU.run(commands);
                     for (String o: output) {
-                        Log.i(TAG, o + "\n");
+                        DLog.v(TAG, o + "\n");
                     }
                 }
             };
@@ -182,7 +183,7 @@ public class IntegratedPowerManager {
         // release wakelocked keeping screen on
         if (mScreenWakeLock.isHeld()) {
             mScreenWakeLock.release();
-            Log.i(TAG, "Wakelock Released");
+            DLog.v(TAG, "Wakelock Released");
         }
 
         long audioDelay = mDefaultPrefs.getLong("power_pref_key_audio_focus_timeout", 0);
@@ -213,7 +214,7 @@ public class IntegratedPowerManager {
         // release wakelocked keeping screen on
         if (!mScreenWakeLock.isHeld()) {
             mScreenWakeLock.acquire();
-            Log.i(TAG, "Wakelock Aquired");
+            DLog.v(TAG, "Wakelock Aquired");
         }
 
         AudioFocusManager.releaseAudioFocus(mContext);
@@ -247,7 +248,7 @@ public class IntegratedPowerManager {
                     .putBoolean("power_pref_store_screen_timeout_flag", true)
                     .apply();
 
-            Log.i(TAG, "Current Screen Timeout: " + currentScreenTimeout);
+            DLog.v(TAG, "Current Screen Timeout: " + currentScreenTimeout);
         }
 
         // Set Timeout to a minimal number.  The effect varies, because the timeout only occurs
@@ -270,7 +271,7 @@ public class IntegratedPowerManager {
             Settings.System.putInt(mContext.getContentResolver(),
                     Settings.System.SCREEN_OFF_TIMEOUT, timeout);
 
-            Log.i(TAG, "Screen timeout restored");
+            DLog.v(TAG, "Screen timeout restored");
         }
     }
 
@@ -301,9 +302,9 @@ public class IntegratedPowerManager {
                 goToSleep.invoke(iPowerManager, SystemClock.uptimeMillis(), 0);
             }
 
-            Log.i(TAG, "Successfully put device to sleep using reflection");
+            DLog.v(TAG, "Successfully put device to sleep using reflection");
         } catch (Exception e) {
-            Log.i(TAG, "Unable to put device to sleep using reflection");
+            Log.w(TAG, "Unable to put device to sleep using reflection");
             e.printStackTrace();
         }
 
@@ -331,7 +332,7 @@ public class IntegratedPowerManager {
 
             return true;
         } else {
-            Log.e(TAG, "Error setting fixed install mode, Root not available");
+            Log.w(TAG, "Error setting fixed install mode, Root not available");
             return false;
         }
     }
@@ -351,7 +352,7 @@ public class IntegratedPowerManager {
             rootThread.start();
             return true;
         } else {
-            Log.e(TAG, "Error setting fast charge, Root not available");
+            Log.w(TAG, "Error setting fast charge, Root not available");
             return false;
         }
     }
@@ -379,7 +380,7 @@ public class IntegratedPowerManager {
             try {
                 reader = new BufferedReader(new FileReader(settingsFile));
             } catch (FileNotFoundException e) {
-                Log.e(TAG, "File not found: " + filePath);
+                Log.w(TAG, "File not found: " + filePath);
                 return "0";
             }
 
@@ -387,7 +388,7 @@ public class IntegratedPowerManager {
             try {
                 fileValue = reader.readLine().trim();
             } catch (IOException e) {
-                Log.e(TAG, "Error reading file: " + filePath);
+                Log.w(TAG, "Error reading file: " + filePath);
                 fileValue = "0";
             }
 
@@ -400,7 +401,7 @@ public class IntegratedPowerManager {
             return fileValue;
 
         } else {
-            Log.e(TAG, "File does not exist: " + filePath);
+            Log.w(TAG, "File does not exist: " + filePath);
             return "0";
         }
     }

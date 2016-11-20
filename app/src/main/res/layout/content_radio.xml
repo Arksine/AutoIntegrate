@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    android:id="@+id/content_radio"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:paddingBottom="@dimen/activity_vertical_margin"
+    android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    android:gravity="center_vertical"
+    app:layout_behavior="@string/appbar_scrolling_view_behavior"
+    tools:context="com.arksine.autointegrate.activities.RadioActivity"
+    tools:showIn="@layout/activity_radio">
+
+    <!-- Below are a few buttons and textviews for testing, we'll make the activity more visually
+    appealing later-->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <TextView
+            android:id="@+id/txt_radio_hd_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="?android:attr/textAppearanceMedium"
+            android:layout_marginEnd="10dp"/>
+
+        <TextView
+            android:id="@+id/txt_radio_frequency"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="?android:attr/textAppearanceMedium"
+            android:layout_marginEnd="10dp"/>
+
+        <TextView
+            android:id="@+id/txt_radio_band"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="?android:attr/textAppearanceMedium"/>
+
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="5dp">
+
+        <TextView
+            android:text="Test"
+            android:id="@+id/txt_radio_info"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:maxLines="1"
+            android:textAppearance="?android:attr/textAppearanceLarge"/>
+
+    </ScrollView>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginBottom="10dp">
+
+        <ToggleButton
+            android:id="@+id/btn_radio_power"
+            android:textOff="Power"
+            android:textOn="Power"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+
+        <ToggleButton
+            android:id="@+id/btn_radio_mute"
+            android:textOff="Mute"
+            android:textOn="Mute"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+
+        <ToggleButton
+            android:id="@+id/btn_radio_seekall"
+            android:textOff="Seek All"
+            android:textOn="Seek All"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+
+        <ToggleButton
+            android:id="@+id/btn_radio_band"
+            android:textOff="AM"
+            android:textOn="FM"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginBottom="10dp">
+
+        <Button
+            android:id="@+id/btn_radio_tune_up"
+            android:text="TuneUp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+
+        <Button
+            android:id="@+id/btn_radio_tune_down"
+            android:text="TuneDown"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+
+        <Button
+            android:id="@+id/btn_radio_seek_up"
+            android:text="SeekUp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+        <Button
+            android:id="@+id/btn_radio_seek_down"
+            android:text="SeekDown"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+
+    </LinearLayout>
+
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:text="Volume: "
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="?android:attr/textAppearanceMedium"/>
+
+        <SeekBar
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:max="90"
+            android:id="@+id/seekbar_radio_volume"/>
+
+    </LinearLayout>
+
+
+
+
+</LinearLayout>

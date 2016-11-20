@@ -14,7 +14,6 @@ import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
 import android.support.v7.widget.helper.ItemTouchHelper;
-import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 
@@ -23,6 +22,7 @@ import com.arksine.autointegrate.dialogs.ButtonMapDialog;
 import com.arksine.autointegrate.dialogs.DimmerCalibrationDialog;
 import com.arksine.autointegrate.microcontroller.ResistiveButton;
 import com.arksine.autointegrate.R;
+import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.autointegrate.utilities.LearnedButtonTouchHelper;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
 import com.google.gson.Gson;
@@ -161,7 +161,7 @@ public class ButtonLearningActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
-        Log.d(TAG, "Paused");
+        DLog.v(TAG, "Paused");
         startServiceExecutionMode();
     }
 

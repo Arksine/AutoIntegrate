@@ -1,10 +1,12 @@
 package com.arksine.autointegrate.radio;
 
-import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
+
+import com.arksine.autointegrate.utilities.DLog;
+import com.arksine.autointegrate.utilities.UtilityFunctions;
 
 import java.nio.ByteBuffer;
 
@@ -16,7 +18,6 @@ public class RadioMessageHandler extends Handler {
 
     private static final String TAG = "RadioMessageHandler";
 
-    private Context mContext;
     private RadioController mRadioController;
 
     // Packet parsing vars
@@ -30,9 +31,8 @@ public class RadioMessageHandler extends Handler {
     private boolean mPacketStarted = false;
 
 
-    public RadioMessageHandler(Looper looper, Context context, RadioController rc) {
+    public RadioMessageHandler(Looper looper, RadioController rc) {
         super(looper);
-        mContext =  context;
         mRadioController = rc;
     }
 
@@ -47,7 +47,7 @@ public class RadioMessageHandler extends Handler {
         // TODO: Verify the parsing implementation below, also check to see if it needs to be synchronized
 
         /**
-         * TODO: I know the following about packets
+         * The following is known the following about radio packets:
          * 1st byte is 0xA4, which is the header.
          * 2nd byte is length
          * 0x1B is escape byte, when active 0x1B is escaped as 1B, 0x48 is escaped as 0xA4.  It
@@ -56,9 +56,12 @@ public class RadioMessageHandler extends Handler {
          *
          * The checksum is the entire packet added up, modulo\\ 256
          */
+
+        DLog.v(TAG, "Incoming Radio Bytes:\n" + UtilityFunctions.bytesToHex(packet));
+
         for (byte b : packet) {
             if ((b != (byte)0xA4) && !mPacketStarted) {
-                Log.i(TAG, "Received byte without a start header, discarding");
+                DLog.v(TAG, "Received byte without a start header, discarding");
                 break;
             }
 
@@ -69,7 +72,7 @@ public class RadioMessageHandler extends Handler {
                 // as well, so the only time 0xA4 is received is when a new packet is beginning
 
                 if (mPacketStarted) {
-                    Log.i(TAG, "New header received during previous packet, discarding");
+                    DLog.v(TAG, "New header received during previous packet, discarding");
                 }
 
                 // Start byte is received and it isn't the length byte or the checksum
@@ -135,10 +138,11 @@ public class RadioMessageHandler extends Handler {
                 if ((mPacketCheckSum % 256) == (b & 0xFF)) {
                     // Packet is received and valid, send to input handler
                     byte[] data = new byte[mPacketLength];
+                    mDataBuffer.flip();
                     mDataBuffer.get(data);
                     mRadioController.parseDataPacket(data);
                 } else {
-                    Log.i(TAG, "Packet Checksum is not valid, discarded");
+                    DLog.v(TAG, "Packet Checksum is not valid, discarded");
                 }
                 mIsCheckSum = false;
                 mPacketStarted = false;

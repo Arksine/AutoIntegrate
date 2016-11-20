@@ -157,8 +157,18 @@
     <string name="pref_start_service">Start Service</string>
     <string name="pref_stop_service">Stop Service</string>
 
+    <!-- Strings related to Radio settings -->
+    <string name="radio_pref_launch_hd_radio">Launch HD Radio Activity</string>
+    <string name="radio_pref_request_audio_focus">Request Audio Focus</string>
+    <string name="radio_pref_request_audio_focus_summary">Stops media playback when radio is on</string>
+    <string name="radio_pref_use_media_buttons">Use Media Buttons</string>
+    <string name="radio_pref_use_media_buttons_summary">Control Seek and Volume with media buttons</string>
+
     <string name="title_activity_button_learning">Map Resistive Buttons</string>
     <string name="title_activity_camera">Backup Camera</string>
+    <string name="title_activity_radio">HD Radio</string>
+
+
 
 
     <!-- DIALOG STRINGS-->
@@ -311,5 +321,6 @@
         Analog mode maps minimum and maximum dimmer readings to corresponding user defined brightness
         levels.  This allows the device brightness to be variable, depending on the dimmer setting.
     </string>
+
 
 </resources>

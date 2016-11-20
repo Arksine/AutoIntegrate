@@ -2,7 +2,7 @@ package com.arksine.autointegrate.utilities;
 import android.graphics.drawable.Drawable;
 
 /**
- * Created by Eric on 10/17/2016.
+ * Stores Installed Application information
  */
 
 public class AppItem {

@@ -19,8 +19,8 @@ public abstract class SerialCom {
     protected SerialHelper mSerialHelper;
     protected SerialHelper.Callbacks mCallbacks;
 
-    public SerialCom(MainService service) {
-        mService = service;
+    public SerialCom(MainService svc) {
+        mService = svc;
     }
 
     protected synchronized void resumeThread() {

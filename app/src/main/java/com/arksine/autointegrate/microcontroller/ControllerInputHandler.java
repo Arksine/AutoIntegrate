@@ -9,6 +9,7 @@ import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
 import com.arksine.autointegrate.R;
+import com.arksine.autointegrate.utilities.DLog;
 
 
 /**
@@ -33,7 +34,7 @@ public class ControllerInputHandler extends Handler {
         mContext = context;
 
         if (isLearningMode) {
-            Log.i(TAG, "Controller is in Learning Mode.");
+            DLog.v(TAG, "Controller is in Learning Mode.");
             mCommandProcessor = null;
             mProcessor = new MessageProcessor() {
                 @Override
@@ -48,7 +49,7 @@ public class ControllerInputHandler extends Handler {
                 }
             };
         } else {
-            Log.i(TAG, "Controller is in Execution Mode.");
+            DLog.v(TAG, "Controller is in Execution Mode.");
             mCommandProcessor = new CommandProcessor(mContext);
             mProcessor = new MessageProcessor() {
                 @Override
@@ -69,7 +70,7 @@ public class ControllerInputHandler extends Handler {
                 Log.i("Micro Controller", ctrlMsg.data);
 
             } else {
-                Log.d(TAG, ctrlMsg.command + " " + ctrlMsg.data);
+                DLog.v(TAG, ctrlMsg.command + " " + ctrlMsg.data);
                 mProcessor.ProcessMessage(ctrlMsg);
             }
         }
@@ -89,7 +90,7 @@ public class ControllerInputHandler extends Handler {
             ctrlMsg.command = tokens[0];
             ctrlMsg.data = tokens[1];
         } else {
-            Log.e(TAG, "Issue parsing string, invalid data recd: " + msg);
+            DLog.w(TAG, "Issue parsing string, invalid data recd: " + msg);
             ctrlMsg = null;
         }
         return ctrlMsg;

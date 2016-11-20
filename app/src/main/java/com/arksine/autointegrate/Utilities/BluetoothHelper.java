@@ -110,7 +110,7 @@ public class BluetoothHelper implements SerialHelper {
             try {
                EXECUTOR.awaitTermination(10, TimeUnit.SECONDS);
             } catch (Exception e) {
-                Log.e(TAG, e.getMessage());
+                Log.w(TAG, e.getMessage());
             }
 
             if (!EXECUTOR.isTerminated()) {
@@ -154,7 +154,7 @@ public class BluetoothHelper implements SerialHelper {
                 //       device profiles supported
                 ParcelUuid[] features = device.getUuids();
                 for (ParcelUuid uuid : features) {
-                    Log.i(TAG, uuid.toString());
+                    DLog.v(TAG, uuid.toString());
                 }
 
                 // Add the name and address to an array adapter to show in a ListView
@@ -232,7 +232,7 @@ public class BluetoothHelper implements SerialHelper {
                 mSocket.close();
             }
             catch (IOException e) {
-                Log.e(TAG, "Unable to close Socket", e);
+                Log.w(TAG, "Unable to close Socket", e);
             }
         }
     }
@@ -253,7 +253,7 @@ public class BluetoothHelper implements SerialHelper {
                     try {
                         serialOut.write(data.getBytes());
                     } catch (IOException e) {
-                        Log.e(TAG, "Error writing to device\n", e);
+                        Log.w(TAG, "Error writing to device\n", e);
                         mSerialHelperCallbacks.OnDeviceError();
                     }
                 }
@@ -278,7 +278,7 @@ public class BluetoothHelper implements SerialHelper {
                     try {
                         serialOut.write(data);
                     } catch (IOException e) {
-                        Log.e(TAG, "Error writing to device\n", e);
+                        Log.w(TAG, "Error writing to device\n", e);
                         mSerialHelperCallbacks.OnDeviceError();
                     }
                 }
@@ -305,7 +305,7 @@ public class BluetoothHelper implements SerialHelper {
             mBtDevice = mBluetoothAdapter.getRemoteDevice(macAddr);
             if (mBtDevice == null) {
                 // device does not exist
-                Log.e(TAG, "Unable to open bluetooth device at " + macAddr);
+                Log.i(TAG, "Unable to open bluetooth device at " + macAddr);
                 deviceConnected = false;
                 mSerialHelperCallbacks.OnDeviceReady(false);
                 return;
@@ -318,7 +318,7 @@ public class BluetoothHelper implements SerialHelper {
                 mSocket = mBtDevice.createInsecureRfcommSocketToServiceRecord(MY_UUID);
             }
             catch (IOException e) {
-                Log.e (TAG, "Unable to retrieve bluetooth socket for device " + macAddr);
+                Log.i (TAG, "Unable to retrieve bluetooth socket for device " + macAddr);
                 mSocket = null;
                 deviceConnected = false;
                 mSerialHelperCallbacks.OnDeviceReady(false);
@@ -333,12 +333,12 @@ public class BluetoothHelper implements SerialHelper {
                 mSocket.connect();
             } catch (IOException connectException) {
 
-                Log.e (TAG, "Unable to connect to bluetooth socket for device " + macAddr);
+                Log.i (TAG, "Unable to connect to bluetooth socket for device " + macAddr);
                 // Unable to connect; close the socket and get out
                 try {
                     mSocket.close();
                 } catch (IOException closeException) {
-                    Log.e(TAG, "Error closing bluetooth socket", closeException);
+                    Log.i(TAG, "Error closing bluetooth socket", closeException);
                 }
 
                 mSocket = null;
@@ -378,7 +378,7 @@ public class BluetoothHelper implements SerialHelper {
                             } catch (IOException e) {
                                 // connection was closed before the device was disconnected
                                 if (deviceConnected) {
-                                    Log.d(TAG, "Error reading from bluetooth device", e);
+                                    DLog.i(TAG, "Error reading from bluetooth device", e);
                                     mSerialHelperCallbacks.OnDeviceError();
                                 }
                                 return;

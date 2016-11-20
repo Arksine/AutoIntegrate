@@ -1,15 +1,20 @@
 package com.arksine.autointegrate.radio;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.RemoteException;
-import android.util.ArrayMap;
+import android.preference.PreferenceManager;
 import android.util.Log;
+import android.util.SparseArray;
 
 import com.arksine.autointegrate.MainService;
+import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.HashMap;
 
 
 /**
@@ -20,66 +25,66 @@ import java.nio.ByteOrder;
 public class RadioController {
 
     private static final String TAG = "RadioController";
-    private static final boolean DEBUG = true;
 
-    private final Object LOCK = new Object();
+    private final Object WRITE_LOCK = new Object();
 
-    private MainService mService = null;
-    private boolean mSeekAll = false;
-    private long mLastTimeRefreshed = 0;
+    private MainService mService;
+    private volatile boolean mSeekAll = false;
 
-    static class TuneInfo {
-        public String band = "FM";
+
+    public static class TuneInfo {
+        public RadioKey.Band band = RadioKey.Band.FM;
         public int frequency = 0;
     }
 
     // the below is used for both hdartist and hd song responses
-    static class HDSongInfo {
+    public static class HDSongInfo {
         public int subchannel = 0;
         public String description = "";
     }
 
-    private ArrayMap<Integer, String> mHdTitles = new ArrayMap<>(5);
-    private ArrayMap<Integer, String> mHdArtists = new ArrayMap<>(5);
-    private final ArrayMap<String, Object> mHdValues = new ArrayMap<>(26);
+    private SparseArray<String> mHdTitles = new SparseArray<>(5);
+    private SparseArray<String> mHdArtists = new SparseArray<>(5);
+    private final HashMap<RadioKey.Command, Object> mHdValues = new HashMap<>(26);
 
 
-    public RadioController(MainService service) {
-        mService = service;
+    public RadioController(MainService svc) {
+        mService = svc;
         initHdValues();
     }
 
+
     private void initHdValues() {
-        mHdValues.put("power", false);
-        mHdValues.put("mute", false);
-        mHdValues.put("signal_strength", 0);
-        mHdValues.put("tune", new TuneInfo());
-        mHdValues.put("seek", 0);
-        mHdValues.put("hd_active", false);
-        mHdValues.put("hd_stream_lock", false);
-        mHdValues.put("hd_signal_strength", 0);
-        mHdValues.put("hd_sub_channel", 0);
-        mHdValues.put("hd_sub_channel_count", 0);
-        mHdValues.put("hd_enable_hd_tuner", false);
-        mHdValues.put("hd_title", new HDSongInfo());
-        mHdValues.put("hd_artist", new HDSongInfo());
-        mHdValues.put("hd_callsign", "");
-        mHdValues.put("hd_station_name", "");
-        mHdValues.put("hd_unique_id", "");
-        mHdValues.put("hd_api_version", "");
-        mHdValues.put("hd_hw_version", "");
-        mHdValues.put("rds_enable", false);
-        mHdValues.put("rds_genre", "");
-        mHdValues.put("rds_program_service", "");
-        mHdValues.put("rds_radio_text", "");
-        mHdValues.put("volume", 0);
-        mHdValues.put("bass", 0);
-        mHdValues.put("treble", 0);
-        mHdValues.put("compression", 0);
+        mHdValues.put(RadioKey.Command.POWER, false);
+        mHdValues.put(RadioKey.Command.MUTE, false);
+        mHdValues.put(RadioKey.Command.SIGNAL_STRENGTH, 0);
+        mHdValues.put(RadioKey.Command.TUNE, new TuneInfo());
+        mHdValues.put(RadioKey.Command.SEEK, 0);
+        mHdValues.put(RadioKey.Command.HD_ACTIVE, false);
+        mHdValues.put(RadioKey.Command.HD_STREAM_LOCK, false);
+        mHdValues.put(RadioKey.Command.HD_SIGNAL_STRENGH, 0);
+        mHdValues.put(RadioKey.Command.HD_SUBCHANNEL, 0);
+        mHdValues.put(RadioKey.Command.HD_SUBCHANNEL_COUNT, 0);
+        mHdValues.put(RadioKey.Command.HD_TUNER_ENABLED, true);
+        mHdValues.put(RadioKey.Command.HD_TITLE, "");
+        mHdValues.put(RadioKey.Command.HD_ARTIST, "");
+        mHdValues.put(RadioKey.Command.HD_CALLSIGN, "");
+        mHdValues.put(RadioKey.Command.HD_STATION_NAME, "");
+        mHdValues.put(RadioKey.Command.HD_UNIQUE_ID, "");
+        mHdValues.put(RadioKey.Command.HD_API_VERSION, "");
+        mHdValues.put(RadioKey.Command.HD_HW_VERSION, "");
+        mHdValues.put(RadioKey.Command.RDS_ENABLED, false);
+        mHdValues.put(RadioKey.Command.RDS_GENRE, "");
+        mHdValues.put(RadioKey.Command.RDS_PROGRAM_SERVICE, "");
+        mHdValues.put(RadioKey.Command.RDS_RADIO_TEXT, "");
+        mHdValues.put(RadioKey.Command.VOLUME, 0);
+        mHdValues.put(RadioKey.Command.BASS, 0);
+        mHdValues.put(RadioKey.Command.TREBLE, 0);
+        mHdValues.put(RadioKey.Command.COMPRESSION, 0);
     }
 
-    public Object getHdValue(String key) {
-        synchronized (LOCK) {
+    public Object getHdValue(RadioKey.Command key) {
+        synchronized (WRITE_LOCK) {
             return mHdValues.get(key);
         }
     }
@@ -87,107 +92,90 @@ public class RadioController {
 
     public void parseDataPacket(byte[] data) {
         /**
-         * TODO: Here is what we know about the data packet
+         *  Here is what is known about the data packet
          * -Bytes 0 and 1 are the message command(IE: tune, power, etc)
          * -Bytes 2 and 3 are the message operation (get, set, reply)
          * -We are really only interested in replies, get and set I assume are just confirmations,
          * or are trying to set a mode in the HD Radio's Control device
          */
 
-        if (DEBUG) Log.v(TAG, "Data packet hex:\n" + UtilityFunctions.bytesToHex(data));
+        DLog.v(TAG, "Data packet hex:\n" + UtilityFunctions.bytesToHex(data));
 
         ByteBuffer msgBuf = ByteBuffer.wrap(data);
         msgBuf.order(ByteOrder.LITTLE_ENDIAN);
         int messageCmd = msgBuf.getShort();
         int messageOp =  msgBuf.getShort();
 
-        if (messageOp != HDRadioDefs.getOpValue("reply")) {
-            Log.d(TAG, "Message is not a reply, discarding");
+        if (messageOp != HDRadioDefs.getOpValue(RadioKey.Operation.REPLY)) {
+            Log.i(TAG, "Message is not a reply, discarding");
             return;
         }
 
         RadioCommand command = HDRadioDefs.getCommandFromValue(messageCmd);
+        int intValue;
 
         if (command == null) {
             Log.w(TAG, "Command not found in ArrayMap");
             return;
         }
 
-        String radioCmd = command.getCommandName();
+        RadioKey.Command radioCmd = command.getCommandKey();
         int dataType = command.getDataType();
         byte[] stringBytes;
-        int callbackCount = 0;
 
         switch (dataType) {
             case RadioCommand.Type.INT:
-                int intVal = msgBuf.getInt();
+                intValue = msgBuf.getInt();
 
-                if (DEBUG) Log.i(TAG, radioCmd + " value: " + intVal);
+                DLog.v(TAG, radioCmd + " value: " + intValue);
 
-                setHdValue(radioCmd, intVal);
-
-                callbackCount = mService.mRadioCallbacks.beginBroadcast();
-                for (int i = 0; i < callbackCount; i++) {
-                    try {
-                        mService.mRadioCallbacks.getBroadcastItem(i)
-                                .OnIntegerValueReceived(radioCmd, intVal);
-                    } catch (RemoteException e) {
-                        e.printStackTrace();
-                    }
-                }
+                setHdValue(radioCmd, intValue);
 
                 break;
             case RadioCommand.Type.BOOLEAN:
-                int boolVal = msgBuf.getInt();
+                intValue = msgBuf.getInt();
                 boolean status;
-                if (boolVal == 1) {
+                if (intValue == 1) {
                     status = true;
-                } else if (boolVal == 0) {
+                } else if (intValue == 0) {
                     status = false;
                 } else {
-                    Log.i(TAG, "Invalid boolean value: " + boolVal);
+                    Log.i(TAG, "Invalid boolean value: " + intValue);
                     return;
                 }
                 setHdValue(radioCmd, status);
-                callbackCount = mService.mRadioCallbacks.beginBroadcast();
-                for (int i = 0; i < callbackCount; i++) {
-                    try {
-                        mService.mRadioCallbacks.getBroadcastItem(i)
-                                .OnBooleanValueReceived(radioCmd, status);
-                    } catch (RemoteException e) {
-                        e.printStackTrace();
-                    }
-                }
+
                 break;
 
             case RadioCommand.Type.STRING:
-                // String are padded with four initial bytes
-                int nullBuf = msgBuf.getInt();   // this value is ignored in HDRC, but it may mean something
-                stringBytes = new byte[msgBuf.remaining()];
-                msgBuf.get(stringBytes);
-                String msg = new String(stringBytes);
-                if (DEBUG) Log.d(TAG, "Null Portion: " + nullBuf +"\nConverted String: \n" + msg);
+                // Strings are padded with four initial bytes, my guess is that it is the length of the string
+                intValue = msgBuf.getInt();
 
-                setHdValue(radioCmd, msg);
-
-                callbackCount = mService.mRadioCallbacks.beginBroadcast();
-                for (int i = 0; i < callbackCount; i++) {
-                    try {
-                        mService.mRadioCallbacks.getBroadcastItem(i)
-                                .OnStringValueReceived(radioCmd, msg);
-                    } catch (RemoteException e) {
-                        e.printStackTrace();
-                    }
+                if (intValue != msgBuf.remaining()) {
+                    Log.i(TAG, "String Length received does not match remaining bytes in buffer");
+                    intValue = msgBuf.remaining();
                 }
+
+                String msg;
+                if (intValue == 0) {
+                    msg = "";
+                } else {
+                    stringBytes = new byte[intValue];
+                    msgBuf.get(stringBytes);
+                    msg = new String(stringBytes);
+                }
+
+                DLog.d(TAG, "First byte (length?): " + intValue +"\nConverted String: \n" + msg);
+                setHdValue(radioCmd, msg);
                 break;
 
             case RadioCommand.Type.TUNEINFO:
                 TuneInfo tuneInfo = new TuneInfo();
-                int band = msgBuf.getInt();
-                if (band == 0) {
-                    tuneInfo.band = "AM";
-                } else if (band == 1) {
-                    tuneInfo.band = "FM";
+                intValue = msgBuf.getInt();
+                if (intValue == 0) {
+                    tuneInfo.band = RadioKey.Band.AM;
+                } else if (intValue == 1) {
+                    tuneInfo.band = RadioKey.Band.FM;
                 } else {
                     Log.wtf(TAG, "Something went wrong setting the band");
                     return;
@@ -195,116 +183,108 @@ public class RadioController {
                 tuneInfo.frequency = msgBuf.getInt();
                 setHdValue(radioCmd, tuneInfo);
 
-                callbackCount = mService.mRadioCallbacks.beginBroadcast();
-                for (int i = 0; i < callbackCount; i++) {
-                    try {
-                        mService.mRadioCallbacks.getBroadcastItem(i)
-                                .OnTuneReply(radioCmd, tuneInfo.band, tuneInfo.frequency);
-                    } catch (RemoteException e) {
-                        e.printStackTrace();
-                    }
-                }
                 break;
             case RadioCommand.Type.HDSONGINFO:
                 HDSongInfo songInfo = new HDSongInfo();
                 songInfo.subchannel = msgBuf.getInt();
 
-                if (songInfo.subchannel == -1) {
-                    return;
+                intValue = msgBuf.getInt();
+
+                if (intValue != msgBuf.remaining()) {
+                    Log.w(TAG, "String Length received does not match remaining bytes in buffer");
+                    intValue = msgBuf.remaining();
                 }
 
-                // TODO: do I need to get an empty integer here?
-
-                stringBytes = new byte[msgBuf.remaining()];
-                msgBuf.get(stringBytes);
-                songInfo.description = new String(stringBytes);
+                if (intValue == 0) {
+                    songInfo.description = "";
+                } else {
+                    stringBytes = new byte[intValue];
+                    msgBuf.get(stringBytes);
+                    songInfo.description = new String(stringBytes);
+                }
 
                 setHdValue(radioCmd, songInfo);
 
-                Object subChannel = mHdValues.get("hd_sub_channel");
+                Object subChannel = mHdValues.get(RadioKey.Command.HD_SUBCHANNEL);
                 if (subChannel == null || (int)subChannel == 0){
-                    setHdValue("hd_sub_channel", songInfo.subchannel);
+                    setHdValue(RadioKey.Command.HD_SUBCHANNEL, songInfo.subchannel);
                 }
 
-                callbackCount = mService.mRadioCallbacks.beginBroadcast();
-                for (int i = 0; i < callbackCount; i++) {
-                    try {
-                        mService.mRadioCallbacks.getBroadcastItem(i)
-                                .OnHdSongInfoReceived(radioCmd, songInfo.description, songInfo.subchannel);
-                    } catch (RemoteException e) {
-                        e.printStackTrace();
-                    }
-                }
                 break;
             case RadioCommand.Type.NONE:
-                // This is seek, not sure we should do anything here
+
                 break;
             default:
                 Log.w(TAG, "Unknown type parsed");
         }
     }
 
-    // TODO: This function should actually be implemented in the calling activity.  That activity
-    //       Should be responsible for tracking data, doing it in the service means we need  to
-    //       pass a map of values every time a callback is executed.  There are a few variables
-    //       I need to track here (power, stream lock)
-    private void setHdValue(String key, Object value) {
-        synchronized (LOCK) {
-            RadioCommand cmd = HDRadioDefs.getRadioCommand(key);
-            if (cmd != null) {
-                switch (key) {
-                    case "hd_sub_channel":
-                        int index = (int) value;
-                        mHdValues.put("hd_title", mHdTitles.get(index));
-                        mHdValues.put("hd_artist", mHdArtists.get(index));
-                        break;
-                    case "tune":
-                        // reset values when we tune to a new channel
-                        mHdValues.put("hd_sub_channel", 0);
-                        mHdValues.put("hd_sub_channel_count", 0);
-                        mHdValues.put("hd_active", false);
-                        mHdValues.put("hd_stream_lock", false);
-                        mHdValues.put("rds_enable", false);
-                        mHdValues.put("rds_genre", "");
-                        mHdValues.put("rds_program_service", "");
-                        mHdValues.put("rds_radio_text", "");
-                        mHdValues.put("hd_callsign", "");
-                        mHdValues.put("hd_station_name", "");
-                        mHdValues.put("hd_title", "");
-                        mHdValues.put("hd_artist", "");
-                        mHdArtists.clear();
-                        mHdTitles.clear();
-                        break;
-                    case "hd_title":
-                        HDSongInfo val = (HDSongInfo) value;
-                        mHdTitles.put(val.subchannel, val.description);
-                        break;
-                    case "hd_artist":
-                        HDSongInfo val2 = (HDSongInfo) value;
-                        mHdArtists.put(val2.subchannel, val2.description);
-                        break;
-                    case "power":
-                        break;
-                    case "mute":
-                        break;
-                    case "volume":
-                        break;
-                    case "bass":
-                        break;
-                    case "treble":
-                        break;
-                    case "compression":
-                        break;
-                    default:
+    private void setHdValue(RadioKey.Command key, Object value) {
+        synchronized (WRITE_LOCK) {
+            switch (key) {
+                case HD_SUBCHANNEL:
+                    int index = (int) value;
+                    mHdValues.put(RadioKey.Command.HD_TITLE, mHdTitles.get(index));
+                    mHdValues.put(RadioKey.Command.HD_ARTIST, mHdArtists.get(index));
+                    break;
+                case TUNE:
+                    // reset values when we tune to a new channel
+                    mHdValues.put(RadioKey.Command.HD_SUBCHANNEL, 0);
+                    mHdValues.put(RadioKey.Command.HD_SUBCHANNEL_COUNT, 0);
+                    mHdValues.put(RadioKey.Command.HD_ACTIVE, false);
+                    mHdValues.put(RadioKey.Command.HD_STREAM_LOCK, false);
+                    mHdValues.put(RadioKey.Command.RDS_ENABLED, false);
+                    mHdValues.put(RadioKey.Command.RDS_GENRE, "");
+                    mHdValues.put(RadioKey.Command.RDS_PROGRAM_SERVICE, "");
+                    mHdValues.put(RadioKey.Command.RDS_RADIO_TEXT, "");
+                    mHdValues.put(RadioKey.Command.HD_CALLSIGN, "");
+                    mHdValues.put(RadioKey.Command.HD_STATION_NAME, "");
+                    mHdValues.put(RadioKey.Command.HD_TITLE, "");
+                    mHdValues.put(RadioKey.Command.HD_ARTIST, "");
+                    mHdArtists.clear();
+                    mHdTitles.clear();
+                    break;
+                case HD_TITLE:
+                    HDSongInfo val = (HDSongInfo) value;
+                    mHdTitles.put(val.subchannel, val.description);
+                    value = val.description;
+                    break;
+                case HD_ARTIST:
+                    HDSongInfo val2 = (HDSongInfo) value;
+                    mHdArtists.put(val2.subchannel, val2.description);
+                    value = val2.description;
+                    break;
+                case SEEK:
+                    value = ((TuneInfo)value).frequency;  // only send frequency
+
+                default:
+            }
+
+            if (DLog.DEBUG) {
+                if (value instanceof TuneInfo) {
+                    DLog.i(TAG, "Stored " + key.toString() + ": "
+                            + ((TuneInfo) value).frequency + " " + ((TuneInfo) value).band.toString());
+                } else {
+                    DLog.i(TAG, "Stored " + key.toString() + ": " + value);
                 }
+            }
 
-                mHdValues.put(key, value);
+
+            mHdValues.put(key, value);
 
 
-            } else {
-                Log.i(TAG, "Error setting HD value");
+        }
+
+        // Execute callbacks for bound activities
+        int cbCount = mService.mRadioCallbacks.beginBroadcast();
+        for (int i = 0; i < cbCount; i++) {
+            try {
+                mService.mRadioCallbacks.getBroadcastItem(i).OnRadioDataReceived(key, value);
+            } catch (RemoteException e) {
+                e.printStackTrace();
             }
         }
+        mService.mRadioCallbacks.finishBroadcast();
     }
 
     public void setSeekAll(boolean status) {
@@ -315,19 +295,17 @@ public class RadioController {
         return mSeekAll;
     }
 
-    // TODO: change the extra from string back to object, as with IPC we have a better idea of
-    //       what object is coming
-    public byte[] buildRadioPacket(String command, String op, Object data) {
+    public byte[] buildRadioPacket(RadioKey.Command command, RadioKey.Operation op, Object data) {
 
         byte[] dataPacket;
         byte lengthByte;
         byte checkByte;
 
         switch (op) {
-            case "get":
+            case GET:
                 dataPacket = buildGetDataPacket(command);
                 break;
-            case "set":
+            case SET:
                 dataPacket = buildSetDataPacket(command, data);
                 break;
             default:
@@ -383,15 +361,16 @@ public class RadioController {
             bufferOut.write(checkByte);
         }
 
+        DLog.i(TAG, "Hex Bytes Sent:\n" + UtilityFunctions.bytesToHex(bufferOut.toByteArray()));
         return bufferOut.toByteArray();
     }
 
-    private byte[] buildGetDataPacket(String command) {
+    private byte[] buildGetDataPacket(RadioKey.Command key) {
         ByteBuffer dataBuf = ByteBuffer.allocate(4);
         dataBuf.order(ByteOrder.LITTLE_ENDIAN);
 
-        byte[] commandCode = HDRadioDefs.getCommandBytes(command);
-        byte[] operationCode = HDRadioDefs.getOpBytes("get");
+        byte[] commandCode = HDRadioDefs.getCommandBytes(key);
+        byte[] operationCode = HDRadioDefs.getOpBytes(RadioKey.Operation.GET);
 
         if (commandCode == null || operationCode == null) {
             Log.w(TAG, "Invalid command or operation key, cannot build packet");
@@ -403,49 +382,50 @@ public class RadioController {
         return dataBuf.array();
     }
 
-    private byte[] buildSetDataPacket(String command, Object data) {
+    private byte[] buildSetDataPacket(RadioKey.Command key, Object data) {
         ByteBuffer dataBuf = ByteBuffer.allocate(256);  // 256 is absolute maximum length of packet
         dataBuf.order(ByteOrder.LITTLE_ENDIAN);
 
-        byte[] commandCode = HDRadioDefs.getCommandBytes(command);
-        byte[] operationCode = HDRadioDefs.getOpBytes("set");
-        dataBuf.put(commandCode);
-        dataBuf.put(operationCode);
+        byte[] commandCode = HDRadioDefs.getCommandBytes(key);
+        byte[] operationCode = HDRadioDefs.getOpBytes(RadioKey.Operation.SET);
 
         if (commandCode == null || operationCode == null) {
             Log.w(TAG, "Invalid command or operation key, cannot build packet");
             return null;
         }
 
-        switch (command) {
-            case "power":           // set boolean item
-            case "mute":
+        dataBuf.put(commandCode);
+        dataBuf.put(operationCode);
+
+        switch (key) {
+            case POWER:           // set boolean item
+            case MUTE:
                 if (!(data instanceof Boolean)) {
-                    Log.i(TAG, "Invalid boolean data received for command: " + command);
+                    Log.i(TAG, "Invalid boolean data received for command: " + key);
                     return null;
                 }
 
                 boolean statusOn = (boolean) data;
                 if (statusOn) {
-                    dataBuf.put(HDRadioDefs.getCommandBytes("one"));
+                    dataBuf.put(HDRadioDefs.getConstantBytes(RadioKey.Constant.ONE));
                 } else {
-                    dataBuf.put(HDRadioDefs.getCommandBytes("zero"));
+                    dataBuf.put(HDRadioDefs.getConstantBytes(RadioKey.Constant.ZERO));
                 }
                 break;
 
-            case "volume":          // set integer item
-            case "bass":
-            case "treble":
-            case "compression":
-            case "hd_sub_channel":
+            case VOLUME:          // set integer item
+            case BASS:
+            case TREBLE:
+            case COMPRESSION:
+            case HD_SUBCHANNEL:
                 if (!(data instanceof Integer)) {
-                    Log.i(TAG, "Invalid integer data received for command: " + command);
+                    Log.i(TAG, "Invalid integer data received for command: " + key);
                     return null;
                 }
 
                 int val = (int) data;
 
-                if (DEBUG) Log.i(TAG, "Setting value for " + command + ": " + val);
+                DLog.v(TAG, "Setting value for " + key + ": " + val);
 
                 // Check to see if integer value is outside of range
                 if (val > 90) {
@@ -457,20 +437,20 @@ public class RadioController {
                 dataBuf.putInt(val);
                 break;
 
-            case "tune":
-                if (data instanceof String) {
-                    String direction = (String)data;
-                    if (!direction.equals("up") || !direction.equals("down")) {
+            case TUNE:
+                if (data instanceof RadioKey.Constant) {
+                    RadioKey.Constant direction = (RadioKey.Constant)data;
+                    if (!(direction == RadioKey.Constant.UP || direction == RadioKey.Constant.DOWN)) {
                         Log.i(TAG, "Direction is not valid for tune command");
                         return null;
                     }
-                    dataBuf.put(HDRadioDefs.getConstantBytes("zero"));     // pad with 8 zero bytes
-                    dataBuf.put(HDRadioDefs.getConstantBytes("zero"));
+                    dataBuf.put(HDRadioDefs.getConstantBytes(RadioKey.Constant.ZERO));     // pad with 8 zero bytes
+                    dataBuf.put(HDRadioDefs.getConstantBytes(RadioKey.Constant.ZERO));
                     dataBuf.put(HDRadioDefs.getConstantBytes(direction));
                 }
                 else if (data instanceof TuneInfo) {
                     TuneInfo info = (TuneInfo)data;
-                    byte[] bandBytes = HDRadioDefs.getBandBytes(info.band.toLowerCase());
+                    byte[] bandBytes = HDRadioDefs.getBandBytes(info.band);
                     if (bandBytes == null) {
                         Log.i(TAG, "Band is not valid for tune command");
                         return null;
@@ -485,27 +465,28 @@ public class RadioController {
                 }
 
                 break;
-            case "seek":
-                if (!(data instanceof String)) {
-                    Log.i(TAG, "Invalid String data received for command: " + command);
+            case SEEK:
+                if (!(data instanceof RadioKey.Constant)) {
+                    Log.i(TAG, "Invalid String data received for command: " + key);
                     return null;
                 }
-                String direction = (String)data;
-                if (!direction.equals("up") || !direction.equals("down")) {
+
+                RadioKey.Constant seekDir = (RadioKey.Constant)data;
+                if (!(seekDir == RadioKey.Constant.UP || seekDir == RadioKey.Constant.DOWN)) {
                     Log.i(TAG, "Direction is not valid for tune command");
                     return null;
                 }
-                dataBuf.put(HDRadioDefs.getConstantBytes("seek_id"));
-                dataBuf.put(HDRadioDefs.getConstantBytes("zero"));
-                dataBuf.put(HDRadioDefs.getConstantBytes(direction));
+                dataBuf.put(HDRadioDefs.getConstantBytes(RadioKey.Constant.SEEK_REQ_ID));
+                dataBuf.put(HDRadioDefs.getConstantBytes(RadioKey.Constant.ZERO));
+                dataBuf.put(HDRadioDefs.getConstantBytes(seekDir));
 
                 if (mSeekAll) {
-                    dataBuf.put(HDRadioDefs.getConstantBytes("seek_all"));
+                    dataBuf.put(HDRadioDefs.getConstantBytes(RadioKey.Constant.SEEK_ALL_ID));
                 } else {
-                    dataBuf.put(HDRadioDefs.getConstantBytes("seek_hd_only"));
+                    dataBuf.put(HDRadioDefs.getConstantBytes(RadioKey.Constant.SEEK_HD_ONLY_ID));
                 }
 
-                dataBuf.put(HDRadioDefs.getConstantBytes("zero"));
+                dataBuf.put(HDRadioDefs.getConstantBytes(RadioKey.Constant.ZERO));
                 break;
         }
 
@@ -516,4 +497,35 @@ public class RadioController {
         return returnBytes;
     }
 
+    public void close(Context context) {
+        // Execute callbacks for bound activities
+        int cbCount = mService.mRadioCallbacks.beginBroadcast();
+        for (int i = 0; i < cbCount; i++) {
+            try {
+                mService.mRadioCallbacks.getBroadcastItem(i).OnClose();
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+        }
+        mService.mRadioCallbacks.finishBroadcast();
+
+        // Persist changeable values
+        SharedPreferences globalPrefs = PreferenceManager.getDefaultSharedPreferences(context);
+        TuneInfo tuneInfo = (TuneInfo)mHdValues.get(RadioKey.Command.TUNE);
+        boolean hdActive = (boolean)mHdValues.get(RadioKey.Command.HD_ACTIVE);
+        int subchannel = (hdActive && tuneInfo.band == RadioKey.Band.FM) ?
+                (int)mHdValues.get(RadioKey.Command.HD_SUBCHANNEL) : 0;
+        int volume = (int)mHdValues.get(RadioKey.Command.VOLUME);
+        int bass = (int)mHdValues.get(RadioKey.Command.BASS);
+        int treble = (int)mHdValues.get(RadioKey.Command.TREBLE);
+
+        globalPrefs.edit()
+                .putInt("radio_pref_key_frequency", tuneInfo.frequency)
+                .putString("radio_pref_key_band", tuneInfo.band.toString())
+                .putInt("radio_pref_key_subchannel", subchannel)
+                .putInt("radio_pref_key_volume", volume)
+                .putInt("radio_pref_key_bass", bass)
+                .putInt("radio_pref_key_treble", treble)
+                .apply();
+    }
 }

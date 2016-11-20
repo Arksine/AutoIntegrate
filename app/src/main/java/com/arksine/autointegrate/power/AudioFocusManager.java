@@ -4,6 +4,8 @@ import android.content.Context;
 import android.media.AudioManager;
 import android.util.Log;
 
+import com.arksine.autointegrate.utilities.DLog;
+
 /**
  * Manages retrieval and abandonment of audio focus.
  */
@@ -19,16 +21,17 @@ public class AudioFocusManager {
         public void onAudioFocusChange(int i) {
             switch (i) {
                 case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
+                    DLog.v(TAG, "Audio Focus Lost, Transient Can Duck");
                     break;
                 case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
+                    DLog.v(TAG, "Audio Focus Lost, Transient");
                     break;
-
                 case AudioManager.AUDIOFOCUS_LOSS:
-                    Log.i(TAG, "Audio Focus Lost");
+                    DLog.v(TAG, "Audio Focus Lost");
                     break;
 
                 case AudioManager.AUDIOFOCUS_GAIN:
-                    Log.i(TAG, "Audio Focus Gained");
+                    DLog.v(TAG, "Audio Focus Gained");
                     break;
                 default: break;
             }
@@ -46,7 +49,7 @@ public class AudioFocusManager {
         if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
             return true;
         } else {
-            Log.e(TAG, "Error retrieving audio focus");
+            Log.w(TAG, "Error retrieving audio focus");
             return false;
         }
     }
@@ -57,7 +60,7 @@ public class AudioFocusManager {
         int result = am.abandonAudioFocus(audioFocusChangeListener);
 
         if (result != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-            Log.e(TAG, "Error abandoning audio focus");
+            Log.w(TAG, "Error abandoning audio focus");
         }
 
     }

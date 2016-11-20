@@ -10,6 +10,7 @@ import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.Icon;
+import android.os.Binder;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.RemoteCallbackList;
@@ -19,12 +20,20 @@ import android.util.Log;
 import android.widget.Toast;
 
 import com.arksine.autointegrate.activities.MainActivity;
+import com.arksine.autointegrate.interfaces.RadioControlCallback;
+import com.arksine.autointegrate.interfaces.RadioControlInterface;
+import com.arksine.autointegrate.utilities.DLog;
 
 //TODO:  Rename App/Service/Package to Road Mage
 
 public class MainService extends Service {
 
     private static String TAG = "MainService";
+
+    private final IBinder mBinder = new LocalBinder();
+
+    public final RemoteCallbackList<RadioControlCallback> mRadioCallbacks
+            = new RemoteCallbackList<RadioControlCallback>();
 
     // Stop Reciever cleans up and stops the service when the stop button is pressed on
     // the service notification, or when the device is ready to shutdown
@@ -50,9 +59,6 @@ public class MainService extends Service {
         }
     }
     private final StopReciever mStopReceiver = new StopReciever();
-
-    public final RemoteCallbackList<IRadioControlCallback> mRadioCallbacks
-            = new RemoteCallbackList<IRadioControlCallback>();
 
     private ServiceThread mServiceThread;
     private boolean mHasWritePermission;
@@ -137,7 +143,7 @@ public class MainService extends Service {
         if (!mServiceThread.isServiceThreadRunning()) {
             mServiceThread.startServiceThread();
         } else {
-            Log.i(TAG, "Attempt to start service when already running");
+            DLog.i(TAG, "Attempt to start service when already running");
         }
 
         // If we get killed, after returning from here, restart
@@ -146,12 +152,12 @@ public class MainService extends Service {
 
     @Override
     public IBinder onBind(Intent intent) {
-        // TODO: Implement onBind
-        return null;
+        return mBinder;
     }
 
     @Override
     public void onDestroy() {
+        mRadioCallbacks.kill();
         unregisterReceiver(mStopReceiver);
     }
 
@@ -165,101 +171,24 @@ public class MainService extends Service {
                 (int)(icon.getHeight() * scaleMultiplier), false);
     }
 
-    private final IRadioControl.Stub mRadioBinder = new IRadioControl.Stub() {
-        @Override
-        public void setSeekAll(boolean seekAll) throws RemoteException {
-
+    public class LocalBinder extends Binder {
+        public RadioControlInterface getRadioInterface() {
+            return mServiceThread.getRadioInterface();
         }
 
-        @Override
-        public boolean getSeekAll() throws RemoteException {
-            return false;
+        public void registerCallback(RadioControlCallback cb) {
+            if (cb != null) {
+                mRadioCallbacks.register(cb);
+            }
         }
 
-        @Override
-        public void togglePower(boolean status) throws RemoteException {
-
+        public void unRegisterCallback(RadioControlCallback cb) {
+            if (cb != null) {
+                mRadioCallbacks.unregister(cb);
+            }
         }
 
-        @Override
-        public void toggleMute(boolean status) throws RemoteException {
-
-        }
-
-        @Override
-        public void setVolume(int volume) throws RemoteException {
-
-        }
-
-        @Override
-        public void setVolumeUp() throws RemoteException {
-
-        }
-
-        @Override
-        public void setVolumeDown() throws RemoteException {
-
-        }
-
-        @Override
-        public void setBass(int bass) throws RemoteException {
-
-        }
-
-        @Override
-        public void setBassUp() throws RemoteException {
-
-        }
-
-        @Override
-        public void setBassDown() throws RemoteException {
-
-        }
-
-        @Override
-        public void setTreble(int treble) throws RemoteException {
-
-        }
-
-        @Override
-        public void setTrebleUp() throws RemoteException {
-
-        }
-
-        @Override
-        public void setTrebleDown() throws RemoteException {
-
-        }
-
-        @Override
-        public void tune(String band, int frequency, int subchannel) throws RemoteException {
-
-        }
-
-        @Override
-        public void tuneUp() throws RemoteException {
-
-        }
-
-        @Override
-        public void tuneDown() throws RemoteException {
-
-        }
-
-        @Override
-        public void seekUp() throws RemoteException {
-
-        }
-
-        @Override
-        public void seekDown() throws RemoteException {
-
-        }
-
-        @Override
-        public void requestUpdate(String key) throws RemoteException {
-
-        }
-    };
-
+        // TODO: I can also expose an interface for microcontroller that bound activities can retreive
+        // TODO: I can also expose an interface for the Hardware receiver to get with peekService, so I don't have to send intents
+    }
 }

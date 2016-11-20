@@ -9,10 +9,13 @@ import android.preference.PreferenceManager;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
+import com.arksine.autointegrate.interfaces.RadioControlInterface;
 import com.arksine.autointegrate.microcontroller.MicroControllerCom;
 import com.arksine.autointegrate.power.IntegratedPowerManager;
 import com.arksine.autointegrate.preferences.MainSettings;
+import com.arksine.autointegrate.radio.RadioCom;
 import com.arksine.autointegrate.utilities.BackgroundThreadFactory;
+import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
 
 import java.util.concurrent.ExecutorService;
@@ -34,6 +37,7 @@ public class ServiceThread implements Runnable {
 
     private IntegratedPowerManager mPowerManager = null;
     private volatile MicroControllerCom mMicroController = null;
+    private volatile RadioCom mHdRadio = null;
     private volatile boolean mLearningMode = false;
 
     private volatile boolean serviceSuspended = false;
@@ -85,13 +89,13 @@ public class ServiceThread implements Runnable {
                 EXECUTOR.execute(suspendDevice);
 
             } else if (mService.getString(R.string.ACTION_REFRESH_CONTROLLER_CONNECTION).equals(action)) {
-                Log.i(TAG, "Refresh MicroController Connection");
+                DLog.v(TAG, "Refresh MicroController Connection");
                 mLearningMode = intent.getBooleanExtra("LearningMode", false);
                 EXECUTOR.execute(stopMicroControllerConnection);
 
             } else if (mService.getString(R.string.ACTION_REFRESH_RADIO_CONNECTION).equals(action)) {
-                Log.i(TAG, "Refresh Radio Thread");
-                //TODO: stopRadioThread();
+                DLog.v(TAG, "Refresh Radio Thread");
+                EXECUTOR.execute(stopHdRadioConnection);
             }
         }
     };
@@ -109,19 +113,12 @@ public class ServiceThread implements Runnable {
                     wait();
                 } catch (InterruptedException e) {
                     isWaiting = false;
-                    Log.i(TAG, e.getMessage());
+                    Log.w(TAG, e.getMessage());
                 }
             }
         }
 
         while (serviceThreadRunning) {
-
-            // TODO: Add thread for Radio.  Camera nor power management should need a thread
-            //       We do need to check to see if Power Mangement is enabled.  If so, we will
-            //       Instantiate it so we can listen for Power Management events.  When device
-            //       is put into sleep mode we should kill mMicroController and radio threads, and
-            //       pause this thread using wait() until a broadcast is recieved to wake up
-
 
             // Check to see if MicroController Integration is enabled
             if (sharedPrefs.getBoolean("main_pref_key_toggle_controller", false)) {
@@ -130,13 +127,31 @@ public class ServiceThread implements Runnable {
                 if (mMicroController == null || !mMicroController.isConnected()) {
                     mMicroController = new MicroControllerCom(mService, mLearningMode);
                     if (mMicroController.connect()) {
-                        Log.i(TAG, "Micro Controller connection established");
+                        DLog.v(TAG, "Micro Controller connection established");
                     } else {
-                        Log.e(TAG, "Error connecting to Micro Controller: Connection Attempt " + connectionAttempts);
+                        DLog.v(TAG, "Error connecting to Micro Controller: Connection Attempt " + connectionAttempts);
                     }
                 }
             } else {
                 Log.i(TAG, "Micro Controller Integration Disabled");
+            }
+
+            // Check for HD Radio Integration
+            if (sharedPrefs.getBoolean("main_pref_key_toggle_radio", false)) {
+
+                // Since the connection status determines if the radio is powered on or not,
+                // its possible for it to be disconnected.  We will only create a new mHdRadio object
+                // if its been shut down and set to null
+                if (mHdRadio == null) {
+                    mHdRadio = new RadioCom(mService);
+                    if (mHdRadio.connect()) {
+                        DLog.v(TAG, "HD Radio Connection Set Up");
+                    } else {
+                        DLog.v(TAG, "Error Setting up HD Radio: Attempt " + connectionAttempts);
+                    }
+                }
+            } else {
+                Log.i(TAG, "HD Radio Integration Disabled");
             }
 
 
@@ -158,7 +173,7 @@ public class ServiceThread implements Runnable {
                         Thread.sleep(100);
                     } catch (InterruptedException e) {
                         isWaiting = false;
-                        Log.i(TAG, e.getMessage());
+                        Log.w(TAG, e.getMessage());
                     }
                 }
             } else {
@@ -167,7 +182,7 @@ public class ServiceThread implements Runnable {
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {
-                    Log.i(TAG, e.getMessage());
+                    Log.w(TAG, e.getMessage());
                 }
             }
 
@@ -175,20 +190,23 @@ public class ServiceThread implements Runnable {
 
         // Clean up all spawned threads.
         stopMicroControllerConnection.run();
+        stopHdRadioConnection.run();
 
 
         serviceThreadRunning = false;
-        Log.i(TAG, "Service Thread finished executing");
+        DLog.v(TAG, "Service Thread finished executing");
 
     }
 
     private boolean allConnected() {
-        // TODO: as more connections are added, add them to statement below, but ONLY if they
-        //       are enabled in settings
         boolean connected = true;
         SharedPreferences globalPrefs = PreferenceManager.getDefaultSharedPreferences(mService);
         if (globalPrefs.getBoolean("main_pref_key_toggle_controller", false)) {
-            connected = (connected && (mMicroController != null && mMicroController.isConnected()));
+            connected = (mMicroController != null && mMicroController.isConnected());
+        }
+
+        if (globalPrefs.getBoolean("main_pref_key_toggle_radio", false)) {
+            connected = (connected && (mHdRadio != null && mHdRadio.isConnected()));
         }
 
         return connected;
@@ -238,7 +256,7 @@ public class ServiceThread implements Runnable {
             EXECUTOR.awaitTermination(10, TimeUnit.SECONDS);
         } catch (InterruptedException e){
             // Thread interrupted, return
-            Log.e(TAG, e.getMessage());
+            Log.w(TAG, e.getMessage());
             return;
         }
 
@@ -274,6 +292,14 @@ public class ServiceThread implements Runnable {
         }
     }
 
+    public RadioControlInterface getRadioInterface() {
+        if (mHdRadio != null && mHdRadio.isConnected()) {
+            return mHdRadio.getRadioInterface();
+        } else {
+            return null;
+        }
+    }
+
     // *** The code below to stop threads are blocking, so they are implemented as runnables
     //     rather than as functions.  This makes it harder to accidentally call one on the UI thread
 
@@ -291,18 +317,18 @@ public class ServiceThread implements Runnable {
                     // Use get with a timeout to see if the thread dies
                     mMainThreadFuture.get(10, TimeUnit.SECONDS);
                 } catch (Exception e) {
-                    Log.i(TAG, e.getMessage());
+                    Log.w(TAG, e.getMessage());
                 }
 
                 // if the thread is still alive, kill it
                 if (!mMainThreadFuture.isDone()) {
-                    Log.i(TAG, "Main Thread did not properly shut down.");
+                    DLog.i(TAG, "Main Thread did not properly shut down.");
                     mMainThreadFuture.cancel(true);
                 }
 
                 mMainThreadFuture = null;
 
-                Log.i(TAG, "Main Thead Stopped");
+                DLog.v(TAG, "Main Thead Stopped");
             }
         }
     };
@@ -318,7 +344,21 @@ public class ServiceThread implements Runnable {
             // make sure the service thread isn't waiting
             notifyServiceThread();
 
-            Log.i(TAG, "Micro Controller Disconnected");
+            DLog.v(TAG, "Micro Controller Disconnected");
+        }
+    };
+
+    private Runnable stopHdRadioConnection = new Runnable() {
+        @Override
+        public void run() {
+            if (mHdRadio != null) {
+                mHdRadio.disconnect();
+                mHdRadio = null;
+            }
+
+            notifyServiceThread();
+
+            DLog.v(TAG, "Hd Radio Disconnected");
         }
     };
 
@@ -331,7 +371,7 @@ public class ServiceThread implements Runnable {
             try {
                 Thread.sleep(2000);
             } catch (InterruptedException e) {
-                Log.e(TAG, e.getMessage());
+                Log.w(TAG, e.getMessage());
             }
             serviceSuspended = false;
             startServiceThread();

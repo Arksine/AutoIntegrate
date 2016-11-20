@@ -57,7 +57,7 @@ public class HardwareReceiver extends BroadcastReceiver {
                         if (accessGranted) {
                             usbCallback.onUsbPermissionRequestComplete(true);
                         } else {
-                            Log.d(TAG, "permission denied for device " + uDev);
+                            DLog.w(TAG, "permission denied for device " + uDev);
                             usbCallback.onUsbPermissionRequestComplete(false);
                         }
                     }
@@ -69,7 +69,7 @@ public class HardwareReceiver extends BroadcastReceiver {
                     // is connected or disconnected
                     Intent devChanged = new Intent(ACTION_DEVICE_CHANGED);
                     LocalBroadcastManager.getInstance(context).sendBroadcast(devChanged);
-                    Log.i(TAG, "Usb device attached");
+                    DLog.v(TAG, "Usb device attached");
 
                 }
                 break;
@@ -79,7 +79,7 @@ public class HardwareReceiver extends BroadcastReceiver {
                     // is connected or disconnected
                     Intent devChanged = new Intent(ACTION_DEVICE_CHANGED);
                     LocalBroadcastManager.getInstance(context).sendBroadcast(devChanged);
-                    Log.i(TAG, "Usb device removed");
+                    DLog.v(TAG, "Usb device removed");
 
                     /*TODO: The broadcast below is temporary until I can implement error handling
                       directly into the UsbHelper class.  Currently
@@ -111,7 +111,7 @@ public class HardwareReceiver extends BroadcastReceiver {
                 break;
             case BluetoothDevice.ACTION_ACL_DISCONNECTED:
                 synchronized (this) {
-                    Log.i(TAG, "Bluetooth device disconnected");
+                    DLog.v(TAG, "Bluetooth device disconnected");
                     // Errors are handled by the Bluetooth helper class
                 }
                 break;
@@ -159,12 +159,12 @@ public class HardwareReceiver extends BroadcastReceiver {
             grantDevicePermissionMethod.invoke(iUsbManager, usbDevice,appInfo.uid);
 
 
-            Log.i(TAG, "Method OK : " + binder + "  " + iUsbManager);
+            DLog.i(TAG, "Method OK : " + binder + "  " + iUsbManager);
             return true;
         }
         catch(Exception e)
         {
-            Log.w(TAG, "SignatureOrSystem permission not available, " +
+            DLog.i(TAG, "SignatureOrSystem permission not available, " +
                     "cannot assign automatic usb permission : " + usbDevice.getDeviceName());
             e.printStackTrace();
             return false;

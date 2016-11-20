@@ -17,11 +17,10 @@ import com.arksine.autointegrate.MainService;
 import com.arksine.autointegrate.interfaces.SerialHelper;
 import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.utilities.BluetoothHelper;
+import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.autointegrate.utilities.SerialCom;
 import com.arksine.autointegrate.utilities.UsbHelper;
 import com.arksine.autointegrate.utilities.UsbSerialSettings;
-
-// TODO:  Base class created, needs testing
 
 /**
  * Class MicroControllerCom
@@ -29,7 +28,7 @@ import com.arksine.autointegrate.utilities.UsbSerialSettings;
  * This class handles serial communication with the micro controller.  First, it establishes
  * a serial connection and confirms that the micro controller is connected.
  */
-public class MicroControllerCom extends SerialCom{
+public class MicroControllerCom extends SerialCom {
 
     private static final String TAG = "MicroControllerCom";
 
@@ -56,8 +55,8 @@ public class MicroControllerCom extends SerialCom{
     private volatile int mReceivedBytes = 0;
 
 
-    public MicroControllerCom(MainService service, boolean learningMode) {
-        super(service);
+    public MicroControllerCom(MainService svc, boolean learningMode) {
+        super(svc);
 
         HandlerThread thread = new HandlerThread("ControllerMessageHandler",
                 Process.THREAD_PRIORITY_BACKGROUND);
@@ -97,7 +96,7 @@ public class MicroControllerCom extends SerialCom{
 
             @Override
             public void OnDeviceError() {
-                Log.i(TAG, "Device Error, disconnecting");
+                DLog.i(TAG, "Device Error, disconnecting");
                 mDeviceError = true;
                 Intent refreshConnection = new Intent(mService
                         .getString(R.string.ACTION_REFRESH_CONTROLLER_CONNECTION));
@@ -122,7 +121,7 @@ public class MicroControllerCom extends SerialCom{
         // No device selected, exit
         final String devId = sharedPrefs.getString("controller_pref_key_select_device", "NO_DEVICE");
         if (devId.equals("NO_DEVICE")){
-            Log.d(TAG, "No device selected");
+            DLog.v(TAG, "No device selected");
             return false;
         }
 
@@ -145,7 +144,7 @@ public class MicroControllerCom extends SerialCom{
          * Attept to connect to the device.  If we the prerequisites are met to attempt connection,
          * we'll wait until the connection thread notifies it is done.
           */
-        Log.d(TAG, "Attempting connection to device:\n" + devId);
+        DLog.v(TAG, "Attempting connection to device:\n" + devId);
         if (mSerialHelper.connectDevice(devId, mCallbacks)) {
 
             // wait until the connection is finished.  Only wait if the
@@ -154,7 +153,7 @@ public class MicroControllerCom extends SerialCom{
                     mIsWaiting = true;
                     wait(30000);
                 } catch (InterruptedException e) {
-                    Log.e(TAG, e.getMessage());
+                    Log.w(TAG, e.getMessage());
                 }
             }
         } else {
@@ -167,7 +166,7 @@ public class MicroControllerCom extends SerialCom{
             // Tell the Arudino that it is time to start
             if (!mSerialHelper.writeString("<START>")) {
                 // unable to write start command
-                Log.e(TAG, "Unable to start Micro Controller");
+                Log.w(TAG, "Unable to start Micro Controller");
                 mSerialHelper.disconnect();
                 mConnected = false;
                 mSerialHelper = null;
@@ -178,12 +177,7 @@ public class MicroControllerCom extends SerialCom{
                 mService.registerReceiver(writeReciever, sendDataFilter);
                 isWriteReceiverRegistered = true;
 
-                // Its possible that usb device location changes, so we will put the most recently
-                // connected Id in a preference that the Arudino Settings fragment can check
-                PreferenceManager.getDefaultSharedPreferences(mService).edit()
-                        .putString("controller_pref_key_connected_id", mSerialHelper.getConnectedId())
-                        .apply();
-                Log.i(TAG, "Sucessfully connected to Micro Controller");
+                DLog.v(TAG, "Sucessfully connected to Micro Controller");
                 // TODO: need to request dimmer status
             }
         } else {
@@ -208,7 +202,7 @@ public class MicroControllerCom extends SerialCom{
                 try {
                     Thread.sleep(500);
                 } catch (InterruptedException e) {
-                    Log.e(TAG, e.getMessage());
+                    Log.w(TAG, e.getMessage());
                 }
 
                 mSerialHelper.disconnect();

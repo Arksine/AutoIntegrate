@@ -15,6 +15,7 @@ import android.view.KeyEvent;
 import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.activities.BrightnessChangeActivity;
 import com.arksine.autointegrate.activities.CameraActivity;
+import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.autointegrate.utilities.TaskerIntent;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
 import com.google.gson.Gson;
@@ -147,7 +148,7 @@ public class CommandProcessor {
                             Settings.System.putInt(mContext.getContentResolver(),
                                     Settings.System.SCREEN_BRIGHTNESS_MODE,
                                     Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL);
-                            Log.i(TAG, "Auto Brightness off ");
+                            DLog.v(TAG, "Auto Brightness off ");
                         }
                     }
 
@@ -159,7 +160,7 @@ public class CommandProcessor {
                             Settings.System.putInt(mContext.getContentResolver(),
                                     Settings.System.SCREEN_BRIGHTNESS_MODE,
                                     Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC);
-                            Log.i(TAG, "Auto Brightness on ");
+                            DLog.v(TAG, "Auto Brightness on ");
                         }
                     }
 
@@ -173,12 +174,12 @@ public class CommandProcessor {
                     Settings.System.putInt(mContext.getContentResolver(),
                             Settings.System.SCREEN_BRIGHTNESS_MODE,
                             Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL);
-                    Log.i(TAG, "Auto Brightness off ");
+                    DLog.v(TAG, "Auto Brightness off ");
                 }
 
                 final int onBrightness = defaultPrefs.getInt("dimmer_pref_key_high_brightness",100);
                 if (onBrightness <= 0) {
-                    Log.i(TAG, "Dimmer Mode Digital not calibated");
+                    DLog.i(TAG, "Dimmer Mode Digital not calibated");
                     mBrightnessControl = emptyBC;
                     break;
                 }
@@ -213,7 +214,7 @@ public class CommandProcessor {
                     Settings.System.putInt(mContext.getContentResolver(),
                             Settings.System.SCREEN_BRIGHTNESS_MODE,
                             Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL);
-                    Log.i(TAG, "Auto Brightness off ");
+                    DLog.v(TAG, "Auto Brightness off ");
                 }
 
                 final int highReading = defaultPrefs.getInt("dimmer_pref_key_high_reading", 1000);
@@ -223,7 +224,7 @@ public class CommandProcessor {
 
                 if ((highReading <= 0) || (lowReading <= 0) ||
                         (highBrightness <= 0) || (lowBrightness <= 0)) {
-                    Log.i(TAG, "Dimmer Mode Analog not calibated");
+                    DLog.i(TAG, "Dimmer Mode Analog not calibated");
                     mBrightnessControl = emptyBC;
                     break;
                 }
@@ -262,14 +263,14 @@ public class CommandProcessor {
                         }
                         float readingCoef = (float) offsetReading / readingDiff;
                         int brightness = Math.round(readingCoef * brightDiff) + lowBrightness;
-                        Log.d(TAG, "Calculated Brightness: " + brightness);
+                        DLog.i(TAG, "Calculated Brightness: " + brightness);
 
                         launchBrightnessChangeActivity(brightness);
                     }
                 };
                 break;
             default:
-                Log.i(TAG, "Invalid Dimmer Mode");
+                DLog.i(TAG, "Invalid Dimmer Mode");
                 // Dimmer is invalid, so control functions are empty
                 mBrightnessControl = emptyBC;
         }
@@ -374,14 +375,14 @@ public class CommandProcessor {
         mActions.put("Volume Up", new ActionRunnable() {
             @Override
             public void run() {
-                Log.i(TAG, "Send Volume Up");
+                DLog.v(TAG, "Send Volume Up Command");
                 do {
                     mAudioManger.adjustStreamVolume(AudioManager.STREAM_MUSIC,
                             AudioManager.ADJUST_RAISE, volumeUiFlag);
                     try {
                         Thread.sleep(200);
                     } catch (InterruptedException e) {
-                        Log.e(TAG, e.getMessage());
+                        Log.w(TAG, e.getMessage());
                     }
 
                 } while (mIsHoldingBtn);
@@ -390,14 +391,14 @@ public class CommandProcessor {
         mActions.put("Volume Down", new ActionRunnable() {
             @Override
             public void run() {
-                Log.i(TAG, "Send Volume Down");
+                DLog.v(TAG, "Send Volume Down Command");
                 do {
                     mAudioManger.adjustStreamVolume(AudioManager.STREAM_MUSIC,
                             AudioManager.ADJUST_LOWER, volumeUiFlag);
                     try {
                         Thread.sleep(200);
                     } catch (InterruptedException e) {
-                        Log.e(TAG, e.getMessage());
+                        Log.w(TAG, e.getMessage());
                     }
                 } while (mIsHoldingBtn);
             }
@@ -405,7 +406,7 @@ public class CommandProcessor {
         mActions.put("Mute", new ActionRunnable() {
             @Override
             public void run() {
-                Log.i(TAG, "Send Mute");
+                DLog.v(TAG, "Send Mute Command");
 
                 int vol = mAudioManger.getStreamVolume(AudioManager.STREAM_MUSIC);
                 if (vol > 0) {
@@ -422,7 +423,7 @@ public class CommandProcessor {
         // Media Keys
         mActions.put("Play/Pause", new ActionRunnable() {
             public void run() {
-                Log.i(TAG, "Send Media, Play/Pause");
+                DLog.v(TAG, "Send Media, Play/Pause Command");
 
                 Intent mediaIntent = new Intent(Intent.ACTION_MEDIA_BUTTON);
                 mediaIntent.putExtra(Intent.EXTRA_KEY_EVENT,
@@ -432,7 +433,7 @@ public class CommandProcessor {
                 try {
                     Thread.sleep(500);
                 } catch (InterruptedException e) {
-                    Log.e(TAG, e.getMessage());
+                    Log.w(TAG, e.getMessage());
                 }
 
                 mediaIntent = new Intent(Intent.ACTION_MEDIA_BUTTON);
@@ -457,9 +458,9 @@ public class CommandProcessor {
                 if (mCameraIntent != null) {
                     mCameraIsOn = true;
                     mContext.startActivity(mCameraIntent);
-                    Log.i(TAG, "Send Launch Camera");
+                    DLog.v(TAG, "Send Launch Camera Command");
                 } else {
-                    Log.i(TAG, "Camera app not set");
+                    DLog.i(TAG, "Camera app not set");
                 }
             }
         });
@@ -469,7 +470,7 @@ public class CommandProcessor {
                 if (mReverseExitListener != null) {
                     mCameraIsOn = false;
                     mReverseExitListener.OnReverseOff();
-                    Log.i(TAG, "Send Close Camera");
+                    DLog.v(TAG, "Send Close Camera Command");
                 }
             }
         });
@@ -483,7 +484,7 @@ public class CommandProcessor {
                     mCameraIsOn = false;
                     mReverseExitListener.OnReverseOff();
                 }
-                Log.i(TAG, "Send Toggle Camera");
+                DLog.v(TAG, "Send Toggle Camera Command");
             }
         });
         mActions.put("Dimmer", new ActionRunnable() {
@@ -520,13 +521,13 @@ public class CommandProcessor {
         mActions.put("Application", new ActionRunnable() {
             @Override
             public void run() {
-                Log.i(TAG, "Sending Application Intent");
+                DLog.v(TAG, "Sending Application Intent");
                 Intent appIntent = mContext.getPackageManager().getLaunchIntentForPackage(this.data);
                 if (appIntent != null) {
                     appIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                     mContext.startActivity(appIntent);
                 } else {
-                    Log.i(TAG, "Invalid application");
+                    Log.i(TAG, "Invalid application, Cannot Launch");
                 }
             }
         });
@@ -536,7 +537,7 @@ public class CommandProcessor {
             public void run() {
                 // TODO: currently using tasker's external access api to execute.  Can create
                 //       Locale/Tasker plugin that should also work with macrodroid.
-                Log.i(TAG, "Execute Tasker Task");
+                DLog.v(TAG, "Execute Tasker Task");
                 if ( TaskerIntent.testStatus(mContext).equals(TaskerIntent.Status.OK) ) {
                     TaskerIntent i = new TaskerIntent(this.data);
                     mContext.sendBroadcast( i );
@@ -564,7 +565,7 @@ public class CommandProcessor {
                     try {
                         Thread.sleep(500);
                     } catch (InterruptedException e) {
-                        Log.e(TAG, e.getMessage());
+                        Log.w(TAG, e.getMessage());
                     }
 
                     // send key up event
@@ -578,7 +579,7 @@ public class CommandProcessor {
                             Thread.sleep(MEDIA_KEY_DELAY);
 
                         } catch (InterruptedException e) {
-                            Log.e(TAG, e.getMessage());
+                            Log.w(TAG, e.getMessage());
                         }
                     }
 
@@ -605,7 +606,7 @@ public class CommandProcessor {
                     try {
                         Thread.sleep(200);
                     } catch (InterruptedException e) {
-                        Log.e(TAG, e.getMessage());
+                        Log.w(TAG, e.getMessage());
                     }
 
                 } while (mIsHoldingBtn);
@@ -649,7 +650,7 @@ public class CommandProcessor {
             }
         }
 
-        Log.i(TAG, "Button is not mapped.");
+        DLog.i(TAG, "Button is not mapped.");
         return null;
     }
 
@@ -677,7 +678,7 @@ public class CommandProcessor {
                 break;
             default:
                 if (mCustomCommands) {
-                    Log.i(TAG, "Broacasting custom command: " + message.command);
+                    DLog.v(TAG, "Broacasting custom command: " + message.command);
                     Intent customIntent = new Intent(mContext.getString(R.string.ACTION_DATA_RECIEVED));
                     customIntent.putExtra(mContext.getString(R.string.EXTRA_COMMAND), message.command);
                     customIntent.putExtra(mContext.getString(R.string.EXTRA_DATA), message.data);

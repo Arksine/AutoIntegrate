@@ -10,16 +10,17 @@ import android.preference.PreferenceFragment;
 import android.preference.PreferenceScreen;
 import android.preference.SwitchPreference;
 import android.support.v4.content.LocalBroadcastManager;
-import android.util.Log;
 
 import com.arksine.autointegrate.MainService;
 import com.arksine.autointegrate.R;
+import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
 
 /**
- * Created by Eric on 10/1/2016.
+ * Handles Main Settings Fragment
  */
 
+// TODO: Probably would be better if we bind to the service rather than use broadcasts
 public class MainSettings extends PreferenceFragment {
 
     private static String TAG = "MainSettings";
@@ -42,17 +43,17 @@ public class MainSettings extends PreferenceFragment {
         PreferenceScreen root = this.getPreferenceScreen();
         SwitchPreference toggleService = (SwitchPreference) root.findPreference("main_pref_key_toggle_service");
         SwitchPreference togglePower = (SwitchPreference) root.findPreference("main_pref_key_toggle_power");
-        SwitchPreference toggleMC = (SwitchPreference) root.findPreference("main_pref_key_toggle_controller");
+        SwitchPreference toggleMCU = (SwitchPreference) root.findPreference("main_pref_key_toggle_controller");
         //SwitchPreference toggleCamera = (SwitchPreference) root.findPreference("main_pref_key_toggle_camera");
-        //SwitchPreference toggleRadio = (SwitchPreference) root.findPreference("main_pref_key_toggle_radio");
+        SwitchPreference toggleRadio = (SwitchPreference) root.findPreference("main_pref_key_toggle_radio");
         // Check to see if the service is on and set the toggleService preferences value accordingly
 
         if (UtilityFunctions.isServiceRunning(MainService.class, getActivity())) {
             toggleService.setChecked(true);
-            Log.i(TAG, "Service is running");
+            DLog.v(TAG, "Service is running");
         } else {
             toggleService.setChecked(false);
-            Log.i(TAG, "Service is not running");
+            DLog.v(TAG, "Service is not running");
         }
 
         toggleService.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
@@ -71,16 +72,7 @@ public class MainSettings extends PreferenceFragment {
             }
         });
 
-        /*togglePower.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
-            @Override
-            public boolean onPreferenceChange(Preference preference, Object newValue) {
-
-                // TODO: probably no longer need to do anything here
-                return true;
-            }
-        });*/
-
-        toggleMC.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
+        toggleMCU.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
             @Override
             public boolean onPreferenceChange(Preference preference, Object newValue) {
                 // Refresh the Micro Controller connection
@@ -91,33 +83,58 @@ public class MainSettings extends PreferenceFragment {
             }
         });
 
+        toggleRadio.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
+            @Override
+            public boolean onPreferenceChange(Preference preference, Object o) {
+                // Refresh the Radio connection
+                Intent refreshIntent = new Intent(getString(R.string.ACTION_REFRESH_RADIO_CONNECTION));
+                refreshIntent.putExtra("LearningMode", false);
+                LocalBroadcastManager.getInstance(getActivity()).sendBroadcast(refreshIntent);
+                return true;
+            }
+        });
+
+
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+
         IntentFilter filter = new IntentFilter(getActivity().getString(R.string.ACTION_SERVICE_STATUS_CHANGED));
         LocalBroadcastManager.getInstance(getActivity()).registerReceiver(serverStatusReceiver, filter);
     }
 
     @Override
+    public void onPause() {
+        super.onPause();
+
+        LocalBroadcastManager.getInstance(getActivity()).unregisterReceiver(serverStatusReceiver);
+    }
+
+    @Override
     public void onDestroy() {
         super.onDestroy();
-        LocalBroadcastManager.getInstance(getActivity()).unregisterReceiver(serverStatusReceiver);
     }
 
     private void updateServiceStatus(String status) {
         PreferenceScreen root = this.getPreferenceScreen();
         SwitchPreference toggleService = (SwitchPreference) root.findPreference("main_pref_key_toggle_service");
 
-        // TODO: does calling "setChecked" in turn call the onPreferenceChangedListener?  If so,
-        //       that is not behavior that we want.  Also, check to see if we are suspended.
+        // TODO: calling "setChecked" fires the onChangeListener.  The result of this is that
+        //       if the service is turned on or shut off by some event outside of the app, the
+        //       result would be updated here and the onChange listener would repeat the action (BAD!)
         switch (status) {
             case "On":
                 if (!toggleService.isChecked()) {
                     toggleService.setChecked(true);
-                    Log.i(TAG, "Service is running");
+                    DLog.v(TAG, "Service is running");
                 }
                 break;
             case "Off":
                 if (toggleService.isChecked()) {
                     toggleService.setChecked(false);
-                    Log.i(TAG, "Service is not running");
+                    DLog.v(TAG, "Service is not running");
                 }
                 break;
             case "Suspended":

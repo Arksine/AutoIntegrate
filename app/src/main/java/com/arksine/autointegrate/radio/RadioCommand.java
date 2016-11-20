@@ -15,18 +15,18 @@ public class RadioCommand {
         public static final int NONE = 5;
     }
 
-    private final String mCommandName;
+    private final RadioKey.Command mCommandKey;
     private final byte[] mCommandBytes;
     private final int mDataType;
 
-    RadioCommand(String name, int type, byte[] bytes) {
-        mCommandName = name;
+    RadioCommand(RadioKey.Command key, int type, byte[] bytes) {
+        mCommandKey = key;
         mDataType = type;
         mCommandBytes = bytes;
     }
 
-    public String getCommandName() {
-        return mCommandName;
+    public RadioKey.Command getCommandKey() {
+        return mCommandKey;
     }
 
     public byte[] getCommandBytes() {
@@ -36,6 +36,5 @@ public class RadioCommand {
     public int getDataType() {
         return mDataType;
     }
-
 
 }

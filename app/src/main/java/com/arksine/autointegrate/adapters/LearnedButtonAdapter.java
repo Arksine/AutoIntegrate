@@ -2,7 +2,6 @@ package com.arksine.autointegrate.adapters;
 
 import android.content.Context;
 import android.support.v7.widget.RecyclerView;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -10,6 +9,7 @@ import android.widget.TextView;
 
 import com.arksine.autointegrate.microcontroller.ResistiveButton;
 import com.arksine.autointegrate.R;
+import com.arksine.autointegrate.utilities.DLog;
 
 import java.util.Collections;
 import java.util.List;
@@ -95,7 +95,7 @@ public class LearnedButtonAdapter extends RecyclerView.Adapter<LearnedButtonAdap
                 int pos = holder.getAdapterPosition();
                 mItemClickCallback.OnItemClick(mButtonList.get(pos), pos);
 
-                Log.d(TAG, "Clicked on position: " + pos);
+                DLog.v(TAG, "Clicked on position: " + pos);
             }
         });
 

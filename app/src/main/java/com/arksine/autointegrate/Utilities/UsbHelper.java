@@ -137,28 +137,43 @@ public class UsbHelper implements SerialHelper {
             }
 
 
-            Log.v(TAG, "USB comm device found: " + name);
-            Log.v(TAG, "Device ID: " + uDevice.getDeviceId());
-            Log.v(TAG, "Device Name: " + uDevice.getDeviceName());
-            Log.v(TAG, "Vendor: ID " + uDevice.getVendorId());
-            Log.v(TAG, "Product ID: " + uDevice.getProductId());
-            Log.v(TAG, "Class: " + uDevice.getDeviceClass());
-            Log.v(TAG, "SubClass: " + uDevice.getDeviceSubclass());
-            Log.v(TAG, "Protocol: " + uDevice.getDeviceProtocol());
+
+            DLog.v(TAG, "USB comm device found: " + name);
+            DLog.v(TAG, "Device ID: " + uDevice.getDeviceId());
+            DLog.v(TAG, "Device Name: " + uDevice.getDeviceName());
+            DLog.v(TAG, "Vendor: ID " + uDevice.getVendorId());
+            DLog.v(TAG, "Product ID: " + uDevice.getProductId());
+            DLog.v(TAG, "Class: " + uDevice.getDeviceClass());
+            DLog.v(TAG, "SubClass: " + uDevice.getDeviceSubclass());
+            DLog.v(TAG, "Protocol: " + uDevice.getDeviceProtocol());
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                DLog.v(TAG, "Manufacturer: " + uDevice.getManufacturerName());
+                DLog.v(TAG, "Serial Number: " + uDevice.getSerialNumber());
+            }
+
 
             /**
              * Don't add the MJS HD Radio cable to the list if its connected.  Its an FTDI serial
              * comm device, but its specialized, not for MCU use
              *
-             * MJS Cable - VID 0x0403 (1027), PID 0x937C (37756)
+             * MJS Cable - VID 0x0403 (1027), PID 0x9378 (37752)
+             *
+             *  TODO: I bet the 3rd ID (sub pid ) is 937C
               */
-            if ((uDevice.getVendorId() == 1027) && (uDevice.getProductId() ==  37756)) {
-                Log.v(TAG, "MJS Cable found, skipping from list");
+            if ((uDevice.getVendorId() == 1027) && (uDevice.getProductId() ==  37752)) {
+                DLog.v(TAG, "MJS Cable found, skipping from list");
                 break;
             }
 
-            String id = uDevice.getVendorId() + ":" + uDevice.getProductId() + ":"
-                    + uDevice.getDeviceName();
+            String id;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                id = uDevice.getVendorId() + ":" + uDevice.getProductId() + ":"
+                        + uDevice.getSerialNumber();
+            } else {
+                id = uDevice.getVendorId() + ":" + uDevice.getProductId();
+            }
+
             String entry = name + "\n" +  id;
             deviceList.add(entry);
         }
@@ -186,24 +201,36 @@ public class UsbHelper implements SerialHelper {
         String[] ids = id.split(":");
 
         // Make sure the entry value is formatted correctly
-        if (ids.length != 3) {
-            Log.e(TAG, "Invalid USB entry: " + id);
+        boolean correctFormat;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            correctFormat = ids.length == 3;
+        } else {
+            correctFormat = ids.length == 2;
+        }
+        if (!correctFormat) {
+            Log.i(TAG, "Invalid USB entry: " + id);
             return false;
         }
 
-        mUsbDevice = usbDeviceList.get(ids[2]);
+        // Because usbfs locations don't persist across disconnects, devices are found by
+        // searching for the vid/pid/serialnumber.  The Serial Number is only available in
+        // Lollipop and later, meaning the only search done can be by VID/PID.  It is NOT recommended
+        // to have two devices with the same VID/PID, particularly on lollipop and below.
+        boolean found;
+        for (UsbDevice dev : usbDeviceList.values()) {
 
-        // if we have can't find the device by its USBFS location, attempt to find it by VID/PID
-        if (mUsbDevice == null) {
-            // Because UsbIDs don't persist across disconnects, we store the VID/PID if each USB device
-            // and iterate though the list for matches
-            for (UsbDevice dev : usbDeviceList.values()) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                found = dev.getVendorId() == Integer.parseInt(ids[0]) &&
+                        dev.getProductId() == Integer.parseInt(ids[1]) &&
+                        dev.getSerialNumber().equals(ids[2]);
+            } else {
+                found = dev.getVendorId() == Integer.parseInt(ids[0]) &&
+                        dev.getProductId() == Integer.parseInt(ids[1]);
+            }
 
-                if (dev.getVendorId() == Integer.parseInt(ids[0]) &&
-                        dev.getProductId() == Integer.parseInt(ids[1])) {
-                    mUsbDevice = dev;
-                    break;
-                }
+            if (found) {
+                mUsbDevice = dev;
+                break;
             }
         }
 
@@ -219,7 +246,6 @@ public class UsbHelper implements SerialHelper {
             Log.i(TAG, "Invalid usb device: " + id);
             return false;
         }
-
     }
 
     public String getConnectedId() {
@@ -303,7 +329,7 @@ public class UsbHelper implements SerialHelper {
                         try {
                             wait();
                         } catch (InterruptedException e) {
-                            Log.e(TAG, e.getMessage());
+                            Log.w(TAG, e.getMessage());
                         }
                     }
 
@@ -338,7 +364,7 @@ public class UsbHelper implements SerialHelper {
                         try {
                             Thread.sleep(2000);
                         } catch (InterruptedException e) {
-                            Log.e(TAG, e.getMessage());
+                            Log.w(TAG, e.getMessage());
                         }
                     }
 
@@ -346,8 +372,7 @@ public class UsbHelper implements SerialHelper {
                     serialPortConnected = true;
                     mSerialHelperCallbacks.OnDeviceReady(true);
                  } else {
-                    // Serial port could not be opened, maybe an I/O error or if CDC driver was chosen, it does not really fit
-                    // Send an Intent to Main Activity
+                    // Serial port could not be opened
                     if (mSerialPort instanceof CDCSerialDevice) {
                         Log.i(TAG, "Unable to open CDC Serial device");
                         mSerialHelperCallbacks.OnDeviceReady(false);

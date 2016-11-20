@@ -1,104 +1,95 @@
 package com.arksine.autointegrate.radio;
 
-import android.util.ArrayMap;
-
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.HashMap;
 
 /**
- * Created by Eric on 11/6/2016.
+ *  HD Radio definition maps
  */
 
 public class HDRadioDefs {
     private static final String TAG = "HDRadioDefs";
 
-    private static final ArrayMap<String, RadioCommand> mCommands = new ArrayMap<>(26);
-    private static final ArrayMap<String, byte[]> mOperations = new ArrayMap<>(3);
-    private static final ArrayMap<String, byte[]> mBands = new ArrayMap<>(2);
-    private static final ArrayMap<String, byte[]> mConstants = new ArrayMap<>(7);
+    private static final HashMap<RadioKey.Command, RadioCommand> mCommands = new HashMap<>(26);
+    private static final HashMap<RadioKey.Operation, byte[]> mOperations = new HashMap<>(3);
+    private static final HashMap<RadioKey.Band, byte[]> mBands = new HashMap<>(2);
+    private static final HashMap<RadioKey.Constant, byte[]> mConstants = new HashMap<>(7);
 
     private HDRadioDefs() {}
 
     static {
-        mCommands.put("power", new RadioCommand("power", RadioCommand.Type.BOOLEAN,
+        mCommands.put(RadioKey.Command.POWER, new RadioCommand(RadioKey.Command.POWER, RadioCommand.Type.BOOLEAN,
                 new byte[]{(byte)0x01, (byte)0x00}));
-        mCommands.put("mute", new RadioCommand("mute", RadioCommand.Type.BOOLEAN,
+        mCommands.put(RadioKey.Command.MUTE, new RadioCommand(RadioKey.Command.MUTE, RadioCommand.Type.BOOLEAN,
                 new byte[]{(byte)0x02, (byte)0x00}));
-        mCommands.put("signal_strength", new RadioCommand("signal_strength", RadioCommand.Type.INT,
+        mCommands.put(RadioKey.Command.SIGNAL_STRENGTH, new RadioCommand(RadioKey.Command.SIGNAL_STRENGTH, RadioCommand.Type.INT,
                 new byte[]{(byte)0x01, (byte)0x01}));
-        mCommands.put("tune", new RadioCommand("tune", RadioCommand.Type.TUNEINFO,
+        mCommands.put(RadioKey.Command.TUNE, new RadioCommand(RadioKey.Command.TUNE, RadioCommand.Type.TUNEINFO,
                 new byte[]{(byte)0x02, (byte)0x01}));
-        mCommands.put("seek", new RadioCommand("seek", RadioCommand.Type.NONE,
+        mCommands.put(RadioKey.Command.SEEK, new RadioCommand(RadioKey.Command.SEEK, RadioCommand.Type.TUNEINFO,
                 new byte[]{(byte)0x03, (byte)0x01}));
-        mCommands.put("hd_active", new RadioCommand("hd_active", RadioCommand.Type.BOOLEAN,
+        mCommands.put(RadioKey.Command.HD_ACTIVE, new RadioCommand(RadioKey.Command.HD_ACTIVE, RadioCommand.Type.BOOLEAN,
                 new byte[]{(byte)0x01, (byte)0x02}));
-        mCommands.put("hd_stream_lock", new RadioCommand("hd_stream_lock", RadioCommand.Type.BOOLEAN,
+        mCommands.put(RadioKey.Command.HD_STREAM_LOCK, new RadioCommand(RadioKey.Command.HD_STREAM_LOCK, RadioCommand.Type.BOOLEAN,
                 new byte[]{(byte)0x02, (byte)0x02}));
-        mCommands.put("hd_signal_strength", new RadioCommand("hd_signal_strength", RadioCommand.Type.INT,
+        mCommands.put(RadioKey.Command.HD_SIGNAL_STRENGH, new RadioCommand(RadioKey.Command.HD_SIGNAL_STRENGH, RadioCommand.Type.INT,
                 new byte[]{(byte)0x03, (byte)0x02}));
-        mCommands.put("hd_sub_channel", new RadioCommand("hd_sub_channel", RadioCommand.Type.INT,
+        mCommands.put(RadioKey.Command.HD_SUBCHANNEL, new RadioCommand(RadioKey.Command.HD_SUBCHANNEL, RadioCommand.Type.INT,
                 new byte[]{(byte)0x04, (byte)0x02}));
-        mCommands.put("hd_sub_channel_count", new RadioCommand("hd_sub_channel_count", RadioCommand.Type.INT,
+        mCommands.put(RadioKey.Command.HD_SUBCHANNEL_COUNT, new RadioCommand(RadioKey.Command.HD_SUBCHANNEL_COUNT, RadioCommand.Type.INT,
                 new byte[]{(byte)0x05, (byte)0x02}));
-        mCommands.put("hd_enable_hd_tuner", new RadioCommand("hd_enable_hd_tuner", RadioCommand.Type.BOOLEAN,
+        mCommands.put(RadioKey.Command.HD_TUNER_ENABLED, new RadioCommand(RadioKey.Command.HD_TUNER_ENABLED, RadioCommand.Type.BOOLEAN,
                 new byte[]{(byte)0x06, (byte)0x02}));
-        mCommands.put("hd_title", new RadioCommand("hd_title", RadioCommand.Type.HDSONGINFO,
+        mCommands.put(RadioKey.Command.HD_TITLE, new RadioCommand(RadioKey.Command.HD_TITLE, RadioCommand.Type.HDSONGINFO,
                 new byte[]{(byte)0x07, (byte)0x02}));
-        mCommands.put("hd_artist", new RadioCommand("hd_artist", RadioCommand.Type.HDSONGINFO,
+        mCommands.put(RadioKey.Command.HD_ARTIST, new RadioCommand(RadioKey.Command.HD_ARTIST, RadioCommand.Type.HDSONGINFO,
                 new byte[]{(byte)0x08, (byte)0x02}));
-        mCommands.put("hd_callsign", new RadioCommand("hd_callsign", RadioCommand.Type.STRING,
+        mCommands.put(RadioKey.Command.HD_CALLSIGN, new RadioCommand(RadioKey.Command.HD_CALLSIGN, RadioCommand.Type.STRING,
                 new byte[]{(byte)0x09, (byte)0x02}));
-        mCommands.put("hd_station_name", new RadioCommand("hd_station_name", RadioCommand.Type.STRING,
+        mCommands.put(RadioKey.Command.HD_STATION_NAME, new RadioCommand(RadioKey.Command.HD_STATION_NAME, RadioCommand.Type.STRING,
                 new byte[]{(byte)0x10, (byte)0x02}));
-        mCommands.put("hd_unique_id", new RadioCommand("hd_unique_id", RadioCommand.Type.STRING,
+        mCommands.put(RadioKey.Command.HD_UNIQUE_ID, new RadioCommand(RadioKey.Command.HD_UNIQUE_ID, RadioCommand.Type.STRING,
                 new byte[]{(byte)0x11, (byte)0x02}));
-        mCommands.put("hd_api_version", new RadioCommand("hd_api_verson", RadioCommand.Type.STRING,
+        mCommands.put(RadioKey.Command.HD_API_VERSION, new RadioCommand(RadioKey.Command.HD_API_VERSION, RadioCommand.Type.STRING,
                 new byte[]{(byte)0x12, (byte)0x02}));
-        mCommands.put("hd_hw_version", new RadioCommand("hd_hw_version", RadioCommand.Type.STRING,
+        mCommands.put(RadioKey.Command.HD_HW_VERSION, new RadioCommand(RadioKey.Command.HD_HW_VERSION, RadioCommand.Type.STRING,
                 new byte[]{(byte)0x13, (byte)0x02}));   // HDRC app had this as 0x12, test 0x13
-        mCommands.put("rds_enable", new RadioCommand("rds_enable", RadioCommand.Type.BOOLEAN,
+        mCommands.put(RadioKey.Command.RDS_ENABLED, new RadioCommand(RadioKey.Command.RDS_ENABLED, RadioCommand.Type.BOOLEAN,
                 new byte[]{(byte)0x01, (byte)0x03}));
-        mCommands.put("rds_genre", new RadioCommand("rds_genre", RadioCommand.Type.STRING,
+        mCommands.put(RadioKey.Command.RDS_GENRE, new RadioCommand(RadioKey.Command.RDS_GENRE, RadioCommand.Type.STRING,
                 new byte[]{(byte)0x07, (byte)0x03}));
-        mCommands.put("rds_program_service", new RadioCommand("rds_program_service", RadioCommand.Type.STRING,
+        mCommands.put(RadioKey.Command.RDS_PROGRAM_SERVICE, new RadioCommand(RadioKey.Command.RDS_PROGRAM_SERVICE, RadioCommand.Type.STRING,
                 new byte[]{(byte)0x08, (byte)0x03}));
-        mCommands.put("rds_radio_text", new RadioCommand("rds_radio_text", RadioCommand.Type.STRING,
+        mCommands.put(RadioKey.Command.RDS_RADIO_TEXT, new RadioCommand(RadioKey.Command.RDS_RADIO_TEXT, RadioCommand.Type.STRING,
                 new byte[]{(byte)0x09, (byte)0x03}));
-        mCommands.put("volume", new RadioCommand("volume", RadioCommand.Type.INT,
+        mCommands.put(RadioKey.Command.VOLUME, new RadioCommand(RadioKey.Command.VOLUME, RadioCommand.Type.INT,
                 new byte[]{(byte)0x03, (byte)0x04}));
-        mCommands.put("bass", new RadioCommand("bass", RadioCommand.Type.INT,
+        mCommands.put(RadioKey.Command.BASS, new RadioCommand(RadioKey.Command.BASS, RadioCommand.Type.INT,
                 new byte[]{(byte)0x04, (byte)0x04}));
-        mCommands.put("treble", new RadioCommand("treble", RadioCommand.Type.INT,
+        mCommands.put(RadioKey.Command.TREBLE, new RadioCommand(RadioKey.Command.TREBLE, RadioCommand.Type.INT,
                 new byte[]{(byte)0x05, (byte)0x04}));       // HDRC had this as 0x04, test as 0x05
-        mCommands.put("compression", new RadioCommand("compression", RadioCommand.Type.INT,
+        mCommands.put(RadioKey.Command.COMPRESSION, new RadioCommand(RadioKey.Command.COMPRESSION, RadioCommand.Type.INT,
                 new byte[]{(byte)0x06, (byte)0x04}));  // HDRC had this as 0x05, test as 0x06
 
-        mOperations.put("set", new byte[]{(byte)0x00, (byte)0x00});
-        mOperations.put("get", new byte[]{(byte)0x01, (byte)0x00});
-        mOperations.put("reply", new byte[]{(byte)0x02, (byte)0x00});
+        mOperations.put(RadioKey.Operation.SET, new byte[]{(byte)0x00, (byte)0x00});
+        mOperations.put(RadioKey.Operation.GET, new byte[]{(byte)0x01, (byte)0x00});
+        mOperations.put(RadioKey.Operation.REPLY, new byte[]{(byte)0x02, (byte)0x00});
 
-        mBands.put("am", new byte[]{(byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00});
-        mBands.put("fm", new byte[]{(byte)0x01, (byte)0x00, (byte)0x00, (byte)0x00});
+        mBands.put(RadioKey.Band.AM, new byte[]{(byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00});
+        mBands.put(RadioKey.Band.FM, new byte[]{(byte)0x01, (byte)0x00, (byte)0x00, (byte)0x00});
 
-        mConstants.put("up",  new byte[]{(byte)0x01, (byte)0x00, (byte)0x00, (byte)0x00});
-        mConstants.put("down",  new byte[]{(byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF});
-        mConstants.put("one",  new byte[]{(byte)0x01, (byte)0x00, (byte)0x00, (byte)0x00});
-        mConstants.put("zero",  new byte[]{(byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00});
-        mConstants.put("seek_id", new byte[]{(byte)0xA5, (byte)0x00, (byte)0x00, (byte)0x00});
-        mConstants.put("seek_all", new byte[]{(byte)0x00, (byte)0x00, (byte)0x3D, (byte)0x00});
-        mConstants.put("seek_hd_only", new byte[]{(byte)0x00, (byte)0x00, (byte)0x3D, (byte)0x01});
+        mConstants.put(RadioKey.Constant.UP,  new byte[]{(byte)0x01, (byte)0x00, (byte)0x00, (byte)0x00});
+        mConstants.put(RadioKey.Constant.DOWN,  new byte[]{(byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF});
+        mConstants.put(RadioKey.Constant.ONE,  new byte[]{(byte)0x01, (byte)0x00, (byte)0x00, (byte)0x00});
+        mConstants.put(RadioKey.Constant.ZERO,  new byte[]{(byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00});
+        mConstants.put(RadioKey.Constant.SEEK_REQ_ID, new byte[]{(byte)0xA5, (byte)0x00, (byte)0x00, (byte)0x00});
+        mConstants.put(RadioKey.Constant.SEEK_ALL_ID, new byte[]{(byte)0x00, (byte)0x00, (byte)0x3D, (byte)0x00});
+        mConstants.put(RadioKey.Constant.SEEK_HD_ONLY_ID, new byte[]{(byte)0x00, (byte)0x00, (byte)0x3D, (byte)0x01});
 
     }
 
-    public static byte getStartByte() {
-        return (byte) 0xA4;
-    }
-
-    public static byte getEscapeByte() {
-        return (byte) 0x1B;
-    }
-
-    public static byte[] getCommandBytes(String key) {
+    public static byte[] getCommandBytes(RadioKey.Command key) {
         RadioCommand cmd = mCommands.get(key);
         if (cmd == null) {
             return null;
@@ -107,24 +98,22 @@ public class HDRadioDefs {
         }
     }
 
-
-    public static byte[] getOpBytes(String key) {
+    public static byte[] getOpBytes(RadioKey.Operation key) {
         return mOperations.get(key);
     }
 
-    public static byte[] getBandBytes(String key) {
+    public static byte[] getBandBytes(RadioKey.Band key) {
         return mBands.get(key);
     }
 
-    public static byte[] getConstantBytes(String key) {
+    public static byte[] getConstantBytes(RadioKey.Constant key) {
         return mConstants.get(key);
     }
 
     //** Bytes are received from HD radio in little endian format, so we will convert in the same manner
 
     public static RadioCommand getCommandFromValue(int value) {
-        for (int i = 0; i < mCommands.size(); i++) {
-            RadioCommand cmd = mCommands.valueAt(i);
+        for (RadioCommand cmd : mCommands.values()) {
             ByteBuffer buf = ByteBuffer.wrap(cmd.getCommandBytes());
             buf.order(ByteOrder.LITTLE_ENDIAN);
             int byteVal = buf.getShort();
@@ -132,13 +121,14 @@ public class HDRadioDefs {
             if (value == byteVal) {
                 return cmd;
             }
+
         }
 
         // no key found for value
         return null;
     }
 
-    public static int getOpValue(String key) {
+    public static int getOpValue(RadioKey.Operation key) {
         byte[] bytes = mOperations.get(key);
 
         if (bytes == null) {
@@ -150,7 +140,7 @@ public class HDRadioDefs {
         return buf.getShort();
     }
 
-    public static int getBandValue(String key) {
+    public static int getBandValue(RadioKey.Band key) {
         byte[] bytes = mBands.get(key);
 
         if (bytes == null) {
@@ -162,7 +152,7 @@ public class HDRadioDefs {
         return buf.getInt();
     }
 
-    public static int getConstantValue(String key) {
+    public static int getConstantValue(RadioKey.Constant key) {
         byte[] bytes = mConstants.get(key);
 
         if (bytes == null) {
@@ -174,7 +164,7 @@ public class HDRadioDefs {
 
     }
 
-    public static RadioCommand getRadioCommand(String key) {
+    public static RadioCommand getRadioCommand(RadioKey.Command key) {
         return mCommands.get(key);
     }
 

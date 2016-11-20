@@ -23,10 +23,8 @@ import java.util.GregorianCalendar;
 import java.util.List;
 
 /**
- * Created by Eric on 10/31/2016.
+ * Custom Preference to select a timeout
  */
-
-//TODO: timepicker sucks, revert to the way it was, but build the view from a resource
 
 public class DurationPreference extends DialogPreference {
     private Calendar calendar;

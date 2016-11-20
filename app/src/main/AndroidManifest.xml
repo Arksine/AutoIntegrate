@@ -33,6 +33,7 @@
             android:label="@string/title_activity_main">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
+
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
@@ -67,11 +68,15 @@
             android:taskAffinity="com.arksine.autointegrate.invisactivity"
             android:theme="@style/EmptyActivity">
         </activity>
-
         <activity
             android:name=".activities.CameraActivity"
             android:label="@string/title_activity_camera"
             android:theme="@style/AppTheme">
+        </activity>
+        <activity
+            android:name=".activities.RadioActivity"
+            android:label="@string/title_activity_radio"
+            android:theme="@style/AppTheme.NoActionBar">
         </activity>
     </application>
 

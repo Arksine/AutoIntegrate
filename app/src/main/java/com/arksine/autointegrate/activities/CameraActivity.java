@@ -5,9 +5,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
-import android.graphics.Color;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
+import android.os.Build;
 import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.support.v4.content.LocalBroadcastManager;
@@ -25,6 +25,7 @@ import android.widget.FrameLayout;
 import android.widget.Toast;
 
 import com.arksine.autointegrate.R;
+import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.autointegrate.utilities.HardwareReceiver;
 import com.serenegiant.usb.USBMonitor;
 import com.serenegiant.usb.UVCCamera;
@@ -40,7 +41,6 @@ import java.util.HashMap;
 
 public class CameraActivity extends AppCompatActivity {
     private final static String TAG = "CameraActivity";
-    private final static boolean DEBUG = true;
 
     private SurfaceView mCameraView = null;
     private SurfaceHolder mSurfaceHolder = null;
@@ -99,13 +99,13 @@ public class CameraActivity extends AppCompatActivity {
     private final SurfaceHolder.Callback mCameraViewCallback = new SurfaceHolder.Callback() {
         @Override
         public void surfaceCreated(final SurfaceHolder holder) {
-            if (DEBUG) Log.v(TAG, "surfaceCreated:");
+            DLog.v(TAG, "surfaceCreated:");
         }
 
         @Override
         public void surfaceChanged(final SurfaceHolder holder, final int format, final int width, final int height) {
             if ((width == 0) || (height == 0)) return;
-            if (DEBUG) Log.v(TAG, "surfaceChanged:");
+            DLog.v(TAG, "surfaceChanged:");
             mPreviewSurface = holder.getSurface();
             synchronized (mCamLock) {
                 if (mIsActive && !mIsPreviewing) {
@@ -118,7 +118,7 @@ public class CameraActivity extends AppCompatActivity {
 
         @Override
         public void surfaceDestroyed(final SurfaceHolder holder) {
-            if (DEBUG) Log.v(TAG, "surfaceDestroyed:");
+            DLog.v(TAG, "surfaceDestroyed:");
             synchronized (mCamLock) {
                 if (mUVCCamera != null) {
                     mUVCCamera.stopPreview();
@@ -150,7 +150,7 @@ public class CameraActivity extends AppCompatActivity {
                 public void run() {
                     mUVCCamera = new UVCCamera();
                     mUVCCamera.open(ctrlBlock);
-                    if (DEBUG) Log.i(TAG, "supportedSize:" + mUVCCamera.getSupportedSize());
+                    DLog.i(TAG, "supportedSize:" + mUVCCamera.getSupportedSize());
 
                     // TODO: Get camera variables from shared prefs, but for initial testing
                     //       we'll use base format (default width, height, YUYV frames
@@ -168,7 +168,7 @@ public class CameraActivity extends AppCompatActivity {
                         e.printStackTrace();
                     }
                     if ((mUVCCamera != null) && (mPreviewSurface != null)) {
-                        if (DEBUG) Log.i(TAG, "Preview Starting");
+                        DLog.i(TAG, "Preview Starting");
                         mIsActive = true;
                         mUVCCamera.setPreviewDisplay(mPreviewSurface);
                         mUVCCamera.startPreview();
@@ -331,21 +331,17 @@ public class CameraActivity extends AppCompatActivity {
 
         if (prefSelectDevice.equals("NO_DEVICE")){
             String text = "No device selected in preferences";
-            Log.e(TAG, text);
+            Log.w(TAG, text);
             Toast.makeText(this, text, Toast.LENGTH_SHORT).show();
 
         } else {
-            String[] devIds = prefSelectDevice.split(":");
 
             UsbManager usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
-            HashMap<String, UsbDevice> usbDeviceList = usbManager.getDeviceList();
-            final UsbDevice uDevice = usbDeviceList.get(devIds[2]);
+            final UsbDevice uDevice = findUsbDevice(usbManager, prefSelectDevice);
 
             if (uDevice == null) {
-                // TODO: I should probably check to see if the usbfs location has changed by
-                //       searching for the VID:PID
                 String text = "No usb device matching selection found";
-                Log.e(TAG, text);
+                Log.w(TAG, text);
                 Toast.makeText(this, text, Toast.LENGTH_SHORT).show();
 
             } else if (mUVCCamera != null && mUVCCamera.getDevice().equals(uDevice)) {
@@ -376,7 +372,7 @@ public class CameraActivity extends AppCompatActivity {
                                     }
                                 } else {
                                     String text = "Failed to receive permission to access USB Capture Device";
-                                    Log.d(TAG, text);
+                                    DLog.w(TAG, text);
                                     Toast.makeText(getApplicationContext(), text, Toast.LENGTH_SHORT).show();
                                 }
                             }
@@ -389,6 +385,43 @@ public class CameraActivity extends AppCompatActivity {
                 }
             }
         }
+    }
+
+    private UsbDevice findUsbDevice(UsbManager usbManager, String deviceEntry) {
+        String[] devIds = deviceEntry.split(":");
+
+        // Make sure the entry value is formatted correctly
+        boolean correctFormat;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            correctFormat = devIds.length == 3;
+        } else {
+            correctFormat = devIds.length == 2;
+        }
+        if (!correctFormat) {
+            Log.i(TAG, "Invalid USB entry: " + devIds);
+            return null;
+        }
+
+        // Find device by vid, pid, and serial number(if available)
+        HashMap<String, UsbDevice> usbDeviceList = usbManager.getDeviceList();
+        boolean found;
+
+        for (UsbDevice dev : usbDeviceList.values()) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                found = dev.getVendorId() == Integer.parseInt(devIds[0]) &&
+                        dev.getProductId() == Integer.parseInt(devIds[1]) &&
+                        dev.getSerialNumber().equals(devIds[2]);
+            } else {
+                found = dev.getVendorId() == Integer.parseInt(devIds[0]) &&
+                        dev.getProductId() == Integer.parseInt(devIds[1]);
+            }
+
+            if (found) {
+                return dev;
+            }
+        }
+
+        return null;
     }
 
 
@@ -421,7 +454,6 @@ public class CameraActivity extends AppCompatActivity {
 
         }
 
-        if (DEBUG)
-            Log.i(TAG, "Current view size: " + mCameraView.getWidth() + "x" + mCameraView.getHeight());
+        DLog.i(TAG, "Current view size: " + mCameraView.getWidth() + "x" + mCameraView.getHeight());
     }
 }

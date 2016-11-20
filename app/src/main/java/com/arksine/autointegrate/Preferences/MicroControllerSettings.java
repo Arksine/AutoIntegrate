@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.os.Build;
 import android.os.Bundle;
 import android.preference.ListPreference;
 import android.preference.Preference;
@@ -16,9 +17,6 @@ import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.FrameLayout;
-import android.widget.LinearLayout;
-import android.widget.ListView;
 import android.widget.Toast;
 
 import com.arksine.autointegrate.activities.ButtonLearningActivity;
@@ -27,6 +25,7 @@ import com.arksine.autointegrate.dialogs.ListPreferenceEx;
 import com.arksine.autointegrate.interfaces.SerialHelper;
 import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.utilities.AppItem;
+import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
 import com.arksine.autointegrate.utilities.BluetoothHelper;
 import com.arksine.autointegrate.utilities.UsbHelper;
@@ -93,35 +92,6 @@ public class MicroControllerSettings extends PreferenceFragment {
             cameraCmdPref.setSummary(summary);
         } else {
             cameraCmdPref.setSummary(cameraCmdPref.getEntry());
-        }
-
-
-        // Check to see if the most recently connected device is the same as the one we are using,
-        // but with a different location (USB only) TODO: this needs testing!
-        if(mDeviceType.equals("USB")) {
-            String connectedVal = PreferenceManager.getDefaultSharedPreferences(getActivity())
-                    .getString("controller_pref_key_connected_id", "");
-            String currentVal = selectDevice.getValue();
-
-            // Check to see if a valid change has been made
-            if (!connectedVal.equals(currentVal) && !connectedVal.equals("")) {
-                String[] connectedIds = connectedVal.split(":");
-                CharSequence[] entryVals = selectDevice.getEntryValues();
-
-                // make sure that the list contains devices
-                if (!entryVals[0].equals("NO_DEVICE")) {
-                    for (CharSequence cs : entryVals) {
-                        String[] entryIds = cs.toString().split(":");
-                        if (connectedIds[0].equals(entryIds[0]) && connectedIds[1].equals(entryIds[1])) {
-                            // this is the connected device
-                            selectDevice.setValue(cs.toString());
-                            selectDevice.setSummary(cs);
-                            Log.d(TAG, "Select device preference reset");
-                            break;
-                        }
-                    }
-                }
-            }
         }
 
         selectDeviceType.setSummary(selectDeviceType.getEntry());
@@ -234,7 +204,7 @@ public class MicroControllerSettings extends PreferenceFragment {
     @Override
     public void onPause() {
         super.onPause();
-        Log.d(TAG, "Paused");
+        DLog.v(TAG, "Paused");
 
         if (mSettingChanged) {
             refreshConnection();
@@ -345,7 +315,12 @@ public class MicroControllerSettings extends PreferenceFragment {
                     String pid = Integer.toHexString(Integer.parseInt(ids[1]));
                     vid = UtilityFunctions.addLeadingZeroes(vid, 4);
                     pid = UtilityFunctions.addLeadingZeroes(pid, 4);
-                    entries[i] = deviceInfo[0] + "\nVID:0x" + vid + " PID:0x" + pid + "\n" + ids[2];
+
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                        entries[i] = deviceInfo[0] + "\nVID:0x" + vid + " PID:0x" + pid + "\n" + ids[2];
+                    } else {
+                        entries[i] = deviceInfo[0] + "\nVID:0x" + vid + " PID:0x" + pid;
+                    }
                     entryValues[i] = deviceInfo[1];
                 }
             }
