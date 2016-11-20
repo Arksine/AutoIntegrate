@@ -29,6 +29,7 @@ import com.arksine.autointegrate.preferences.CameraSettings;
 import com.arksine.autointegrate.preferences.PowerSettings;
 import com.arksine.autointegrate.preferences.RadioSettings;
 import com.arksine.autointegrate.R;
+import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
 
 
@@ -171,7 +172,7 @@ public class MainActivity extends AppCompatActivity {
         double x = Math.pow(widthPixels/dm.xdpi,2);
         double y = Math.pow(heightPixels/dm.ydpi,2);
         double screenInches = Math.sqrt(x+y);
-        Log.i(TAG, "Display size inches: " + screenInches);
+        DLog.i(TAG, "Display size inches: " + screenInches);
 
         if (orientation == Configuration.ORIENTATION_LANDSCAPE &&
                 screenInches >= 6.5) {
@@ -213,7 +214,7 @@ public class MainActivity extends AppCompatActivity {
                 if (sharedPrefs.getBoolean("main_pref_key_toggle_controller", false)) {
                     fragment = new MicroControllerSettings();
                     title = "Controller Settings";
-                    Log.i(TAG, "Controller Settings Selected");
+                    DLog.v(TAG, "Controller Settings Selected");
                 } else {
                     Toast.makeText(this, "Main Integration Disabled",
                             Toast.LENGTH_SHORT).show();
@@ -242,7 +243,7 @@ public class MainActivity extends AppCompatActivity {
                 break;
             default:
                 // not supported, log and send toast
-                Log.e(TAG, "Unsupported navigation selection: " + position);
+                Log.w(TAG, "Unsupported navigation selection: " + position);
                 Toast.makeText(this, "Selection not supported",
                         Toast.LENGTH_SHORT).show();
                 return;
