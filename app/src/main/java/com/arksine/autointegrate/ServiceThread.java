@@ -119,7 +119,6 @@ public class ServiceThread implements Runnable {
         }
 
         while (serviceThreadRunning) {
-
             // Check to see if MicroController Integration is enabled
             if (sharedPrefs.getBoolean("main_pref_key_toggle_controller", false)) {
 
@@ -141,8 +140,8 @@ public class ServiceThread implements Runnable {
 
                 // Since the connection status determines if the radio is powered on or not,
                 // its possible for it to be disconnected.  We will only create a new mHdRadio object
-                // if its been shut down and set to null
-                if (mHdRadio == null) {
+                // if its null or if the hdRadio wasn't able to successfully setup
+                if (mHdRadio == null || !mHdRadio.isRadioReady()) {
                     mHdRadio = new RadioCom(mService);
                     if (mHdRadio.connect()) {
                         DLog.v(TAG, "HD Radio Connection Set Up");
@@ -206,8 +205,10 @@ public class ServiceThread implements Runnable {
         }
 
         if (globalPrefs.getBoolean("main_pref_key_toggle_radio", false)) {
-            connected = (connected && (mHdRadio != null && mHdRadio.isConnected()));
+            connected = (connected && (mHdRadio != null && mHdRadio.isRadioReady()));
         }
+
+        DLog.i(TAG, "All connected status: " + connected);
 
         return connected;
     }
@@ -293,7 +294,7 @@ public class ServiceThread implements Runnable {
     }
 
     public RadioControlInterface getRadioInterface() {
-        if (mHdRadio != null && mHdRadio.isConnected()) {
+        if (mHdRadio != null && mHdRadio.isRadioReady()) {
             return mHdRadio.getRadioInterface();
         } else {
             return null;

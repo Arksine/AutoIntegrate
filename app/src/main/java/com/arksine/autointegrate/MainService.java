@@ -29,7 +29,7 @@ import com.arksine.autointegrate.utilities.DLog;
 public class MainService extends Service {
 
     private static String TAG = "MainService";
-
+    private Notification mNotification;
     private final IBinder mBinder = new LocalBinder();
 
     public final RemoteCallbackList<RadioControlCallback> mRadioCallbacks
@@ -97,12 +97,11 @@ public class MainService extends Service {
         Intent notificationIntent = new Intent(this, MainActivity.class);
         PendingIntent pendingIntent = PendingIntent.getActivity(this,
                 R.integer.REQUEST_START_AUTOINTEGRATE_ACTIVITY, notificationIntent, 0);
-        Notification notification;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             Icon stopIcon = Icon.createWithResource(this, R.drawable.ic_stop);
             Notification.Action stopAction = new Notification.Action.Builder(stopIcon,
                     "Stop Service", stopPendingIntent).build();
-            notification = new Notification.Builder(this)
+            mNotification = new Notification.Builder(this)
                     .setContentTitle(getText(R.string.service_notification_title))
                     .setContentText("Service Running")
                     .setSmallIcon(R.drawable.ic_notification_small)
@@ -113,7 +112,7 @@ public class MainService extends Service {
                     .setPriority(Notification.PRIORITY_HIGH)
                     .build();
         } else {
-            notification = new Notification.Builder(this)
+            mNotification = new Notification.Builder(this)
                     .setContentTitle(getText(R.string.service_notification_title))
                     .setContentText("Service Running")
                     .setSmallIcon(R.drawable.ic_notification_small)
@@ -125,8 +124,6 @@ public class MainService extends Service {
                     .setPriority(Notification.PRIORITY_HIGH)
                     .build();
         }
-
-        startForeground(R.integer.ONGOING_NOTIFICATION_ID, notification);
     }
 
     @Override
@@ -145,6 +142,8 @@ public class MainService extends Service {
         } else {
             DLog.i(TAG, "Attempt to start service when already running");
         }
+
+        startForeground(R.integer.ONGOING_NOTIFICATION_ID, mNotification);
 
         // If we get killed, after returning from here, restart
         return START_STICKY;

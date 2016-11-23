@@ -20,7 +20,7 @@ public abstract class RadioControlCallback implements IInterface {
     //          is to use a handler to process each call as they are coming in, then synchronize
     //          inside the handleMessage function if necessary
     public abstract void OnRadioDataReceived(RadioKey.Command key, Object value) throws RemoteException;
-    public abstract void OnClose() throws RemoteException;
+    public abstract void OnError() throws RemoteException;
 
     @Override
     public IBinder asBinder() {

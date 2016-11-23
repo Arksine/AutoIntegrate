@@ -13,9 +13,12 @@ import android.os.Message;
 import android.os.RemoteException;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.View;
+import android.view.ViewTreeObserver;
 import android.widget.Button;
+import android.widget.ScrollView;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -28,12 +31,14 @@ import com.arksine.autointegrate.interfaces.RadioControlInterface;
 import com.arksine.autointegrate.radio.RadioController;
 import com.arksine.autointegrate.radio.RadioKey;
 import com.arksine.autointegrate.utilities.BackgroundThreadFactory;
-import com.arksine.autointegrate.utilities.TextInfoAnimator;
+import com.arksine.autointegrate.radio.TextSwapAnimator;
+import com.arksine.autointegrate.utilities.DLog;
 
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+// TODO: need an OnPowerOff callback that clears all text, put it in a runnable perhaps.
 public class RadioActivity extends AppCompatActivity {
     private static final String TAG = RadioActivity.class.getSimpleName();
 
@@ -43,10 +48,11 @@ public class RadioActivity extends AppCompatActivity {
     private boolean mBound = false;
     private RadioControlInterface mRadioInterface = null;
 
+    private volatile boolean mRdsProgramServiceEnabled = false;
     private volatile boolean mRdsEnabled = false;
     private volatile boolean mHdActive = false;
 
-    private TextInfoAnimator mTextInfoAnimator;
+    private TextSwapAnimator mTextSwapAnimator;
     private String mFrequency = "87.9";
     private String mBand = "FM";
 
@@ -72,7 +78,7 @@ public class RadioActivity extends AppCompatActivity {
         }
 
         @Override
-        public void OnClose() throws RemoteException {
+        public void OnError() throws RemoteException {
             mRadioInterface = null;
         }
 
@@ -108,6 +114,8 @@ public class RadioActivity extends AppCompatActivity {
         @Override
         public void run() {
             if (mRadioInterface != null) {
+                // TODO: most of these should just be reloads of persisted values.  Current values
+                // can be set
                 final boolean power = mRadioInterface.getPowerStatus();
                 final boolean mute = (boolean)mRadioInterface.getHdValue(RadioKey.Command.MUTE);
                 final boolean seekAll = mRadioInterface.getSeekAll();
@@ -126,16 +134,20 @@ public class RadioActivity extends AppCompatActivity {
                     }
                 });
 
-                // Ask the radio to send fresh tune info
-                mRadioInterface.requestUpdate(RadioKey.Command.TUNE);
+                if (power) {
+                    // Ask the radio to send fresh tune info
+                    mRadioInterface.requestUpdate(RadioKey.Command.TUNE);
 
-                if (mHdActive) {
-                    mRadioInterface.requestUpdate(RadioKey.Command.HD_SUBCHANNEL);  // subchannel updates artist and title
-                    mRadioInterface.requestUpdate(RadioKey.Command.HD_CALLSIGN);
-                } else if (mRdsEnabled) {
-                    mRadioInterface.requestUpdate(RadioKey.Command.RDS_RADIO_TEXT);
-                    mRadioInterface.requestUpdate(RadioKey.Command.RDS_GENRE);
-                    mRadioInterface.requestUpdate(RadioKey.Command.RDS_PROGRAM_SERVICE);
+                    if (mHdActive) {
+                        mRadioInterface.requestUpdate(RadioKey.Command.HD_SUBCHANNEL);  // subchannel updates artist and title
+                        mRadioInterface.requestUpdate(RadioKey.Command.HD_CALLSIGN);
+                    } else if (mRdsEnabled) {
+                        mRadioInterface.requestUpdate(RadioKey.Command.RDS_RADIO_TEXT);
+                        mRadioInterface.requestUpdate(RadioKey.Command.RDS_GENRE);
+                        mRadioInterface.requestUpdate(RadioKey.Command.RDS_PROGRAM_SERVICE);
+                    }
+                } else {
+                    runOnUiThread(mPowerOffRunnable);
                 }
             }
         }
@@ -153,6 +165,8 @@ public class RadioActivity extends AppCompatActivity {
                 Context.MODE_PRIVATE);
 
         initViews();
+
+        mTextSwapAnimator = new TextSwapAnimator(mRadioInfoText);
     }
 
     private void initViews() {
@@ -173,11 +187,13 @@ public class RadioActivity extends AppCompatActivity {
         mPowerButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                DLog.v(TAG, "Power Clicked, inteface is: " + (mRadioInterface != null));
                 if (mRadioInterface != null) {
                     final boolean status = ((ToggleButton)view).isChecked();
                     EXECUTOR.execute(new Runnable() {
                         @Override
                         public void run() {
+                            DLog.v(TAG, "Set power: " + status);
                             mRadioInterface.togglePower(status);
                         }
                     });
@@ -194,6 +210,7 @@ public class RadioActivity extends AppCompatActivity {
                     EXECUTOR.execute(new Runnable() {
                         @Override
                         public void run() {
+                            DLog.v(TAG, "Set mute: " + status);
                             mRadioInterface.toggleMute(status);
                         }
                     });
@@ -221,6 +238,7 @@ public class RadioActivity extends AppCompatActivity {
             public void onClick(View view) {
                 if (mRadioInterface != null) {
                     final boolean band = ((ToggleButton) view).isChecked();
+                    DLog.v(TAG, "Switch Band to FM: " + band);
                     if (band) {
                         EXECUTOR.execute(new Runnable() {
                             @Override
@@ -242,7 +260,7 @@ public class RadioActivity extends AppCompatActivity {
                         EXECUTOR.execute(new Runnable() {
                             @Override
                             public void run() {
-                                final int frequency = mRadioActivityPrefs.getInt("pref_key_stored_am_freq", 875);
+                                final int frequency = mRadioActivityPrefs.getInt("pref_key_stored_am_freq", 900);
 
                                 //save fm channel
                                 int prevFreq = ((RadioController.TuneInfo)mRadioInterface
@@ -337,14 +355,34 @@ public class RadioActivity extends AppCompatActivity {
             }
         });
 
-
     }
 
     @Override
     protected void onResume() {
         super.onResume();
 
-        mTextInfoAnimator = new TextInfoAnimator(mRadioInfoText);
+        final ScrollView infoScrollView = (ScrollView)mRadioInfoText.getParent();
+        ViewTreeObserver viewTreeObserver = infoScrollView.getViewTreeObserver();
+        if (viewTreeObserver.isAlive()) {
+
+            viewTreeObserver.addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+                @Override
+                public void onGlobalLayout() {
+                    infoScrollView.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                    mTextSwapAnimator.setScrollViewWidth(infoScrollView.getWidth());
+                    DLog.v(TAG, "View Tree Observer set scrollview width to : " +
+                        infoScrollView.getWidth());
+                }
+            });
+        } else {
+            // use display metrics
+            DisplayMetrics displayMetrics = new DisplayMetrics();
+            getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
+            int padding = Math.round(2 * getResources().getDimension(R.dimen.activity_horizontal_margin));
+            int scrollViewWidth = displayMetrics.widthPixels - padding;
+            mTextSwapAnimator.setScrollViewWidth(scrollViewWidth);
+            DLog.v(TAG, "Display Metrics set width to:  " + scrollViewWidth);
+        }
 
         Intent intent = new Intent(this, MainService.class);
         bindService(intent, mServiceConnection, Context.BIND_AUTO_CREATE);
@@ -354,7 +392,7 @@ public class RadioActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
-        mTextInfoAnimator.stopAnimation();
+        mTextSwapAnimator.stopAnimation();
 
         if (mBound) {
             unbindService(mServiceConnection);
@@ -374,35 +412,30 @@ public class RadioActivity extends AppCompatActivity {
             RadioMessage radioMessage = (RadioMessage)message.obj;
             switch (radioMessage.key) {
                 case POWER:
-                    mPowerButton.setChecked((boolean)radioMessage.value);
                     break;
                 case MUTE:
-                    mMuteButton.setChecked((boolean)radioMessage.value);
                     break;
                 case VOLUME:
-                    mVolumeSeekbar.setProgress((int)radioMessage.value);
                     break;
                 case BASS:
-
                     break;
                 case TREBLE:
-
                     break;
                 case HD_SUBCHANNEL:
                     if (mHdActive && (int)radioMessage.value > 0) {
                         String newFreq = mFrequency + "-" + String.valueOf((int)radioMessage.value);
                         mRadioFreqText.setText(newFreq);
-                        mTextInfoAnimator.setTextItem(RadioKey.Command.TUNE, newFreq + " " + mBand);
+                        mTextSwapAnimator.setTextItem(RadioKey.Command.TUNE, newFreq + " " + mBand);
 
                         // Update info text with artist and title from current subchannel
-                        mTextInfoAnimator.setTextItem(RadioKey.Command.HD_TITLE,
+                        mTextSwapAnimator.setTextItem(RadioKey.Command.HD_TITLE,
                                 (String)mRadioInterface.getHdValue(RadioKey.Command.HD_TITLE));
-                        mTextInfoAnimator.setTextItem(RadioKey.Command.HD_ARTIST,
+                        mTextSwapAnimator.setTextItem(RadioKey.Command.HD_ARTIST,
                                 (String)mRadioInterface.getHdValue(RadioKey.Command.HD_ARTIST));
 
                     } else {
                         mRadioFreqText.setText(mFrequency);
-                        mTextInfoAnimator.setTextItem(RadioKey.Command.TUNE, mFrequency + " " + mBand);
+                        mTextSwapAnimator.setTextItem(RadioKey.Command.TUNE, mFrequency + " " + mBand);
 
                     }
                     break;
@@ -417,30 +450,37 @@ public class RadioActivity extends AppCompatActivity {
                         mFrequency = String.valueOf(info.frequency);
                         mBandButton.setChecked(false);
                     }
+
+                    mTextSwapAnimator.setTextItem(RadioKey.Command.TUNE, mFrequency + " " + mBand);
+                    mTextSwapAnimator.resetAnimator();
                     mRdsEnabled = false;
                     mHdActive = false;
                     // TODO: mHDStatus text is temporary
                     mHdStatusText.setText("");
                     mRadioFreqText.setText(mFrequency);
                     mRadioBandText.setText(info.band.toString());
-                    mTextInfoAnimator.setTextItem(RadioKey.Command.TUNE, mFrequency + " " + mBand);
-                    mTextInfoAnimator.clearInfo();
+
+                    mHandler.postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            mRadioInterface.requestUpdate(RadioKey.Command.SIGNAL_STRENGTH);
+                            mRadioInterface.requestUpdate(RadioKey.Command.HD_SIGNAL_STRENGH);
+                            mRadioInterface.requestUpdate(RadioKey.Command.HD_SUBCHANNEL_COUNT);
+                        }
+                    }, 2000);
 
                     break;
                 case SEEK:
                     String tmpFreq;
                     if (mBandButton.isChecked()) {
                         tmpFreq = String.format(Locale.US, "%1$.1f",
-                                ((float)radioMessage.value)/10);
+                                ((int)radioMessage.value)/10f);
                     } else {
                         tmpFreq = String.valueOf((int)radioMessage.value);
                     }
                     mRadioFreqText.setText(tmpFreq);
                     break;
                 case HD_ACTIVE:
-                    // TODO: Which do I use to determine if the current channel is HD Channel?
-                    // Probably not HD_TUNER_ENABLED, as I assume if its false then
-                    // hd channels are skipped.  So HD_ACTIVE or HD_STREAM_LOCK?
 
                     // TODO: Show HD Icon if true, hide if false, the textview below is temporary
                     mHdActive = (boolean)radioMessage.value;
@@ -458,14 +498,11 @@ public class RadioActivity extends AppCompatActivity {
                 case HD_CALLSIGN:
                 case RDS_RADIO_TEXT:
                 case RDS_GENRE:
-                    mTextInfoAnimator.setTextItem(radioMessage.key,
-                            (String)radioMessage.value);
-                    break;
                 case RDS_PROGRAM_SERVICE:
-                    // TODO:  RDS_PROGAM_SERVICE is a constant stream of program info (its not very
-                    // accurate, as the data is corrupt/mispelled and words are constantly repeated).
-                    // Because of the nature of this data, I can't use the TextInfoAnimator the
-                    // way it is currently written.
+                    // TODO: Might be better to use another textview for RDS Program service, and
+                    // use the TextStreamAnimator to add text to it.
+                    mTextSwapAnimator.setTextItem(radioMessage.key,
+                            (String) radioMessage.value);
                     break;
                 case RDS_ENABLED:
                     //TODO: show rds icon if true, hide if false
@@ -483,5 +520,11 @@ public class RadioActivity extends AppCompatActivity {
         }
     };
 
+    private Runnable mPowerOffRunnable = new Runnable() {
+        @Override
+        public void run() {
+            // TODO: Clear text views, set infoview frequency to PowerOff
+        }
+    };
 
 }

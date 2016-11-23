@@ -12,6 +12,7 @@ import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Message;
 import android.os.Process;
+import android.os.RemoteException;
 import android.preference.PreferenceManager;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
@@ -39,13 +40,14 @@ public class RadioCom extends SerialCom {
 
     private static final String TAG = "RadioCom";
     private static final int STREAM_LOCK_TIMEOUT = 10;   // seconds
+    private final Object SEND_COMMAND_LOCK = new Object();
 
 
     private RadioMessageHandler mInputHandler;
     private RadioController mRadioController;
     private RadioControlInterface mRadioControlInterface;
 
-    private volatile boolean mIsPoweredOn = false;
+    private volatile boolean mRadioReady = false;
 
     // Broadcast reciever to listen for write commands.
     public class RadioCommandReceiver extends BroadcastReceiver {
@@ -150,6 +152,17 @@ public class RadioCom extends SerialCom {
             @Override
             public void OnDeviceError() {
                 Log.w(TAG, "Device Error, disconnecting");
+                // Execute callbacks for bound activities
+                int cbCount = mService.mRadioCallbacks.beginBroadcast();
+                for (int i = 0; i < cbCount; i++) {
+                    try {
+                        mService.mRadioCallbacks.getBroadcastItem(i).OnError();
+                    } catch (RemoteException e) {
+                        e.printStackTrace();
+                    }
+                }
+                mService.mRadioCallbacks.finishBroadcast();
+
                 mDeviceError = true;
                 Intent refreshConnection = new Intent(mService
                         .getString(R.string.ACTION_REFRESH_RADIO_CONNECTION));
@@ -179,13 +192,13 @@ public class RadioCom extends SerialCom {
         isRadioCommandReceiverRegistered = true;
 
         boolean autoPower = PreferenceManager.getDefaultSharedPreferences(mService)
-                .getBoolean("radio_pref_key_auto_power", true);
+                .getBoolean("radio_pref_key_auto_power", false);
         if (autoPower) {
-            return powerOn(mjsCableLocation);
+            mRadioReady = powerOn(mjsCableLocation);
+        } else {
+            mRadioReady = true;  // We assume the radio is ready if we got this far
         }
-
-        // Initial setup was successful, although its possible connection wasn't established
-        return true;
+        return mRadioReady;
     }
 
     @Override
@@ -194,12 +207,17 @@ public class RadioCom extends SerialCom {
             powerOff();
         }
 
+        mRadioReady = false;
         mSerialHelper = null;
 
         if (isRadioCommandReceiverRegistered) {
             mService.unregisterReceiver(radioCommandReceiver);
             isRadioCommandReceiverRegistered = false;
         }
+    }
+
+    public boolean isRadioReady() {
+        return mRadioReady;
     }
 
     private String findMJSDevice() {
@@ -237,6 +255,7 @@ public class RadioCom extends SerialCom {
 
         // if still null, cable is not found, exit
         if (mjsCableLocation == null) {
+            mRadioReady = false;
             return false;
         }
 
@@ -253,6 +272,7 @@ public class RadioCom extends SerialCom {
                 }
             }
         } else {
+            mRadioReady = false;
             mConnected = false;
         }
 
@@ -316,6 +336,15 @@ public class RadioCom extends SerialCom {
             sendRadioCommand(RadioKey.Command.BASS, RadioKey.Operation.GET, null);
             sendRadioCommand(RadioKey.Command.TREBLE, RadioKey.Operation.GET, null);
             sendRadioCommand(RadioKey.Command.COMPRESSION, RadioKey.Operation.GET, null);
+            sendRadioCommand(RadioKey.Command.HD_TUNER_ENABLED, RadioKey.Operation.GET, null);
+            sendRadioCommand(RadioKey.Command.HD_ACTIVE, RadioKey.Operation.GET, null);
+            sendRadioCommand(RadioKey.Command.TUNE, RadioKey.Operation.GET, null);
+        }
+
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            Log.w(TAG, e.getMessage());
         }
 
         // Restore persisted values
@@ -328,6 +357,8 @@ public class RadioCom extends SerialCom {
         int bass = globalPrefs.getInt("radio_pref_key_bass", 15);
         int treble = globalPrefs.getInt("radio_pref_key_treble", 15);
 
+        // TODO: there seems to be an issue setting variables, perhaps too soon after radio
+        //       is connected and turned on?
         mRadioControlInterface.tune(band, frequency, subchannel);
         mRadioControlInterface.setVolume(volume);
         mRadioControlInterface.setBass(bass);
@@ -336,16 +367,21 @@ public class RadioCom extends SerialCom {
     }
 
     private void sendRadioCommand(RadioKey.Command command, RadioKey.Operation operation, Object data) {
-        byte[] radioPacket = mRadioController.buildRadioPacket(command, operation, data);
-        if (radioPacket != null) {
-            mSerialHelper.writeBytes(radioPacket);
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+        synchronized (SEND_COMMAND_LOCK) {
+            byte[] radioPacket = mRadioController.buildRadioPacket(command, operation, data);
+            if (radioPacket != null && mSerialHelper != null) {
+                mSerialHelper.writeBytes(radioPacket);
+
+                // TODO: rather than use sleep check the system clock and wait before sending bytes,
+                // its possible multiple threads could access this at the same time
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            } else {
+                Log.i(TAG, "Invalid Radio Packet");
             }
-        } else {
-            Log.i(TAG, "Invalid Radio Packet");
         }
     }
 

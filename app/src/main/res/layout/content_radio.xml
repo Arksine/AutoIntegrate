@@ -47,7 +47,7 @@
     </LinearLayout>
 
     <ScrollView
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
         android:layout_marginBottom="5dp">
@@ -55,8 +55,9 @@
         <TextView
             android:text="Test"
             android:id="@+id/txt_radio_info"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:gravity="center"
             android:maxLines="1"
             android:textAppearance="?android:attr/textAppearanceLarge"/>
 

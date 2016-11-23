@@ -29,7 +29,7 @@ public class RadioController {
     private final Object WRITE_LOCK = new Object();
 
     private MainService mService;
-    private volatile boolean mSeekAll = false;
+    private volatile boolean mSeekAll = true;
 
 
     public static class TuneInfo {
@@ -457,6 +457,7 @@ public class RadioController {
                     }
                     dataBuf.put(bandBytes);
                     dataBuf.putInt(info.frequency);
+                    dataBuf.put(HDRadioDefs.getConstantBytes(RadioKey.Constant.ZERO));
 
                 } else {
                     // The data is incorrect
@@ -498,16 +499,6 @@ public class RadioController {
     }
 
     public void close(Context context) {
-        // Execute callbacks for bound activities
-        int cbCount = mService.mRadioCallbacks.beginBroadcast();
-        for (int i = 0; i < cbCount; i++) {
-            try {
-                mService.mRadioCallbacks.getBroadcastItem(i).OnClose();
-            } catch (RemoteException e) {
-                e.printStackTrace();
-            }
-        }
-        mService.mRadioCallbacks.finishBroadcast();
 
         // Persist changeable values
         SharedPreferences globalPrefs = PreferenceManager.getDefaultSharedPreferences(context);
