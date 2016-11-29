@@ -136,8 +136,8 @@ public class DimmerCalibrationDialog {
     private void buildDialog() {
         mDimmerDialog = DialogPlus.newDialog(mContext)
                 .setContentHolder(new ViewHolder(R.layout.dialog_dimmer_calibration))
-                .setHeader(R.layout.dialog_button_learning_header)
-                .setFooter(R.layout.dialog_button_learning_footer)
+                .setHeader(R.layout.dialog_header)
+                .setFooter(R.layout.dialog_footer)
                 .setContentWidth(ViewGroup.LayoutParams.WRAP_CONTENT)
                 .setContentHeight(ViewGroup.LayoutParams.WRAP_CONTENT)
                 .setGravity(Gravity.CENTER)

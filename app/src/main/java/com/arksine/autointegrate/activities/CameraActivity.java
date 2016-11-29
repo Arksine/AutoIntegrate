@@ -195,7 +195,7 @@ public class CameraActivity extends AppCompatActivity {
         }
 
         @Override
-        public void onCancel() {}
+        public void onCancel(UsbDevice device) {}
     };
 
     @Override

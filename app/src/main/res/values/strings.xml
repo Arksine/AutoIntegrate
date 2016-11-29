@@ -173,6 +173,8 @@
 
     <!-- DIALOG STRINGS-->
 
+    <string name="dialog_button_ok">OK</string>
+
     <string name="dialog_title_add">Add Resistive Button</string>
     <string name="dialog_title_edit">Edit Resistive Button</string>
     <string name="dialog_button_help">Help</string>
@@ -322,5 +324,5 @@
         levels.  This allows the device brightness to be variable, depending on the dimmer setting.
     </string>
 
-
+    <string name="dialog_radio_audio_settings">Audio Settings</string>
 </resources>

@@ -19,17 +19,18 @@ import android.view.View;
 import android.view.ViewTreeObserver;
 import android.widget.Button;
 import android.widget.ScrollView;
-import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 
 import com.arksine.autointegrate.MainService;
 import com.arksine.autointegrate.R;
+import com.arksine.autointegrate.dialogs.RadioSettingsDialog;
 import com.arksine.autointegrate.interfaces.RadioControlCallback;
 import com.arksine.autointegrate.interfaces.RadioControlInterface;
 import com.arksine.autointegrate.radio.RadioController;
 import com.arksine.autointegrate.radio.RadioKey;
+import com.arksine.autointegrate.radio.TextStreamAnimator;
 import com.arksine.autointegrate.utilities.BackgroundThreadFactory;
 import com.arksine.autointegrate.radio.TextSwapAnimator;
 import com.arksine.autointegrate.utilities.DLog;
@@ -38,7 +39,8 @@ import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-// TODO: need an OnPowerOff callback that clears all text, put it in a runnable perhaps.
+// TODO: is signal strength 0-3000?
+// TODO: need a button or menu item to launch dialog
 public class RadioActivity extends AppCompatActivity {
     private static final String TAG = RadioActivity.class.getSimpleName();
 
@@ -48,11 +50,14 @@ public class RadioActivity extends AppCompatActivity {
     private boolean mBound = false;
     private RadioControlInterface mRadioInterface = null;
 
-    private volatile boolean mRdsProgramServiceEnabled = false;
     private volatile boolean mRdsEnabled = false;
     private volatile boolean mHdActive = false;
+    private volatile boolean mIsRequestingSignal = false;
+    
+    private RadioSettingsDialog mRadioSettingsDialog;
 
     private TextSwapAnimator mTextSwapAnimator;
+    private TextStreamAnimator mTextStreamAnimator;
     private String mFrequency = "87.9";
     private String mBand = "FM";
 
@@ -60,11 +65,11 @@ public class RadioActivity extends AppCompatActivity {
     private TextView mRadioFreqText;
     private TextView mRadioBandText;
     private TextView mRadioInfoText;
+    private TextView mStreamingInfoText;
     private ToggleButton mPowerButton;
     private ToggleButton mMuteButton;
     private ToggleButton mSeekAllButton;
     private ToggleButton mBandButton;
-    private SeekBar mVolumeSeekbar;
 
     private RadioControlCallback mRadioCallback = new RadioControlCallback() {
         @Override
@@ -80,8 +85,14 @@ public class RadioActivity extends AppCompatActivity {
         @Override
         public void OnError() throws RemoteException {
             mRadioInterface = null;
+            // TODO: send toast that there was an error?
+            runOnUiThread(mPowerOffRunnable);
         }
 
+        @Override
+        public void OnPowerOff() throws RemoteException {
+            runOnUiThread(mPowerOffRunnable);
+        }
     };
 
     private ServiceConnection mServiceConnection = new ServiceConnection() {
@@ -114,14 +125,14 @@ public class RadioActivity extends AppCompatActivity {
         @Override
         public void run() {
             if (mRadioInterface != null) {
-                // TODO: most of these should just be reloads of persisted values.  Current values
-                // can be set
                 final boolean power = mRadioInterface.getPowerStatus();
                 final boolean mute = (boolean)mRadioInterface.getHdValue(RadioKey.Command.MUTE);
                 final boolean seekAll = mRadioInterface.getSeekAll();
                 mHdActive = (boolean)mRadioInterface.getHdValue(RadioKey.Command.HD_ACTIVE);
                 mRdsEnabled = (boolean)mRadioInterface.getHdValue(RadioKey.Command.RDS_ENABLED);
                 final int volume = (int)mRadioInterface.getHdValue(RadioKey.Command.VOLUME);
+                final int bass =  (int)mRadioInterface.getHdValue(RadioKey.Command.BASS);
+                final int treble = (int)mRadioInterface.getHdValue(RadioKey.Command.VOLUME);
 
                 runOnUiThread(new Runnable() {
                     @Override
@@ -130,7 +141,9 @@ public class RadioActivity extends AppCompatActivity {
                         mPowerButton.setChecked(power);
                         mMuteButton.setChecked(mute);
                         mSeekAllButton.setChecked(seekAll);
-                        mVolumeSeekbar.setProgress(volume);
+                        mRadioSettingsDialog.setSeekBarProgress(RadioKey.Command.VOLUME, volume);
+                        mRadioSettingsDialog.setSeekBarProgress(RadioKey.Command.BASS, bass);
+                        mRadioSettingsDialog.setSeekBarProgress(RadioKey.Command.TREBLE, treble);
                     }
                 });
 
@@ -145,6 +158,10 @@ public class RadioActivity extends AppCompatActivity {
                         mRadioInterface.requestUpdate(RadioKey.Command.RDS_RADIO_TEXT);
                         mRadioInterface.requestUpdate(RadioKey.Command.RDS_GENRE);
                         mRadioInterface.requestUpdate(RadioKey.Command.RDS_PROGRAM_SERVICE);
+                    }
+
+                    if (!mIsRequestingSignal) {
+                        EXECUTOR.execute(mRequestSignalRunnable);
                     }
                 } else {
                     runOnUiThread(mPowerOffRunnable);
@@ -165,8 +182,36 @@ public class RadioActivity extends AppCompatActivity {
                 Context.MODE_PRIVATE);
 
         initViews();
+        
+        RadioSettingsDialog.SeekBarListener listener = new RadioSettingsDialog.SeekBarListener() {
+            @Override
+            public void OnSeekBarChanged(RadioKey.Command key, int value) {
+                switch (key) {
+                    case VOLUME:
+                        if (mRadioInterface != null) {
+                            mRadioInterface.setVolume(value);
+                        }
+                        break;
+                    case BASS:
+                        if (mRadioInterface != null) {
+                            mRadioInterface.setBass(value);
+                        }
+                        break;
+                    case TREBLE:
+                        if (mRadioInterface != null) {
+                            mRadioInterface.setTreble(value);
+                        }
+                        break;
+                    default:
+                        DLog.v(TAG, "Invalid command, cannot set apply setting");
+                }
+            }
+        };
+        
+        mRadioSettingsDialog = new RadioSettingsDialog(this, listener);
 
         mTextSwapAnimator = new TextSwapAnimator(mRadioInfoText);
+        mTextStreamAnimator = new TextStreamAnimator(mStreamingInfoText);
     }
 
     private void initViews() {
@@ -174,6 +219,7 @@ public class RadioActivity extends AppCompatActivity {
         mRadioFreqText = (TextView)findViewById(R.id.txt_radio_frequency);
         mRadioBandText = (TextView)findViewById(R.id.txt_radio_band);
         mRadioInfoText = (TextView)findViewById(R.id.txt_radio_info);
+        mStreamingInfoText = (TextView)findViewById(R.id.txt_streaming_info);
         mPowerButton = (ToggleButton)findViewById(R.id.btn_radio_power);
         mMuteButton = (ToggleButton)findViewById(R.id.btn_radio_mute);
         mSeekAllButton = (ToggleButton)findViewById(R.id.btn_radio_seekall);
@@ -182,12 +228,11 @@ public class RadioActivity extends AppCompatActivity {
         Button mTuneDownButton = (Button) findViewById(R.id.btn_radio_tune_down);
         Button mSeekUpButton = (Button) findViewById(R.id.btn_radio_seek_up);
         Button mSeekDownButton = (Button) findViewById(R.id.btn_radio_seek_down);
-        mVolumeSeekbar = (SeekBar) findViewById(R.id.seekbar_radio_volume);
 
         mPowerButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                DLog.v(TAG, "Power Clicked, inteface is: " + (mRadioInterface != null));
+                DLog.v(TAG, "Power Clicked, interface is: " + (mRadioInterface != null));
                 if (mRadioInterface != null) {
                     final boolean status = ((ToggleButton)view).isChecked();
                     EXECUTOR.execute(new Runnable() {
@@ -334,26 +379,6 @@ public class RadioActivity extends AppCompatActivity {
             }
         });
 
-        mVolumeSeekbar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int i, boolean b) {}
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {}
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
-                if (mRadioInterface != null) {
-                    final int position = seekBar.getProgress();
-                    EXECUTOR.execute(new Runnable() {
-                        @Override
-                        public void run() {
-                            mRadioInterface.setVolume(position);
-                        }
-                    });
-                }
-            }
-        });
 
     }
 
@@ -370,6 +395,7 @@ public class RadioActivity extends AppCompatActivity {
                 public void onGlobalLayout() {
                     infoScrollView.getViewTreeObserver().removeOnGlobalLayoutListener(this);
                     mTextSwapAnimator.setScrollViewWidth(infoScrollView.getWidth());
+                    mTextStreamAnimator.setScrollViewWidth((infoScrollView.getWidth()));
                     DLog.v(TAG, "View Tree Observer set scrollview width to : " +
                         infoScrollView.getWidth());
                 }
@@ -381,6 +407,7 @@ public class RadioActivity extends AppCompatActivity {
             int padding = Math.round(2 * getResources().getDimension(R.dimen.activity_horizontal_margin));
             int scrollViewWidth = displayMetrics.widthPixels - padding;
             mTextSwapAnimator.setScrollViewWidth(scrollViewWidth);
+            mTextStreamAnimator.setScrollViewWidth(scrollViewWidth);
             DLog.v(TAG, "Display Metrics set width to:  " + scrollViewWidth);
         }
 
@@ -396,8 +423,10 @@ public class RadioActivity extends AppCompatActivity {
 
         if (mBound) {
             unbindService(mServiceConnection);
-            mBound = false;
-        }
+            mBound = false;        }
+
+        // TODO: I could assign a future to the signal request runnable and shut it down
+        mIsRequestingSignal = false;
     }
 
     class RadioMessage {
@@ -412,14 +441,25 @@ public class RadioActivity extends AppCompatActivity {
             RadioMessage radioMessage = (RadioMessage)message.obj;
             switch (radioMessage.key) {
                 case POWER:
+                    // Because the power value is ALWAYS true, query the radio interface for power
+                    // status.  If its on launch runnable
+                    if (mRadioInterface.getPowerStatus() && !mIsRequestingSignal) {
+                        EXECUTOR.execute(mRequestSignalRunnable);
+                    }
                     break;
                 case MUTE:
                     break;
                 case VOLUME:
+                    mRadioSettingsDialog.setSeekBarProgress(RadioKey.Command.VOLUME, 
+                            (int)radioMessage.value);
                     break;
                 case BASS:
+                    mRadioSettingsDialog.setSeekBarProgress(RadioKey.Command.BASS,
+                            (int)radioMessage.value);
                     break;
                 case TREBLE:
+                    mRadioSettingsDialog.setSeekBarProgress(RadioKey.Command.TREBLE,
+                            (int)radioMessage.value);
                     break;
                 case HD_SUBCHANNEL:
                     if (mHdActive && (int)radioMessage.value > 0) {
@@ -440,6 +480,8 @@ public class RadioActivity extends AppCompatActivity {
                     }
                     break;
                 case TUNE:
+                    mHandler.removeCallbacks(mPostTuneRunnable);
+
                     RadioController.TuneInfo info = (RadioController.TuneInfo) radioMessage.value;
                     if (info.band == RadioKey.Band.FM) {
                         mBand = "FM";
@@ -450,7 +492,7 @@ public class RadioActivity extends AppCompatActivity {
                         mFrequency = String.valueOf(info.frequency);
                         mBandButton.setChecked(false);
                     }
-
+                    mTextStreamAnimator.clear();
                     mTextSwapAnimator.setTextItem(RadioKey.Command.TUNE, mFrequency + " " + mBand);
                     mTextSwapAnimator.resetAnimator();
                     mRdsEnabled = false;
@@ -459,16 +501,7 @@ public class RadioActivity extends AppCompatActivity {
                     mHdStatusText.setText("");
                     mRadioFreqText.setText(mFrequency);
                     mRadioBandText.setText(info.band.toString());
-
-                    mHandler.postDelayed(new Runnable() {
-                        @Override
-                        public void run() {
-                            mRadioInterface.requestUpdate(RadioKey.Command.SIGNAL_STRENGTH);
-                            mRadioInterface.requestUpdate(RadioKey.Command.HD_SIGNAL_STRENGH);
-                            mRadioInterface.requestUpdate(RadioKey.Command.HD_SUBCHANNEL_COUNT);
-                        }
-                    }, 2000);
-
+                    mHandler.postDelayed(mPostTuneRunnable, 2000);
                     break;
                 case SEEK:
                     String tmpFreq;
@@ -498,11 +531,11 @@ public class RadioActivity extends AppCompatActivity {
                 case HD_CALLSIGN:
                 case RDS_RADIO_TEXT:
                 case RDS_GENRE:
-                case RDS_PROGRAM_SERVICE:
-                    // TODO: Might be better to use another textview for RDS Program service, and
-                    // use the TextStreamAnimator to add text to it.
                     mTextSwapAnimator.setTextItem(radioMessage.key,
                             (String) radioMessage.value);
+                    break;
+                case RDS_PROGRAM_SERVICE:
+                   mTextStreamAnimator.addStreamingText((String)radioMessage.value);
                     break;
                 case RDS_ENABLED:
                     //TODO: show rds icon if true, hide if false
@@ -520,11 +553,50 @@ public class RadioActivity extends AppCompatActivity {
         }
     };
 
+    private Runnable mPostTuneRunnable = new Runnable() {
+        @Override
+        public void run() {
+            mRadioInterface.requestUpdate(RadioKey.Command.RDS_ENABLED);
+        }
+    };
+
     private Runnable mPowerOffRunnable = new Runnable() {
         @Override
         public void run() {
-            // TODO: Clear text views, set infoview frequency to PowerOff
+            // Clear text views, set infoview frequency to PowerOff
+            mTextStreamAnimator.clear();
+            mTextSwapAnimator.setTextItem(RadioKey.Command.TUNE, "Power Off");
+            mTextSwapAnimator.resetAnimator();
+            mHdStatusText.setText("");
+            mRadioFreqText.setText("");
+            mRadioBandText.setText("");
+            mRdsEnabled = false;
+            mHdActive = false;
         }
     };
+
+    private Runnable mRequestSignalRunnable = new Runnable() {
+        @Override
+        public void run() {
+            mIsRequestingSignal = true;
+            while (mRadioInterface != null && mRadioInterface.getPowerStatus()
+                    && mIsRequestingSignal) {
+                if (mHdActive) {
+                    mRadioInterface.requestUpdate(RadioKey.Command.HD_SIGNAL_STRENGH);
+                } else {
+                    mRadioInterface.requestUpdate(RadioKey.Command.SIGNAL_STRENGTH);
+                }
+
+                try {
+                    Thread.sleep(10000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            mIsRequestingSignal = false;
+        }
+    };
+
+
 
 }

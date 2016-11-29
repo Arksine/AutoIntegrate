@@ -10,7 +10,7 @@ android {
 
         externalNativeBuild {
             ndkBuild {
-                arguments "NDK_TOOLCHAIN_VERSION:=4.9"
+                arguments "NDK_TOOLCHAIN_VERSION:=clang"
             }
         }
 
@@ -35,5 +35,10 @@ android {
 }
 
 dependencies {
+    compile fileTree(include: ['*.jar'], dir: 'libs')
+    compile("com.serenegiant:common:1.1.9") {
+        exclude module: 'support-v4'
+    }
+    compile 'com.android.support:support-v4:25.0.1'
 }
 

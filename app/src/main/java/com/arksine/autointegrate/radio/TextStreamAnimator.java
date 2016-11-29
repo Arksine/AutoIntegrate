@@ -102,6 +102,10 @@ public class TextStreamAnimator {
     }
 
     public void clear() {
-        // TODO: implement
+        mTextView.setText("");
+        ViewGroup.LayoutParams params = mTextView.getLayoutParams();
+        params.width = mScrollViewWidth;
+        mTextView.setLayoutParams(params);
+        mTextView.setTranslationX(0f);
     }
 }

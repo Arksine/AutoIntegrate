@@ -13,6 +13,7 @@ import android.os.Looper;
 import android.os.Message;
 import android.os.Process;
 import android.os.RemoteException;
+import android.os.SystemClock;
 import android.preference.PreferenceManager;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
@@ -27,7 +28,6 @@ import com.arksine.autointegrate.utilities.UsbHelper;
 import com.arksine.autointegrate.utilities.UsbSerialSettings;
 import com.felhr.usbserial.UsbSerialInterface;
 
-import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Locale;
 
@@ -35,12 +35,14 @@ import java.util.Locale;
  * HD Radio Serial Communications class.
  *
  */
-
 public class RadioCom extends SerialCom {
 
     private static final String TAG = "RadioCom";
-    private static final int STREAM_LOCK_TIMEOUT = 10;   // seconds
+    private static final long STREAM_LOCK_TIMEOUT = 10000;   // milliseconds
+    private static final long POWER_TOGGLE_DELAY = 2000;
+    private static final long POST_TUNE_DELAY = 1000;
     private final Object SEND_COMMAND_LOCK = new Object();
+    private final Object POWER_LOCK = new Object();
 
 
     private RadioMessageHandler mInputHandler;
@@ -48,6 +50,8 @@ public class RadioCom extends SerialCom {
     private RadioControlInterface mRadioControlInterface;
 
     private volatile boolean mRadioReady = false;
+    private volatile long mPreviousPowerTime = 0;
+    private volatile long mPreviousTuneTime = 0;
 
     // Broadcast reciever to listen for write commands.
     public class RadioCommandReceiver extends BroadcastReceiver {
@@ -55,66 +59,8 @@ public class RadioCom extends SerialCom {
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
             if (mService.getString(R.string.ACTION_SEND_RADIO_COMMAND).equals(action)) {
-                // TODO: If I keep this Broadcast Receiver, I need to redo this function, as RadioController.buildPacket
-                //       now expects Object data rather than string data.
-
-
-                /*String command = intent.getStringExtra(mService.getString(R.string.EXTRA_COMMAND));
-                String data = intent.getStringExtra(mService.getString(R.string.EXTRA_DATA));
-                String op = intent.getStringExtra(mService.getString(R.string.EXTRA_OPERATION));
-
-                int tuneSubChannel = 0;
-
-                if (command.equals("seek")) {
-                    String[] extras = data.split(":");
-                    if (extras.length != 2) {
-                        Log.e(TAG, "Extra data for seek command not formatted correctly");
-                        return;
-                    }
-                    boolean seekAll = Boolean.parseBoolean(extras[1]);
-                    mRadioController.setSeekAll(seekAll);
-                    data = extras[0];
-                } else if (command.equals("tune")) {
-                    String[] extras = data.split(":");
-                    if (extras.length == 3) {
-                        // tune directly to frequency, format is band:frequency:subchannel
-                        tuneSubChannel = Integer.parseInt(extras[2]);
-                        data = extras[0] + ":" + extras[1];
-                    }
-                }
-
-                byte[] radioPacket = mRadioController.buildRadioPacket(command, op, data);
-                mSerialHelper.writeBytes(radioPacket);
-
-                if (tuneSubChannel > 0) {
-                    final int subCh = tuneSubChannel;
-                    final byte[] subChPacket = mRadioController.buildRadioPacket("hd_sub_channel",
-                            "set", String.valueOf(subCh));
-                    mSerialHelper.writeBytes(subChPacket);
-
-                    Thread checkHDStreamLockThread = new Thread(new Runnable() {
-                        @Override
-                        public void run() {
-                            Calendar calendar = Calendar.getInstance();
-                            int setTime = calendar.get(Calendar.SECOND);
-
-                            // HD Streamlock can take time, retry every 100ms for 10 seconds
-                            // to set the subchannel.
-                            while ((subCh != (int) mRadioController.getHdValue("hd_sub_channel")) &&
-                                    ((calendar.get(Calendar.SECOND) - setTime) < STREAM_LOCK_TIMEOUT )) {
-                                // Try resetting every 100 ms
-                                try {
-                                    Thread.sleep(100);
-                                } catch (InterruptedException e) {
-                                    e.printStackTrace();
-                                }
-                                mSerialHelper.writeBytes(subChPacket);
-                            }
-                        }
-                    });
-                    checkHDStreamLockThread.start();
-                }*/
-
+                // TODO: Accept a limited number of commands(seek, tune up/down, maybe volume up down
+                // power on off.   OR listen for  media button pushes
             }
         }
     }
@@ -151,19 +97,21 @@ public class RadioCom extends SerialCom {
 
             @Override
             public void OnDeviceError() {
-                Log.w(TAG, "Device Error, disconnecting");
-                // Execute callbacks for bound activities
-                int cbCount = mService.mRadioCallbacks.beginBroadcast();
-                for (int i = 0; i < cbCount; i++) {
-                    try {
-                        mService.mRadioCallbacks.getBroadcastItem(i).OnError();
-                    } catch (RemoteException e) {
-                        e.printStackTrace();
+                if (mConnected) {
+                    Log.w(TAG, "Device Error, disconnecting");
+                    // Execute callbacks for bound activities
+                    int cbCount = mService.mRadioCallbacks.beginBroadcast();
+                    for (int i = 0; i < cbCount; i++) {
+                        try {
+                            mService.mRadioCallbacks.getBroadcastItem(i).OnError();
+                        } catch (RemoteException e) {
+                            e.printStackTrace();
+                        }
                     }
-                }
-                mService.mRadioCallbacks.finishBroadcast();
+                    mService.mRadioCallbacks.finishBroadcast();
 
-                mDeviceError = true;
+                    mDeviceError = true;
+                }
                 Intent refreshConnection = new Intent(mService
                         .getString(R.string.ACTION_REFRESH_RADIO_CONNECTION));
                 LocalBroadcastManager.getInstance(mService).sendBroadcast(refreshConnection);
@@ -243,51 +191,66 @@ public class RadioCom extends SerialCom {
     }
 
     private boolean powerOn(String mjsCableLocation) {
-
         if (mConnected) {
             // already powered on
             return true;
         }
 
-        // if we are passed a null string look for the device
-        if (mjsCableLocation == null)
-            mjsCableLocation = findMJSDevice();
-
-        // if still null, cable is not found, exit
-        if (mjsCableLocation == null) {
-            mRadioReady = false;
-            return false;
-        }
-
-        DLog.v(TAG, "Attempting connection to MJS Cable: " + mjsCableLocation);
-        if (mSerialHelper.connectDevice(mjsCableLocation, mCallbacks)) {
-
-            // wait until the connection is finished or until timeout.
-            synchronized (this) {
+        synchronized (POWER_LOCK) {
+            // Don't allow power on within 2 seconds of power off
+            long powerDelay = (mPreviousPowerTime + POWER_TOGGLE_DELAY) - SystemClock.elapsedRealtime();
+            if (powerDelay > 0) {
+                // sleep
                 try {
-                    mIsWaiting = true;
-                    wait(30000);
+                    Thread.sleep(powerDelay);
+                    DLog.v(TAG, "Power delay, slept for: " + powerDelay);
                 } catch (InterruptedException e) {
-                    Log.w(TAG, e.getMessage());
+                    e.printStackTrace();
                 }
             }
-        } else {
-            mRadioReady = false;
-            mConnected = false;
-        }
 
-        if (mConnected) {
+            // if we are passed a null string look for the device
+            if (mjsCableLocation == null)
+                mjsCableLocation = findMJSDevice();
 
-            // Sleep for .5 seconds to give the radio a chance to respond if it is powered up
-            try {
-                Thread.sleep(500);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+            // if still null, cable is not found, exit
+            if (mjsCableLocation == null) {
+                mRadioReady = false;
+                return false;
             }
 
-            initRadioVars();
-        } else {
-            Log.i(TAG, "Unable to connect to HD Radio");
+            DLog.v(TAG, "Attempting connection to MJS Cable: " + mjsCableLocation);
+            if (mSerialHelper.connectDevice(mjsCableLocation, mCallbacks)) {
+
+                // wait until the connection is finished or until timeout.
+                synchronized (this) {
+                    try {
+                        mIsWaiting = true;
+                        wait(30000);
+                    } catch (InterruptedException e) {
+                        Log.w(TAG, e.getMessage());
+                    }
+                }
+            } else {
+                mRadioReady = false;
+                mConnected = false;
+            }
+
+            if (mConnected) {
+
+                // Sleep for .5 seconds to give the radio a chance to respond if it is powered up
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+
+                initRadioVars();
+            } else {
+                Log.i(TAG, "Unable to connect to HD Radio");
+            }
+
+            mPreviousPowerTime = SystemClock.elapsedRealtime();
         }
 
         return mConnected;
@@ -298,28 +261,45 @@ public class RadioCom extends SerialCom {
             // already powered off
             return;
         }
-        mConnected = false;
-        if (mSerialHelper!= null) {
 
-            mRadioController.close(mService);
-
-            // If there was a device error then we cannot write to it
-            if (!mDeviceError) {
-                // send shutdown command to radio if its on
-                if ((boolean)mRadioController.getHdValue(RadioKey.Command.POWER)) {
-                    mSerialHelper.writeBytes(mRadioController
-                            .buildRadioPacket(RadioKey.Command.POWER, RadioKey.Operation.SET, false));
-                }
-
-                // If we disconnect too soon after writing an exception will be thrown
+        synchronized (POWER_LOCK) {
+            // Don't allow power off within 2 seconds of power on
+            long powerDelay = (mPreviousPowerTime + POWER_TOGGLE_DELAY) - SystemClock.elapsedRealtime();
+            DLog.v(TAG, "Power Off, previous power time " + mPreviousPowerTime + '\n' + powerDelay);
+            if (powerDelay > 0) {
+                // sleep
                 try {
-                    Thread.sleep(500);
+                    Thread.sleep(powerDelay);
                 } catch (InterruptedException e) {
-                    Log.w(TAG, e.getMessage());
+                    e.printStackTrace();
                 }
-
-                mSerialHelper.disconnect();
             }
+
+            mConnected = false;
+            if (mSerialHelper != null) {
+
+                mRadioController.close(mService);
+
+                // If there was a device error then we cannot write to it
+                if (!mDeviceError) {
+                    // send shutdown command to radio if its on
+                    if ((boolean) mRadioController.getHdValue(RadioKey.Command.POWER)) {
+                        mSerialHelper.writeBytes(mRadioController
+                                .buildRadioPacket(RadioKey.Command.POWER, RadioKey.Operation.SET, false));
+                    }
+
+                    // If we disconnect too soon after writing an exception will be thrown
+                    try {
+                        Thread.sleep(500);
+                    } catch (InterruptedException e) {
+                        Log.w(TAG, e.getMessage());
+                    }
+
+                    mSerialHelper.disconnect();
+                }
+            }
+
+            mPreviousPowerTime = SystemClock.elapsedRealtime();
         }
     }
 
@@ -331,6 +311,9 @@ public class RadioCom extends SerialCom {
     private void initRadioVars() {
 
         if (DLog.DEBUG) {
+            sendRadioCommand(RadioKey.Command.HD_UNIQUE_ID, RadioKey.Operation.GET, null);
+            sendRadioCommand(RadioKey.Command.HD_HW_VERSION, RadioKey.Operation.GET, null);
+            sendRadioCommand(RadioKey.Command.HD_API_VERSION, RadioKey.Operation.GET, null);
             sendRadioCommand(RadioKey.Command.VOLUME, RadioKey.Operation.GET, null);
             sendRadioCommand(RadioKey.Command.MUTE, RadioKey.Operation.GET, null);
             sendRadioCommand(RadioKey.Command.BASS, RadioKey.Operation.GET, null);
@@ -357,23 +340,40 @@ public class RadioCom extends SerialCom {
         int bass = globalPrefs.getInt("radio_pref_key_bass", 15);
         int treble = globalPrefs.getInt("radio_pref_key_treble", 15);
 
-        // TODO: there seems to be an issue setting variables, perhaps too soon after radio
-        //       is connected and turned on?
-        mRadioControlInterface.tune(band, frequency, subchannel);
         mRadioControlInterface.setVolume(volume);
         mRadioControlInterface.setBass(bass);
         mRadioControlInterface.setTreble(treble);
 
+        // Its important that no commands are sent immediately after a direct tune.  It seems
+        // to cause an issue with locking on to a station.
+        mRadioControlInterface.tune(band, frequency, subchannel);
     }
 
     private void sendRadioCommand(RadioKey.Command command, RadioKey.Operation operation, Object data) {
         synchronized (SEND_COMMAND_LOCK) {
             byte[] radioPacket = mRadioController.buildRadioPacket(command, operation, data);
             if (radioPacket != null && mSerialHelper != null) {
+                // Do not allow any command to execute within 1 second of a direct tune
+                long tuneDelay = (mPreviousTuneTime + POST_TUNE_DELAY) - SystemClock.elapsedRealtime();
+                if (tuneDelay > 0) {
+                    // sleep
+                    try {
+                        Thread.sleep(tuneDelay);
+                        DLog.v(TAG, "Post Tune delay, slept for: " + tuneDelay);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+
                 mSerialHelper.writeBytes(radioPacket);
 
-                // TODO: rather than use sleep check the system clock and wait before sending bytes,
-                // its possible multiple threads could access this at the same time
+
+                // If a tune command with a tuneInfo object was received, it is a direct tune.
+                // Set the timer
+                if (command == RadioKey.Command.TUNE && data instanceof RadioController.TuneInfo) {
+                    mPreviousTuneTime = SystemClock.elapsedRealtime();
+                }
+
                 try {
                     Thread.sleep(100);
                 } catch (InterruptedException e) {
@@ -513,13 +513,17 @@ public class RadioCom extends SerialCom {
                     Thread checkHDStreamLockThread = new Thread(new Runnable() {
                         @Override
                         public void run() {
-                            Calendar calendar = Calendar.getInstance();
-                            int setTime = calendar.get(Calendar.SECOND);
+                            long startTime = SystemClock.elapsedRealtime();
 
                             // HD Streamlock can take time, retry every 100ms for 10 seconds
                             // to set the subchannel.
-                            while ((subchannel != (int) mRadioController.getHdValue(RadioKey.Command.HD_SUBCHANNEL)) &&
-                                    ((calendar.get(Calendar.SECOND) - setTime) < STREAM_LOCK_TIMEOUT )) {
+                            while ((subchannel != (int) mRadioController.getHdValue(RadioKey.Command.HD_SUBCHANNEL))) {
+
+                                if ( SystemClock.elapsedRealtime() > (STREAM_LOCK_TIMEOUT + startTime)) {
+                                    DLog.i(TAG, "Unable to Tune to HD Subchannel: " + subchannel);
+                                    break;
+                                }
+
                                 // Try resetting every 100 ms
                                 try {
                                     Thread.sleep(100);

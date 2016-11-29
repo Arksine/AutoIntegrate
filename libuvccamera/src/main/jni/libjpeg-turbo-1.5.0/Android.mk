@@ -2,7 +2,7 @@
 # * UVCCamera
 # * library and sample to access to UVC web camera on non-rooted Android device
 # * 
-# * Copyright (c) 2015 saki t_saki@serenegiant.com
+# * Copyright (c) 2015-2016 saki t_saki@serenegiant.com
 # * 
 # * File name: Android.mk
 # * 
@@ -218,7 +218,6 @@ LOCAL_SRC_FILES += \
 
 LOCAL_CFLAGS += \
 	-DSIZEOF_SIZE_T=4 \
-
 
 else
 LOCAL_SRC_FILES += jsimd_none.c

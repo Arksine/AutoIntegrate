@@ -21,6 +21,7 @@ public abstract class RadioControlCallback implements IInterface {
     //          inside the handleMessage function if necessary
     public abstract void OnRadioDataReceived(RadioKey.Command key, Object value) throws RemoteException;
     public abstract void OnError() throws RemoteException;
+    public abstract void OnPowerOff() throws RemoteException;
 
     @Override
     public IBinder asBinder() {

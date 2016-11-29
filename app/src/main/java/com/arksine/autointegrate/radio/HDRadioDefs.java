@@ -40,7 +40,7 @@ public class HDRadioDefs {
         mCommands.put(RadioKey.Command.HD_SUBCHANNEL_COUNT, new RadioCommand(RadioKey.Command.HD_SUBCHANNEL_COUNT, RadioCommand.Type.INT,
                 new byte[]{(byte)0x05, (byte)0x02}));
         mCommands.put(RadioKey.Command.HD_TUNER_ENABLED, new RadioCommand(RadioKey.Command.HD_TUNER_ENABLED, RadioCommand.Type.BOOLEAN,
-                new byte[]{(byte)0x06, (byte)0x02}));
+                new byte[]{(byte)0x06, (byte)0x02}));   // TODO: This returns an integer, not a boolean
         mCommands.put(RadioKey.Command.HD_TITLE, new RadioCommand(RadioKey.Command.HD_TITLE, RadioCommand.Type.HDSONGINFO,
                 new byte[]{(byte)0x07, (byte)0x02}));
         mCommands.put(RadioKey.Command.HD_ARTIST, new RadioCommand(RadioKey.Command.HD_ARTIST, RadioCommand.Type.HDSONGINFO,
@@ -57,6 +57,7 @@ public class HDRadioDefs {
                 new byte[]{(byte)0x13, (byte)0x02}));   // HDRC app had this as 0x12, test 0x13
         mCommands.put(RadioKey.Command.RDS_ENABLED, new RadioCommand(RadioKey.Command.RDS_ENABLED, RadioCommand.Type.BOOLEAN,
                 new byte[]{(byte)0x01, (byte)0x03}));
+        // TODO: Recieved a byte 0x02, 0x03, probably has something to do with RDS
         mCommands.put(RadioKey.Command.RDS_GENRE, new RadioCommand(RadioKey.Command.RDS_GENRE, RadioCommand.Type.STRING,
                 new byte[]{(byte)0x07, (byte)0x03}));
         mCommands.put(RadioKey.Command.RDS_PROGRAM_SERVICE, new RadioCommand(RadioKey.Command.RDS_PROGRAM_SERVICE, RadioCommand.Type.STRING,

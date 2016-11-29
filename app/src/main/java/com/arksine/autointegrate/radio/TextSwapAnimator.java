@@ -26,7 +26,7 @@ import java.util.ArrayList;
 public class TextSwapAnimator {
     private static final String TAG = TextSwapAnimator.class.getSimpleName();
 
-
+    // TODO: replace arraylist with sparse array map
     private Handler mAnimationHandler;
     private final ArrayList<String> mInfoItems = new ArrayList<>(4);
     private TextView mTextView;
@@ -206,7 +206,6 @@ public class TextSwapAnimator {
     }
 
     public void setTextItem(RadioKey.Command key, String item) {
-
         int idx;
         switch (key) {
             case TUNE:
@@ -229,6 +228,7 @@ public class TextSwapAnimator {
                 break;
             case RDS_PROGRAM_SERVICE:
                 idx = 3;
+                // TODO: This is too much text.  We need to remove this and rethink how to display RDS text
                 item = mInfoItems.get(idx) + item;  // we append the item to the current string for program service
                 break;
             default:
@@ -257,19 +257,15 @@ public class TextSwapAnimator {
             case HD_TITLE:
                 idx = 1;
                 break;
-
             case HD_ARTIST:
                 idx = 2;
                 break;
-
             case HD_CALLSIGN:
                 idx = 3;
                 break;
-
             case RDS_RADIO_TEXT:
                 idx = 1;
                 break;
-
             case RDS_GENRE:
                 idx = 2;
                 break;
@@ -305,6 +301,7 @@ public class TextSwapAnimator {
     }
 
     public void stopAnimation() {
+        mAnimationHandler.removeCallbacksAndMessages(null);
         mAnimationStarted = false;
         mFadeOutAnimation.cancel();
         mFadeInAnimation.cancel();

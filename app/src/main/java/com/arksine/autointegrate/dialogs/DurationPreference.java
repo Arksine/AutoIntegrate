@@ -2,25 +2,15 @@ package com.arksine.autointegrate.dialogs;
 
 import android.content.Context;
 import android.content.res.TypedArray;
-import android.os.Build;
 import android.preference.DialogPreference;
 import android.util.AttributeSet;
-import android.view.Gravity;
 import android.view.View;
-import android.widget.LinearLayout;
 import android.widget.NumberPicker;
-import android.widget.TimePicker;
-
 
 import com.arksine.autointegrate.R;
 
-import java.lang.reflect.Field;
-import java.text.DateFormat;
-import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Date;
 import java.util.GregorianCalendar;
-import java.util.List;
 
 /**
  * Custom Preference to select a timeout

@@ -32,9 +32,11 @@ public class RadioController {
     private volatile boolean mSeekAll = true;
 
 
+    // TODO: add subchannel.  No subchannel = 0
     public static class TuneInfo {
         public RadioKey.Band band = RadioKey.Band.FM;
         public int frequency = 0;
+        public int subchannel = 0;
     }
 
     // the below is used for both hdartist and hd song responses
@@ -88,7 +90,6 @@ public class RadioController {
             return mHdValues.get(key);
         }
     }
-
 
     public void parseDataPacket(byte[] data) {
         /**
@@ -226,6 +227,7 @@ public class RadioController {
                     int index = (int) value;
                     mHdValues.put(RadioKey.Command.HD_TITLE, mHdTitles.get(index));
                     mHdValues.put(RadioKey.Command.HD_ARTIST, mHdArtists.get(index));
+                    ((TuneInfo) mHdValues.get(RadioKey.Command.TUNE)).subchannel = index;
                     break;
                 case TUNE:
                     // reset values when we tune to a new channel
@@ -255,7 +257,7 @@ public class RadioController {
                     value = val2.description;
                     break;
                 case SEEK:
-                    value = ((TuneInfo)value).frequency;  // only send frequency
+                    value = ((TuneInfo) value).frequency;  // only send frequency
 
                 default:
             }
@@ -263,7 +265,8 @@ public class RadioController {
             if (DLog.DEBUG) {
                 if (value instanceof TuneInfo) {
                     DLog.i(TAG, "Stored " + key.toString() + ": "
-                            + ((TuneInfo) value).frequency + " " + ((TuneInfo) value).band.toString());
+                            + ((TuneInfo) value).frequency + " "
+                            + ((TuneInfo) value).band.toString());
                 } else {
                     DLog.i(TAG, "Stored " + key.toString() + ": " + value);
                 }
@@ -273,18 +276,18 @@ public class RadioController {
             mHdValues.put(key, value);
 
 
+            // Execute callbacks for bound activities
+            int cbCount = mService.mRadioCallbacks.beginBroadcast();
+            for (int i = 0; i < cbCount; i++) {
+                try {
+                    mService.mRadioCallbacks.getBroadcastItem(i).OnRadioDataReceived(key, value);
+                } catch (RemoteException e) {
+                    e.printStackTrace();
+                }
+            }
+            mService.mRadioCallbacks.finishBroadcast();
         }
 
-        // Execute callbacks for bound activities
-        int cbCount = mService.mRadioCallbacks.beginBroadcast();
-        for (int i = 0; i < cbCount; i++) {
-            try {
-                mService.mRadioCallbacks.getBroadcastItem(i).OnRadioDataReceived(key, value);
-            } catch (RemoteException e) {
-                e.printStackTrace();
-            }
-        }
-        mService.mRadioCallbacks.finishBroadcast();
     }
 
     public void setSeekAll(boolean status) {
@@ -481,10 +484,13 @@ public class RadioController {
                 dataBuf.put(HDRadioDefs.getConstantBytes(RadioKey.Constant.ZERO));
                 dataBuf.put(HDRadioDefs.getConstantBytes(seekDir));
 
+                // TODO: Reverse engineered version showed a different final id (zero and one), need to test
                 if (mSeekAll) {
-                    dataBuf.put(HDRadioDefs.getConstantBytes(RadioKey.Constant.SEEK_ALL_ID));
+                    dataBuf.put(HDRadioDefs.getConstantBytes(RadioKey.Constant.ZERO));
+                    //dataBuf.put(HDRadioDefs.getConstantBytes(RadioKey.Constant.SEEK_ALL_ID));
                 } else {
-                    dataBuf.put(HDRadioDefs.getConstantBytes(RadioKey.Constant.SEEK_HD_ONLY_ID));
+                    dataBuf.put(HDRadioDefs.getConstantBytes(RadioKey.Constant.ONE));
+                    //dataBuf.put(HDRadioDefs.getConstantBytes(RadioKey.Constant.SEEK_HD_ONLY_ID));
                 }
 
                 dataBuf.put(HDRadioDefs.getConstantBytes(RadioKey.Constant.ZERO));
@@ -518,5 +524,17 @@ public class RadioController {
                 .putInt("radio_pref_key_bass", bass)
                 .putInt("radio_pref_key_treble", treble)
                 .apply();
+
+
+        int cbCount = mService.mRadioCallbacks.beginBroadcast();
+        for (int i = 0; i < cbCount; i++) {
+            try {
+                mService.mRadioCallbacks.getBroadcastItem(i).OnPowerOff();
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+        }
+        mService.mRadioCallbacks.finishBroadcast();
+
     }
 }
