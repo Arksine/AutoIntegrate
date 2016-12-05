@@ -8,17 +8,14 @@ import android.os.RemoteException;
 import com.arksine.autointegrate.radio.RadioKey;
 
 /**
- * Callback received from bound activity (Perhaps I should use RemoteCallbackList)
+ * Callback received from bound activity
 */
 
 public abstract class RadioControlCallback implements IInterface {
 
     private Binder mBinder = new Binder();
 
-    // WARNING: This function is called in a synchronized block.  Avoid synchronizing methods
-    //          inside the block, as nested synchronization can cause a deadlock.  Best way
-    //          is to use a handler to process each call as they are coming in, then synchronize
-    //          inside the handleMessage function if necessary
+    // Radio Callbacks
     public abstract void OnRadioDataReceived(RadioKey.Command key, Object value) throws RemoteException;
     public abstract void OnError() throws RemoteException;
     public abstract void OnPowerOff() throws RemoteException;

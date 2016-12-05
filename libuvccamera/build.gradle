@@ -10,7 +10,7 @@ android {
 
         externalNativeBuild {
             ndkBuild {
-                arguments "NDK_TOOLCHAIN_VERSION:=clang"
+                arguments "NDK_TOOLCHAIN_VERSION:=4.9"
             }
         }
 

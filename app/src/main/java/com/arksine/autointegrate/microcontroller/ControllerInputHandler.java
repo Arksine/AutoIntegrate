@@ -9,6 +9,7 @@ import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
 import com.arksine.autointegrate.R;
+import com.arksine.autointegrate.interfaces.MCUControlInterface;
 import com.arksine.autointegrate.utilities.DLog;
 
 
@@ -28,8 +29,9 @@ public class ControllerInputHandler extends Handler {
     }
     private MessageProcessor mProcessor;
 
-
-    ControllerInputHandler(Looper looper, Context context, boolean isLearningMode) {
+    // TODO: rename "learning mode" to direct access mode if using a remote callback
+    ControllerInputHandler(Looper looper, Context context, MCUControlInterface controlInterface,
+                           boolean isLearningMode) {
         super(looper);
         mContext = context;
 
@@ -39,6 +41,7 @@ public class ControllerInputHandler extends Handler {
             mProcessor = new MessageProcessor() {
                 @Override
                 public void ProcessMessage(ControllerMessage ctrlMsg) {
+                    // TODO: Instead of broadcasting an intent I can use a RemoteCallback to send data back to bound activity
                     // Local broadcast to learning activity, we only learn click and dimmer events
                     if(ctrlMsg.command.equals("Click") || ctrlMsg.command.equals("Dimmer")) {
                         Intent msgIntent = new Intent(mContext.getString(R.string.ACTION_CONTROLLER_LEARN_DATA));
@@ -50,7 +53,7 @@ public class ControllerInputHandler extends Handler {
             };
         } else {
             DLog.v(TAG, "Controller is in Execution Mode.");
-            mCommandProcessor = new CommandProcessor(mContext);
+            mCommandProcessor = new CommandProcessor(mContext, controlInterface);
             mProcessor = new MessageProcessor() {
                 @Override
                 public void ProcessMessage(ControllerMessage ctrlMsg) {
@@ -95,6 +98,11 @@ public class ControllerInputHandler extends Handler {
         }
         return ctrlMsg;
     }
+
+    public void setMode(boolean isLearningMode) {
+        // TODO:
+    }
+
 
     public void close() {
         // if we are in execution mode we need to clean up the command processor

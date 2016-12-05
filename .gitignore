@@ -50,5 +50,3 @@ proguard/
 *.exe
 *.out
 *.app
-libuvccamera/build/outputs/aar/libuvccamera-release.aar
-libuvccamera/build/intermediates/incremental/packageReleaseResources/compile-file-map.properties

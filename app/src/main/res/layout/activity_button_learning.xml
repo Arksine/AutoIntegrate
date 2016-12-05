@@ -22,7 +22,7 @@
 
             <Button
                 android:id="@+id/btn_dimmer_settings"
-                android:text="Dimmer Settings"
+                android:text="@string/dimmer_dialog_button_label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="end"

@@ -243,6 +243,7 @@
     <string-array name="dialog_action_integrated">
         <item>Toggle Camera</item>
         <item>Toggle Auto-Brightness</item>
+        <item>Toggle Audio Source</item>
     </string-array>
 
     <string-array name="dialog_spinner_empty">
@@ -259,6 +260,7 @@
         <item>Analog Voltage Map</item>
     </string-array>
 
+    <string name="dimmer_dialog_button_label">Dimmer Settings</string>
     <string name="dimmer_dialog_label_on">On</string>
     <string name="dimmer_dialog_controller_reading">Controller Reading:</string>
     <string name="dimmer_dialog_reading_label">Reading</string>

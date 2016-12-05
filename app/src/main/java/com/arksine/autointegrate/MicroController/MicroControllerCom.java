@@ -14,6 +14,7 @@ import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
 import com.arksine.autointegrate.MainService;
+import com.arksine.autointegrate.interfaces.MCUControlInterface;
 import com.arksine.autointegrate.interfaces.SerialHelper;
 import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.utilities.BluetoothHelper;
@@ -30,9 +31,12 @@ import com.arksine.autointegrate.utilities.UsbSerialSettings;
  */
 public class MicroControllerCom extends SerialCom {
 
+
+
     private static final String TAG = "MicroControllerCom";
 
     private ControllerInputHandler mInputHandler;
+    private MCUControlInterface mControlInterface;
 
     // Broadcast reciever to listen for write commands.
     public class WriteReciever extends BroadcastReceiver {
@@ -63,7 +67,10 @@ public class MicroControllerCom extends SerialCom {
         thread.start();
         Looper mInputLooper = thread.getLooper();
 
-        mInputHandler = new ControllerInputHandler(mInputLooper, mService, learningMode);
+        mControlInterface = buildInterface();
+
+        mInputHandler = new ControllerInputHandler(mInputLooper, mService, mControlInterface,
+                learningMode);
 
         mCallbacks = new SerialHelper.Callbacks() {
             @Override
@@ -104,8 +111,8 @@ public class MicroControllerCom extends SerialCom {
             }
         };
 
-    }
 
+    }
 
     @Override
     public boolean connect() {
@@ -216,4 +223,29 @@ public class MicroControllerCom extends SerialCom {
         }
     }
 
+    private MCUControlInterface buildInterface() {
+        return new MCUControlInterface() {
+            @Override
+            public void sendMcuCommand(String command, String data) {
+                if (mSerialHelper != null) {
+                    String packet = "<" + command + ":" + data + ">";
+                    mSerialHelper.writeString(packet);
+                }
+            }
+
+            @Override
+            public void setMode(boolean isLearningMode) {
+                mInputHandler.setMode(isLearningMode);
+            }
+
+            @Override
+            public boolean isConnected() {
+                return mConnected;
+            }
+        };
+    }
+
+    public MCUControlInterface getControlInterface() {
+        return mControlInterface;
+    }
 }

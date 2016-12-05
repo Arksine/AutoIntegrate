@@ -40,7 +40,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 // TODO: is signal strength 0-3000?
-// TODO: need a button or menu item to launch dialog
 public class RadioActivity extends AppCompatActivity {
     private static final String TAG = RadioActivity.class.getSimpleName();
 
@@ -228,6 +227,7 @@ public class RadioActivity extends AppCompatActivity {
         Button mTuneDownButton = (Button) findViewById(R.id.btn_radio_tune_down);
         Button mSeekUpButton = (Button) findViewById(R.id.btn_radio_seek_up);
         Button mSeekDownButton = (Button) findViewById(R.id.btn_radio_seek_down);
+        Button audioSettings = (Button) findViewById(R.id.btn_radio_settings);
 
         mPowerButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -379,6 +379,12 @@ public class RadioActivity extends AppCompatActivity {
             }
         });
 
+        audioSettings.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                mRadioSettingsDialog.showDialog();
+            }
+        });
 
     }
 

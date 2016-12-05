@@ -15,6 +15,7 @@ import android.view.KeyEvent;
 import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.activities.BrightnessChangeActivity;
 import com.arksine.autointegrate.activities.CameraActivity;
+import com.arksine.autointegrate.interfaces.MCUControlInterface;
 import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.autointegrate.utilities.TaskerIntent;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
@@ -34,13 +35,18 @@ import eu.chainfire.libsuperuser.Shell;
 public class CommandProcessor {
     private static String TAG = "CommandProcessor";
 
+    // TODO: In the future, if we want to capture audio focus we will need a TABLET audio source
+    public enum AudioSource {HD_RADIO, AUX}
+    private AudioSource mCurrentSource = AudioSource.HD_RADIO;
+
     // TODO: might want to make this a preference
     // Delay between repetitive media keys when holding
     private final static int MEDIA_KEY_DELAY = 2000;
 
     private Context mContext;
+    private MCUControlInterface mMcuControlInterface;
     private List<ResistiveButton> mMappedButtons;
-    private boolean mCustomCommands = false;
+    private boolean mBroadcastCustomCommands = false;
 
     private ArrayMap<String, ActionRunnable> mActions;
 
@@ -77,7 +83,7 @@ public class CommandProcessor {
     }
 
     // The class below extends runnable so we can pass data to our command runnables
-    private class ActionRunnable implements Runnable {
+    private abstract class ActionRunnable implements Runnable {
         protected String data;
 
         ActionRunnable() {
@@ -89,16 +95,21 @@ public class CommandProcessor {
         }
 
         @Override
-        public void run() {}
+        abstract public void run();
     }
 
 
-    CommandProcessor(Context context) {
+    CommandProcessor(Context context, MCUControlInterface controlInterface) {
         mContext = context;
+        mMcuControlInterface = controlInterface;
         mAudioManger = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
 
-        mCustomCommands = PreferenceManager.getDefaultSharedPreferences(mContext)
+        mBroadcastCustomCommands = PreferenceManager.getDefaultSharedPreferences(mContext)
                 .getBoolean("controller_pref_key_custom_commands", false);
+
+        mCurrentSource = AudioSource.valueOf(PreferenceManager
+                .getDefaultSharedPreferences(mContext)
+                .getString("audio_pref_key_current_source", "HD_RADIO"));
 
         // Get mapped buttons from GSON
         Gson gson = new Gson();
@@ -546,6 +557,46 @@ public class CommandProcessor {
             }
         });
 
+        mActions.put("Toggle Audio Source", new ActionRunnable() {
+            @Override
+            public void run() {
+                switch (mCurrentSource) {
+                    case HD_RADIO:
+                        mCurrentSource = AudioSource.AUX;
+                        mMcuControlInterface.sendMcuCommand("Source", mCurrentSource.toString());
+                        // TODO: broadcast power off command to HD_RADIO
+                        break;
+                    case AUX:
+                        mCurrentSource = AudioSource.HD_RADIO;
+                        mMcuControlInterface.sendMcuCommand("Source", "HD_RADIO");
+                        // TODO: broadcast power on command to HD_RADIO
+                        break;
+                }
+            }
+        });
+
+        mActions.put("Set Audio Source", new ActionRunnable() {
+            @Override
+            public void run() {
+                if (!data.equals(mCurrentSource.toString())) {
+                    switch (data) {
+                        case "HD_RADIO":
+                            mCurrentSource = AudioSource.HD_RADIO;
+                            mMcuControlInterface.sendMcuCommand("Source", data);
+                            // TODO: broadcast power on command to HD_RADIO
+                        case "AUX":
+                            mCurrentSource = AudioSource.AUX;
+                            mMcuControlInterface.sendMcuCommand("Source", data);
+                            // TODO: broadcast power off command to HD_RADIO
+                            break;
+                        default:
+                            Log.i(TAG, "Unknown Audio Source: " + data);
+                    }
+                }
+            }
+        });
+
+        // TODO:  add user created custom commands to send to MCU?
     }
 
 
@@ -586,7 +637,6 @@ public class CommandProcessor {
                 } while (mIsHoldingBtn);
             }
         };
-
     }
 
     private ActionRunnable buildSeekMediaRunnable(final int keycode) {
@@ -640,7 +690,8 @@ public class CommandProcessor {
                     type = btn.getHoldType();
                 }
 
-                if (type.equals("Application") || type.equals("Tasker")) {
+                if (type.equals("Application") || type.equals("Tasker")
+                        || type.equals("Set Audio Source")) {
                     ActionRunnable actionRunnable = mActions.get(type);
                     actionRunnable.setData(btn.getClickAction());
                     return actionRunnable;
@@ -676,8 +727,24 @@ public class CommandProcessor {
             case "Reverse":
                 action = mActions.get(message.command + " " + message.data);
                 break;
+            case "Connected":
+                // connection established, initialize
+                Log.i(TAG, "MCU Connected");
+                int dMode = PreferenceManager.getDefaultSharedPreferences(mContext)
+                        .getInt("dimmer_pref_key_mode", 0);
+
+                if (dMode == DimmerMode.ANALOG) {
+                    mMcuControlInterface.sendMcuCommand("Dimmer", "Analog");
+                } else {
+                    mMcuControlInterface.sendMcuCommand("Dimmer", "Digital");
+                }
+
+                // set the current audio source for external devices
+                mMcuControlInterface.sendMcuCommand("Source", mCurrentSource.toString());
+
+                break;
             default:
-                if (mCustomCommands) {
+                if (mBroadcastCustomCommands) {
                     DLog.v(TAG, "Broacasting custom command: " + message.command);
                     Intent customIntent = new Intent(mContext.getString(R.string.ACTION_DATA_RECIEVED));
                     customIntent.putExtra(mContext.getString(R.string.EXTRA_COMMAND), message.command);
@@ -697,7 +764,9 @@ public class CommandProcessor {
         // the dimmer after shutdown.
         PreferenceManager.getDefaultSharedPreferences(mContext).edit()
                 .putInt("dimmer_pref_key_initial_brightness", mInitialBrightness)
+                .putString("audio_pref_key_current_source", mCurrentSource.toString())
                 .apply();
+
     }
 
 }
