@@ -57,7 +57,7 @@ public class RadioActivity extends AppCompatActivity {
 
     private TextSwapAnimator mTextSwapAnimator;
     private TextStreamAnimator mTextStreamAnimator;
-    private String mFrequency = "87.9";
+    private int mFrequency = 879;
     private String mBand = "FM";
 
     private TextView mHdStatusText;
@@ -445,6 +445,7 @@ public class RadioActivity extends AppCompatActivity {
         public boolean handleMessage(Message message) {
             //TODO: Much of this will change when I implement animated textview.  This is for initial testing
             RadioMessage radioMessage = (RadioMessage)message.obj;
+            String tmpFreq;
             switch (radioMessage.key) {
                 case POWER:
                     // Because the power value is ALWAYS true, query the radio interface for power
@@ -469,7 +470,8 @@ public class RadioActivity extends AppCompatActivity {
                     break;
                 case HD_SUBCHANNEL:
                     if (mHdActive && (int)radioMessage.value > 0) {
-                        String newFreq = mFrequency + "-" + String.valueOf((int)radioMessage.value);
+                        // TODO: need to test this
+                        String newFreq = String.format(Locale.US, "%1$.1f-%2$d", (float)mFrequency/10, (int)radioMessage.value);
                         mRadioFreqText.setText(newFreq);
                         mTextSwapAnimator.setTextItem(RadioKey.Command.TUNE, newFreq + " " + mBand);
 
@@ -480,37 +482,37 @@ public class RadioActivity extends AppCompatActivity {
                                 (String)mRadioInterface.getHdValue(RadioKey.Command.HD_ARTIST));
 
                     } else {
-                        mRadioFreqText.setText(mFrequency);
-                        mTextSwapAnimator.setTextItem(RadioKey.Command.TUNE, mFrequency + " " + mBand);
+                        tmpFreq = String.format(Locale.US, "%1$.1f", (float)mFrequency/10);
+                        mRadioFreqText.setText(tmpFreq);
+                        mTextSwapAnimator.setTextItem(RadioKey.Command.TUNE, tmpFreq + " " + mBand);
 
                     }
                     break;
                 case TUNE:
                     mHandler.removeCallbacks(mPostTuneRunnable);
-
                     RadioController.TuneInfo info = (RadioController.TuneInfo) radioMessage.value;
+                    mFrequency = info.frequency;
                     if (info.band == RadioKey.Band.FM) {
                         mBand = "FM";
-                        mFrequency = String.format(Locale.US, "%1$.1f", (float)info.frequency/10);
+                        tmpFreq = String.format(Locale.US, "%1$.1f", (float)mFrequency/10);
                         mBandButton.setChecked(true);
                     } else {
                         mBand = "AM";
-                        mFrequency = String.valueOf(info.frequency);
+                        tmpFreq = String.valueOf(info.frequency);
                         mBandButton.setChecked(false);
                     }
                     mTextStreamAnimator.clear();
-                    mTextSwapAnimator.setTextItem(RadioKey.Command.TUNE, mFrequency + " " + mBand);
+                    mTextSwapAnimator.setTextItem(RadioKey.Command.TUNE, tmpFreq + " " + mBand);
                     mTextSwapAnimator.resetAnimator();
                     mRdsEnabled = false;
                     mHdActive = false;
                     // TODO: mHDStatus text is temporary
                     mHdStatusText.setText("");
-                    mRadioFreqText.setText(mFrequency);
+                    mRadioFreqText.setText(tmpFreq);
                     mRadioBandText.setText(info.band.toString());
                     mHandler.postDelayed(mPostTuneRunnable, 2000);
                     break;
                 case SEEK:
-                    String tmpFreq;
                     if (mBandButton.isChecked()) {
                         tmpFreq = String.format(Locale.US, "%1$.1f",
                                 ((int)radioMessage.value)/10f);

@@ -16,13 +16,9 @@
     tools:context="com.arksine.autointegrate.activities.RadioActivity"
     tools:showIn="@layout/activity_radio">
 
-    <!-- Below are a few buttons and textviews for testing, we'll make the activity more visually
-    appealing later-->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center">
+        android:layout_height="wrap_content">
 
         <TextView
             android:id="@+id/txt_radio_hd_status"
@@ -31,18 +27,67 @@
             android:textAppearance="?android:attr/textAppearanceMedium"
             android:layout_marginEnd="10dp"/>
 
+
+
+    </LinearLayout>
+
+    <!-- Below are a few buttons and textviews for testing, we'll make the activity more visually
+    appealing later-->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <ImageButton
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+        android:src="@drawable/seek_down_button"
+        android:background="@color/CLEAR"
+        android:layout_marginEnd="30dp"/>
+
+
+        <ImageButton
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/left_arrow_button"
+            android:background="@color/CLEAR"/>
+
         <TextView
+            android:text="101.1"
             android:id="@+id/txt_radio_frequency"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textAppearance="?android:attr/textAppearanceMedium"
+            android:gravity="center"
+            android:textSize="40sp"
+            android:textAppearance="?android:attr/textAppearanceLarge"
+            android:layout_marginStart="15dp"
             android:layout_marginEnd="10dp"/>
 
         <TextView
+            android:text="FM"
             android:id="@+id/txt_radio_band"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textAppearance="?android:attr/textAppearanceMedium"/>
+            android:textSize="40sp"
+            android:textAppearance="?android:attr/textAppearanceLarge"
+            android:layout_marginEnd="15dp"/>
+
+        <ImageButton
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@color/CLEAR"
+            android:src="@drawable/right_arrow_button"
+            android:layout_marginEnd="30dp"/>
+
+        <ImageButton
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/seek_up_button"
+            android:background="@color/CLEAR"/>
+
+
+
 
     </LinearLayout>
 
