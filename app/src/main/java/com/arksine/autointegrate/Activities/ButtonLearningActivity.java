@@ -47,7 +47,7 @@ public class ButtonLearningActivity extends AppCompatActivity {
             String action = intent.getAction();
             if (action.equals(getString(R.string.ACTION_CONTROLLER_LEARN_DATA))) {
                 String command = intent.getStringExtra("Command");
-                if (command.equals("Click")) {
+                if (command.equals("CLICK")) {
                     String data = intent.getStringExtra("Data");
                     if (mButtonMapDialog.isDialogShowing()) {
                         // Format the data and set the controller reading in the dialog
@@ -59,13 +59,14 @@ public class ButtonLearningActivity extends AppCompatActivity {
                                 "Click: " + data, Snackbar.LENGTH_LONG)
                                 .setAction("Action", null).show();
                     }
-                } else if (command.equals("Dimmer")) {
+                } else if (command.equals("DIMMER")) {
                     String data = intent.getStringExtra("Data");
 
                     if (data.equals("On") || data.equals("Off")) {
                         Snackbar.make(findViewById(android.R.id.content),
                                 "Dimmer: " + data, Snackbar.LENGTH_LONG)
                                 .setAction("Action", null).show();
+
                     }
 
                     if (mDimmerCalDialog.isDialogShowing()) {

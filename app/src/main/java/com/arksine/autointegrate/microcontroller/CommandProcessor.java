@@ -84,13 +84,13 @@ public class CommandProcessor {
 
     // The class below extends runnable so we can pass data to our command runnables
     private abstract class ActionRunnable implements Runnable {
-        protected String data;
+        protected Object data;
 
         ActionRunnable() {
             this.data = "";
         }
 
-        public void setData(String _data){
+        public void setData(Object _data){
             this.data = _data;
         }
 
@@ -462,26 +462,24 @@ public class CommandProcessor {
         mActions.put("Rewind", buildSeekMediaRunnable(KeyEvent.KEYCODE_MEDIA_REWIND));
 
         // Custom events
-        mActions.put("Reverse On", new ActionRunnable() {
+        mActions.put("Reverse", new ActionRunnable() {
             @Override
             public void run() {
                 // launch user set camera activity.
-                if (mCameraIntent != null) {
-                    mCameraIsOn = true;
-                    mContext.startActivity(mCameraIntent);
-                    DLog.v(TAG, "Send Launch Camera Command");
+                if ((boolean)data) {
+                    if (mCameraIntent != null) {
+                        mCameraIsOn = true;
+                        mContext.startActivity(mCameraIntent);
+                        DLog.v(TAG, "Send Launch Camera Command");
+                    } else {
+                        DLog.i(TAG, "Camera app not set");
+                    }
                 } else {
-                    DLog.i(TAG, "Camera app not set");
-                }
-            }
-        });
-        mActions.put("Reverse Off", new ActionRunnable() {
-            @Override
-            public void run() {
-                if (mReverseExitListener != null) {
-                    mCameraIsOn = false;
-                    mReverseExitListener.OnReverseOff();
-                    DLog.v(TAG, "Send Close Camera Command");
+                    if (mReverseExitListener != null) {
+                        mCameraIsOn = false;
+                        mReverseExitListener.OnReverseOff();
+                        DLog.v(TAG, "Send Close Camera Command");
+                    }
                 }
             }
         });
@@ -501,17 +499,18 @@ public class CommandProcessor {
         mActions.put("Dimmer", new ActionRunnable() {
             @Override
             public void run() {
-                switch(data) {
-                    case "On":
+                if (data instanceof Boolean) {
+                    if ((boolean) data) {
                         mBrightnessControl.DimmerOn();
-                        break;
-                    case "Off":
+                    } else {
                         mBrightnessControl.DimmerOff();
-                        break;
-                    default:
-                        int reading = Integer.parseInt(data);
-                        mBrightnessControl.DimmerChange(reading);
+                    }
+                } else if (data instanceof Integer) {
+                    mBrightnessControl.DimmerChange((int) data);
+                } else {
+                    Log.i(TAG, "Dimmer data received is of the incorrect type");
                 }
+
             }
         });
         mActions.put("Toggle Auto-Brightness", new ActionRunnable() {
@@ -533,7 +532,7 @@ public class CommandProcessor {
             @Override
             public void run() {
                 DLog.v(TAG, "Sending Application Intent");
-                Intent appIntent = mContext.getPackageManager().getLaunchIntentForPackage(this.data);
+                Intent appIntent = mContext.getPackageManager().getLaunchIntentForPackage((String)this.data);
                 if (appIntent != null) {
                     appIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                     mContext.startActivity(appIntent);
@@ -550,7 +549,7 @@ public class CommandProcessor {
                 //       Locale/Tasker plugin that should also work with macrodroid.
                 DLog.v(TAG, "Execute Tasker Task");
                 if ( TaskerIntent.testStatus(mContext).equals(TaskerIntent.Status.OK) ) {
-                    TaskerIntent i = new TaskerIntent(this.data);
+                    TaskerIntent i = new TaskerIntent((String)this.data);
                     mContext.sendBroadcast( i );
                 }
 
@@ -579,14 +578,14 @@ public class CommandProcessor {
             @Override
             public void run() {
                 if (!data.equals(mCurrentSource.toString())) {
-                    switch (data) {
+                    switch ((String)data) {
                         case "HD_RADIO":
                             mCurrentSource = AudioSource.HD_RADIO;
-                            mMcuControlInterface.sendMcuCommand("Source", data);
+                            mMcuControlInterface.sendMcuCommand("Source", (String)data);
                             // TODO: broadcast power on command to HD_RADIO
                         case "AUX":
                             mCurrentSource = AudioSource.AUX;
-                            mMcuControlInterface.sendMcuCommand("Source", data);
+                            mMcuControlInterface.sendMcuCommand("Source", (String)data);
                             // TODO: broadcast power off command to HD_RADIO
                             break;
                         default:
@@ -671,8 +670,8 @@ public class CommandProcessor {
         };
     }
 
-    private ActionRunnable getButtonAction(String data, boolean isClickAction) {
-        int id = Integer.parseInt(data);
+    private ActionRunnable getButtonAction(Object data, boolean isClickAction) {
+        int id = (int) data;
 
         for (ResistiveButton btn : mMappedButtons) {
 
@@ -709,30 +708,14 @@ public class CommandProcessor {
 
         ActionRunnable action = null;
         switch (message.command) {
-            case "Click":
-                mIsHoldingBtn = false;
-                action = getButtonAction(message.data, true);
-                break;
-            case "Hold":
-                mIsHoldingBtn = true;
-                action = getButtonAction(message.data, false);
-                break;
-            case "Release":
-                mIsHoldingBtn = false;
-                break;
-            case "Dimmer":
-                action = mActions.get(message.command);
-                action.setData(message.data);
-                break;
-            case "Reverse":
-                action = mActions.get(message.command + " " + message.data);
-                break;
-            case "Connected":
+            case CONNECTED:
                 // connection established, initialize
                 Log.i(TAG, "MCU Connected");
                 int dMode = PreferenceManager.getDefaultSharedPreferences(mContext)
                         .getInt("dimmer_pref_key_mode", 0);
 
+                // TODO: May want to change the sendMcuCommand to send a packet format similar
+                //       to what we receive.  Probably not necessary though.
                 if (dMode == DimmerMode.ANALOG) {
                     mMcuControlInterface.sendMcuCommand("Dimmer", "Analog");
                 } else {
@@ -743,14 +726,52 @@ public class CommandProcessor {
                 mMcuControlInterface.sendMcuCommand("Source", mCurrentSource.toString());
 
                 break;
-            default:
+            case CLICK:
+                mIsHoldingBtn = false;
+                action = getButtonAction(message.data, true);
+                break;
+            case HOLD:
+                mIsHoldingBtn = true;
+                action = getButtonAction(message.data, false);
+                break;
+            case RELEASE:
+                mIsHoldingBtn = false;
+                break;
+            case DIMMER:
+                action = mActions.get("Dimmer");
+                action.setData(message.data);
+                break;
+            case REVERSE:
+                action = mActions.get("Reverse");
+                action.setData(message.data);
+                break;
+            case CUSTOM:
                 if (mBroadcastCustomCommands) {
+
+                    /**
+                     * Custom commands are all in the data and are completely string based. They
+                     * should come in the format of command:data.  This means that the ':' character
+                     * should not be used in either the command or the data.
+                      */
+                    String[] customCmd = ((String)message.data).split(":");
+
+                    if (customCmd.length != 2) {
+                        Log.i(TAG, "Invalid custom command format, discarding");
+                        break;
+                    }
+
                     DLog.v(TAG, "Broacasting custom command: " + message.command);
                     Intent customIntent = new Intent(mContext.getString(R.string.ACTION_DATA_RECIEVED));
-                    customIntent.putExtra(mContext.getString(R.string.EXTRA_COMMAND), message.command);
-                    customIntent.putExtra(mContext.getString(R.string.EXTRA_DATA), message.data);
+                    customIntent.putExtra(mContext.getString(R.string.EXTRA_COMMAND), customCmd[0]);
+
+                    // TODO: should probably get the type of data and use String.valueOf to make sure we are sending
+                    //       correct data
+                    customIntent.putExtra(mContext.getString(R.string.EXTRA_DATA), customCmd[1]);
                     mContext.sendBroadcast(customIntent);
                 }
+                break;
+            default:
+                Log.i(TAG, "Unknown command Received");
         }
 
         if (action != null) {

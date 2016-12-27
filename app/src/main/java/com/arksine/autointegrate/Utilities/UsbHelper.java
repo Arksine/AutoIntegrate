@@ -111,6 +111,20 @@ public class UsbHelper implements SerialHelper {
 
         for (UsbDevice uDevice : usbDeviceList.values()) {
 
+
+            DLog.v(TAG, "Device ID: " + uDevice.getDeviceId());
+            DLog.v(TAG, "Device Name: " + uDevice.getDeviceName());
+            DLog.v(TAG, "Vendor: ID " + uDevice.getVendorId());
+            DLog.v(TAG, "Product ID: " + uDevice.getProductId());
+            DLog.v(TAG, "Class: " + uDevice.getDeviceClass());
+            DLog.v(TAG, "SubClass: " + uDevice.getDeviceSubclass());
+            DLog.v(TAG, "Protocol: " + uDevice.getDeviceProtocol());
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                DLog.v(TAG, "Manufacturer: " + uDevice.getManufacturerName());
+                DLog.v(TAG, "Serial Number: " + uDevice.getSerialNumber());
+            }
+
             String name;
 
             // Check for supported devices
@@ -131,6 +145,8 @@ public class UsbHelper implements SerialHelper {
                 break;
             }
 
+            DLog.v(TAG, "USB comm device found: " + name);
+
             // replace the name with the device driver name if on API 21 or above
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 name = uDevice.getProductName();
@@ -138,19 +154,7 @@ public class UsbHelper implements SerialHelper {
 
 
 
-            DLog.v(TAG, "USB comm device found: " + name);
-            DLog.v(TAG, "Device ID: " + uDevice.getDeviceId());
-            DLog.v(TAG, "Device Name: " + uDevice.getDeviceName());
-            DLog.v(TAG, "Vendor: ID " + uDevice.getVendorId());
-            DLog.v(TAG, "Product ID: " + uDevice.getProductId());
-            DLog.v(TAG, "Class: " + uDevice.getDeviceClass());
-            DLog.v(TAG, "SubClass: " + uDevice.getDeviceSubclass());
-            DLog.v(TAG, "Protocol: " + uDevice.getDeviceProtocol());
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                DLog.v(TAG, "Manufacturer: " + uDevice.getManufacturerName());
-                DLog.v(TAG, "Serial Number: " + uDevice.getSerialNumber());
-            }
 
 
             /**
@@ -219,16 +223,20 @@ public class UsbHelper implements SerialHelper {
         boolean found;
         for (UsbDevice dev : usbDeviceList.values()) {
 
+            found = dev.getVendorId() == Integer.parseInt(ids[0]) &&
+                    dev.getProductId() == Integer.parseInt(ids[1]);
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                found = dev.getVendorId() == Integer.parseInt(ids[0]) &&
-                        dev.getProductId() == Integer.parseInt(ids[1]) &&
-                        dev.getSerialNumber().equals(ids[2]);
-            } else {
-                found = dev.getVendorId() == Integer.parseInt(ids[0]) &&
-                        dev.getProductId() == Integer.parseInt(ids[1]);
+                String serialNumber = dev.getSerialNumber();
+
+                // Sometimes the serial number is not available, so check it
+                if (serialNumber != null) {
+                    found = found && serialNumber.equals(ids[2]);
+                }
             }
 
             if (found) {
+                DLog.i(TAG, "USB Device Found");
                 mUsbDevice = dev;
                 break;
             }

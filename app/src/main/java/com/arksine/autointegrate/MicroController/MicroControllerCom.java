@@ -23,6 +23,18 @@ import com.arksine.autointegrate.utilities.SerialCom;
 import com.arksine.autointegrate.utilities.UsbHelper;
 import com.arksine.autointegrate.utilities.UsbSerialSettings;
 
+import java.nio.ByteBuffer;
+
+/* TODO: I have decided that in an effort to reduce the number of USB devices connected to the
+* Android tablet it would be a good idea to have the option to use the MCU and one of its UARTs
+* to interface with the HD Radio.  This means that I can't use the control characters (<, >, :) that
+* I have been using, because its possible they could be included in the HDRadio data.  This is going
+* to make parsing much more complex
+*
+* I have decided to use non-printable ASCII values as control characters, hopefully it will work.
+* /
+
+
 /**
  * Class MicroControllerCom
  *
@@ -55,9 +67,12 @@ public class MicroControllerCom extends SerialCom {
     private final WriteReciever writeReciever = new WriteReciever();
     private boolean isWriteReceiverRegistered = false;
 
-    private volatile byte[] mReceivedBuffer = new byte[256];
-    private volatile int mReceivedBytes = 0;
-
+    private ByteBuffer mReceivedBuffer = ByteBuffer.allocate(512);
+    private volatile boolean mIsLengthByte = false;
+    private volatile boolean mIsEscapedByte = false;
+    private volatile boolean mIsValidPacket = false;
+    private volatile int mPacketLength = 0;
+    private volatile int mChecksum = 0;
 
     public MicroControllerCom(MainService svc, boolean learningMode) {
         super(svc);
@@ -83,20 +98,55 @@ public class MicroControllerCom extends SerialCom {
             public void OnDataReceived(byte[] data) {
                 // add the incoming bytes to a buffer
                 for (byte ch : data) {
-                    if (ch == '<') {
-                        // start of packet, clear buffer
-                        mReceivedBuffer = new byte[256];
-                        mReceivedBytes =  0;
-                    } else if (ch == '>') {
-                        // end of packet, handle message
-                        Message msg = mInputHandler.obtainMessage();
-                        msg.obj = new String (mReceivedBuffer, 0 ,mReceivedBytes);
-                        mInputHandler.sendMessage(msg);
+                    if (ch == (byte) 0xF1) {
+                        mIsValidPacket = true;
+                        mIsEscapedByte = false;
+                        mIsLengthByte = true;
 
+                        mReceivedBuffer.clear();
+                        mPacketLength = 0;
+                        mChecksum = 0;
+                    } else if (!mIsValidPacket) {
+                      DLog.i(TAG, "Invalid byte received: " + ch);
+                    } else if (ch == (byte)0x1B && !mIsEscapedByte) {
+                        mIsEscapedByte = true;
                     } else {
-                        // add byte to received buffer
-                        mReceivedBuffer[mReceivedBytes] = ch;
-                        mReceivedBytes++;
+                        if (mIsEscapedByte) {
+                            mIsEscapedByte = false;
+                            if (ch == (byte)0x20) {
+                                // 0xF1 is escaped as 0x20
+                                ch = (byte) 0xF1;
+                            }
+                            // Note: 0x1B is escaped as 0x1B, so we don't need to reset the current byte
+                        }
+
+                        if (mIsLengthByte) {
+                            mIsLengthByte = false;
+                            mPacketLength = ch & (0xFF);
+                            mChecksum = mPacketLength;
+                        } else if (mReceivedBuffer.position() == mPacketLength) {
+                           // This is the checksum byte
+
+                            // Checksum is all bytes added up (not counting header and escape bytes) mod 256
+                            if ((mChecksum % 256) == (ch & 0xFF)) {
+                                Message msg = mInputHandler.obtainMessage();
+                                mReceivedBuffer.flip();
+                                byte[] buf = new byte[mReceivedBuffer.limit()];
+                                mReceivedBuffer.get(buf);
+                                msg.obj = buf;
+                                mInputHandler.sendMessage(msg);
+
+                            } else {
+                                Log.i(TAG, "Invalid checksum, discarding packet");
+                            }
+
+                            // The next byte received must be 0xF1, regardless of what happened here
+                            mIsValidPacket = false;
+                        } else {
+                            // Add byte to packet buffer
+                            mReceivedBuffer.put(ch);
+                            mChecksum += (ch & 0xFF);
+                        }
                     }
                 }
             }
@@ -227,6 +277,7 @@ public class MicroControllerCom extends SerialCom {
         return new MCUControlInterface() {
             @Override
             public void sendMcuCommand(String command, String data) {
+                // TODO: probably need to syncronize this.
                 if (mSerialHelper != null) {
                     String packet = "<" + command + ":" + data + ">";
                     mSerialHelper.writeString(packet);
