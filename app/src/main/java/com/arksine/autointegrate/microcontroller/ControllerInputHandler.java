@@ -167,11 +167,18 @@ public class ControllerInputHandler extends Handler {
 
                 break;
             case INT:
-                if (mMessageBuf.remaining() < 4) {
+                if (mMessageBuf.remaining() == 2) {
+                    // 8-bit MCU integer is two bytes
+                    ctrlMsg.data = mMessageBuf.getShort();
+                    DLog.v(TAG, "8-bit MCU Integer received");
+                } else if (mMessageBuf.remaining() >= 4) {
+                    // 32-bit AVR integer is 4 bytes
+                    ctrlMsg.data = mMessageBuf.getInt();
+                    DLog.v(TAG, "32-bit MCU Integer received");
+                } else {
                     Log.i(TAG, "Invalid Integer data size: " + mMessageBuf.remaining());
                     return null;
                 }
-                ctrlMsg.data = mMessageBuf.getInt();
 
                 break;
             case STRING:

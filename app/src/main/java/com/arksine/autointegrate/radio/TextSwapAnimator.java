@@ -23,6 +23,9 @@ import java.util.ArrayList;
  * it will scroll as long as the textview is contained in a scrollview
  */
 
+// TODO: somewhere in here an exception is being thrown.  It happened when the radio received
+// HD Data.  Unfortunately I havent been able to retune to a HD Channel to replicate
+
 public class TextSwapAnimator {
     private static final String TAG = TextSwapAnimator.class.getSimpleName();
 
@@ -250,6 +253,7 @@ public class TextSwapAnimator {
     public void clearTextItem(RadioKey.Command key) {
 
         int idx;
+
         switch (key) {
             case TUNE:
                 Log.i(TAG, "Frequency should not be cleared");

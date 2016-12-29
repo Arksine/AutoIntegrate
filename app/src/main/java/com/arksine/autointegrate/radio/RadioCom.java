@@ -4,7 +4,6 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.SharedPreferences;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 import android.os.Build;
@@ -30,6 +29,8 @@ import com.felhr.usbserial.UsbSerialInterface;
 
 import java.util.HashMap;
 import java.util.Locale;
+import java.util.Timer;
+import java.util.TimerTask;
 
 /**
  * HD Radio Serial Communications class.
@@ -50,6 +51,7 @@ public class RadioCom extends SerialCom {
     private RadioControlInterface mRadioControlInterface;
 
     private volatile boolean mRadioReady = false;
+    private volatile boolean mIsPoweredOn = false;
     private volatile long mPreviousPowerTime = 0;
     private volatile long mPreviousTuneTime = 0;
 
@@ -124,8 +126,8 @@ public class RadioCom extends SerialCom {
 
     @Override
     public boolean connect() {
-        // HDRadio Cable is an FTDI device that runs at 115200 Baud with flow control
-        UsbSerialSettings settings = new UsbSerialSettings(115200, UsbSerialInterface.FLOW_CONTROL_RTS_CTS);
+        // HDRadio Cable is an FTDI device that runs at 115200 Baud.  No Flow control works.
+        UsbSerialSettings settings = new UsbSerialSettings(115200, UsbSerialInterface.FLOW_CONTROL_OFF);
         mSerialHelper = new UsbHelper(mService, settings);
 
         // Initial Check for MJS Cable
@@ -141,9 +143,14 @@ public class RadioCom extends SerialCom {
 
         boolean autoPower = PreferenceManager.getDefaultSharedPreferences(mService)
                 .getBoolean("radio_pref_key_auto_power", false);
+
+        // TODO: The Serial library automatically raises DTR (apparently not RTS) when connected.   Thus
+        // if we don't want to auto power on we can't connect.  The proper solution is to switch
+        // to the FTDI android library, which I will do when I write remove this and write the android library
         if (autoPower) {
-            mRadioReady = powerOn(mjsCableLocation);
+            mRadioReady = powerOn();
         } else {
+            // TODO: request USB device permission (maybe do it in the findMJSDevice() function
             mRadioReady = true;  // We assume the radio is ready if we got this far
         }
         return mRadioReady;
@@ -152,10 +159,58 @@ public class RadioCom extends SerialCom {
     @Override
     public void disconnect() {
         if (mConnected) {
-            powerOff();
+            synchronized (POWER_LOCK) {
+                // Don't allow power off within 2 seconds of power on
+                long powerDelay = (mPreviousPowerTime + POWER_TOGGLE_DELAY) - SystemClock.elapsedRealtime();
+                DLog.v(TAG, "Power Off, previous power time " + mPreviousPowerTime + '\n' + powerDelay);
+                if (powerDelay > 0) {
+                    // sleep
+                    try {
+                        Thread.sleep(powerDelay);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                mConnected = false;
+                if (mSerialHelper != null) {
+
+
+                    // If there was a device error then we cannot write to it
+                    if (!mDeviceError) {
+                        // send power off callback
+                        if (mIsPoweredOn) {
+                            int cbCount = mService.mRadioCallbacks.beginBroadcast();
+                            for (int i = 0; i < cbCount; i++) {
+                                try {
+                                    mService.mRadioCallbacks.getBroadcastItem(i).OnPowerOff();
+                                } catch (RemoteException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                            mService.mRadioCallbacks.finishBroadcast();
+                        }
+
+                        // send shutdown command to radio if its on
+                        ((UsbHelper)mSerialHelper).toggleDTR(false);
+
+                        // If we disconnect too soon after writing an exception will be thrown
+                        try {
+                            Thread.sleep(500);
+                        } catch (InterruptedException e) {
+                            Log.w(TAG, e.getMessage());
+                        }
+
+                        mSerialHelper.disconnect();
+                    }
+                }
+
+                mPreviousPowerTime = SystemClock.elapsedRealtime();
+            }
         }
 
         mRadioReady = false;
+        mIsPoweredOn = false;
         mSerialHelper = null;
 
         if (isRadioCommandReceiverRegistered) {
@@ -190,14 +245,89 @@ public class RadioCom extends SerialCom {
         return null;
     }
 
-    private boolean powerOn(String mjsCableLocation) {
+    private boolean finishConnection(String mjsCableLocation) {
         if (mConnected) {
             // already powered on
             return true;
         }
 
+        // if we are passed a null string look for the device
+        if (mjsCableLocation == null)
+            mjsCableLocation = findMJSDevice();
+
+        // if still null, cable is not found, exit
+        if (mjsCableLocation == null) {
+            mRadioReady = false;
+            return false;
+        }
+
+        DLog.v(TAG, "Attempting connection to MJS Cable: " + mjsCableLocation);
+        if (mSerialHelper.connectDevice(mjsCableLocation, mCallbacks)) {
+
+            // wait until the connection is finished or until timeout.
+            synchronized (this) {
+                try {
+                    mIsWaiting = true;
+                    wait(30000);
+                } catch (InterruptedException e) {
+                    Log.w(TAG, e.getMessage());
+                }
+            }
+        } else {
+            mRadioReady = false;
+            mConnected = false;
+        }
+
+        if (!mConnected) {
+            Log.i(TAG, "Unable to connect to HD Radio");
+        }
+
+        return mConnected;
+    }
+
+    private boolean powerOn() {
         synchronized (POWER_LOCK) {
-            // Don't allow power on within 2 seconds of power off
+            long powerDelay = (mPreviousPowerTime + POWER_TOGGLE_DELAY) - SystemClock.elapsedRealtime();
+            if (powerDelay > 0) {
+                // sleep
+                try {
+                    Thread.sleep(powerDelay);
+                    DLog.v(TAG, "Power delay, slept for: " + powerDelay);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            if (!mIsPoweredOn) {
+                if (!mConnected) {
+                    mIsPoweredOn = finishConnection(null);
+                } else {
+
+                    // Set the hardware mute so speakers dont get blown by the initial power on
+                    ((UsbHelper) mSerialHelper).toggleRTS(true);
+
+                    // Raise DTR to power on
+                    ((UsbHelper) mSerialHelper).toggleDTR(true);
+                    mIsPoweredOn = true;
+
+                }
+
+
+                if (mIsPoweredOn) {
+                    initRadio();
+                }
+            }
+
+            mPreviousPowerTime = SystemClock.elapsedRealtime();
+
+
+            return mIsPoweredOn;
+        }
+    }
+
+    // TODO: should probably put power off and power on in runnables that are post delayed.  Remove
+    //       the callbacks if power is continously toggled?
+    private void powerOff() {
+        synchronized (POWER_LOCK) {
             long powerDelay = (mPreviousPowerTime + POWER_TOGGLE_DELAY) - SystemClock.elapsedRealtime();
             if (powerDelay > 0) {
                 // sleep
@@ -209,144 +339,65 @@ public class RadioCom extends SerialCom {
                 }
             }
 
-            // if we are passed a null string look for the device
-            if (mjsCableLocation == null)
-                mjsCableLocation = findMJSDevice();
+            if (mConnected && mIsPoweredOn) {
+                ((UsbHelper) mSerialHelper).toggleDTR(false);
+                mIsPoweredOn = false;
 
-            // if still null, cable is not found, exit
-            if (mjsCableLocation == null) {
-                mRadioReady = false;
-                return false;
-            }
-
-            DLog.v(TAG, "Attempting connection to MJS Cable: " + mjsCableLocation);
-            if (mSerialHelper.connectDevice(mjsCableLocation, mCallbacks)) {
-
-                // wait until the connection is finished or until timeout.
-                synchronized (this) {
+                int cbCount = mService.mRadioCallbacks.beginBroadcast();
+                for (int i = 0; i < cbCount; i++) {
                     try {
-                        mIsWaiting = true;
-                        wait(30000);
-                    } catch (InterruptedException e) {
-                        Log.w(TAG, e.getMessage());
+                        mService.mRadioCallbacks.getBroadcastItem(i).OnPowerOff();
+                    } catch (RemoteException e) {
+                        e.printStackTrace();
                     }
                 }
-            } else {
-                mRadioReady = false;
-                mConnected = false;
-            }
-
-            if (mConnected) {
-
-                // Sleep for .5 seconds to give the radio a chance to respond if it is powered up
-                try {
-                    Thread.sleep(500);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-
-                initRadioVars();
-            } else {
-                Log.i(TAG, "Unable to connect to HD Radio");
-            }
-
-            mPreviousPowerTime = SystemClock.elapsedRealtime();
-        }
-
-        return mConnected;
-    }
-
-    private void powerOff() {
-        if (!mConnected) {
-            // already powered off
-            return;
-        }
-
-        synchronized (POWER_LOCK) {
-            // Don't allow power off within 2 seconds of power on
-            long powerDelay = (mPreviousPowerTime + POWER_TOGGLE_DELAY) - SystemClock.elapsedRealtime();
-            DLog.v(TAG, "Power Off, previous power time " + mPreviousPowerTime + '\n' + powerDelay);
-            if (powerDelay > 0) {
-                // sleep
-                try {
-                    Thread.sleep(powerDelay);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
-
-            mConnected = false;
-            if (mSerialHelper != null) {
-
-                mRadioController.close(mService);
-
-                // If there was a device error then we cannot write to it
-                if (!mDeviceError) {
-                    // send shutdown command to radio if its on
-                    if ((boolean) mRadioController.getHdValue(RadioKey.Command.POWER)) {
-                        mSerialHelper.writeBytes(mRadioController
-                                .buildRadioPacket(RadioKey.Command.POWER, RadioKey.Operation.SET, false));
-                    }
-
-                    // If we disconnect too soon after writing an exception will be thrown
-                    try {
-                        Thread.sleep(500);
-                    } catch (InterruptedException e) {
-                        Log.w(TAG, e.getMessage());
-                    }
-
-                    mSerialHelper.disconnect();
-                }
+                mService.mRadioCallbacks.finishBroadcast();
             }
 
             mPreviousPowerTime = SystemClock.elapsedRealtime();
         }
     }
 
-    private boolean isPoweredOn() {
-        return mConnected;
-    }
+    /**
+     * Initialize radio after power on.
+     */
+    private void initRadio() {
 
-
-    private void initRadioVars() {
+        // must sleep for 2 seconds before sending radio a request
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            Log.w(TAG, e.getMessage());
+        }
 
         if (DLog.DEBUG) {
             sendRadioCommand(RadioKey.Command.HD_UNIQUE_ID, RadioKey.Operation.GET, null);
             sendRadioCommand(RadioKey.Command.HD_HW_VERSION, RadioKey.Operation.GET, null);
             sendRadioCommand(RadioKey.Command.HD_API_VERSION, RadioKey.Operation.GET, null);
-            sendRadioCommand(RadioKey.Command.VOLUME, RadioKey.Operation.GET, null);
+            /*sendRadioCommand(RadioKey.Command.VOLUME, RadioKey.Operation.GET, null);
             sendRadioCommand(RadioKey.Command.MUTE, RadioKey.Operation.GET, null);
             sendRadioCommand(RadioKey.Command.BASS, RadioKey.Operation.GET, null);
             sendRadioCommand(RadioKey.Command.TREBLE, RadioKey.Operation.GET, null);
             sendRadioCommand(RadioKey.Command.COMPRESSION, RadioKey.Operation.GET, null);
             sendRadioCommand(RadioKey.Command.HD_TUNER_ENABLED, RadioKey.Operation.GET, null);
             sendRadioCommand(RadioKey.Command.HD_ACTIVE, RadioKey.Operation.GET, null);
-            sendRadioCommand(RadioKey.Command.TUNE, RadioKey.Operation.GET, null);
+            sendRadioCommand(RadioKey.Command.TUNE, RadioKey.Operation.GET, null);*/
         }
 
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            Log.w(TAG, e.getMessage());
+        // release RTS (hardware mute)
+        ((UsbHelper)mSerialHelper).toggleRTS(false);
+
+        // Execute power on callback
+        int cbCount = mService.mRadioCallbacks.beginBroadcast();
+        for (int i = 0; i < cbCount; i++) {
+            try {
+                mService.mRadioCallbacks.getBroadcastItem(i).OnPowerOn();
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
         }
+        mService.mRadioCallbacks.finishBroadcast();
 
-        // Restore persisted values
-        SharedPreferences globalPrefs = PreferenceManager.getDefaultSharedPreferences(mService);
-        int frequency = globalPrefs.getInt("radio_pref_key_frequency", 879);
-        RadioKey.Band band = (globalPrefs.getString("radio_pref_key_band", "FM").equals("FM")) ?
-                RadioKey.Band.FM : RadioKey.Band.AM;
-        int subchannel = globalPrefs.getInt("radio_pref_key_subchannel", 0);
-        int volume = globalPrefs.getInt("radio_pref_key_volume", 75);
-        int bass = globalPrefs.getInt("radio_pref_key_bass", 15);
-        int treble = globalPrefs.getInt("radio_pref_key_treble", 15);
-
-        mRadioControlInterface.setVolume(volume);
-        mRadioControlInterface.setBass(bass);
-        mRadioControlInterface.setTreble(treble);
-
-        // Its important that no commands are sent immediately after a direct tune.  It seems
-        // to cause an issue with locking on to a station.
-        mRadioControlInterface.tune(band, frequency, subchannel);
     }
 
     private void sendRadioCommand(RadioKey.Command command, RadioKey.Operation operation, Object data) {
@@ -389,6 +440,7 @@ public class RadioCom extends SerialCom {
         return mRadioControlInterface;
     }
 
+
     public RadioControlInterface buildRadioInterface() {
 
         return new RadioControlInterface() {
@@ -405,7 +457,7 @@ public class RadioCom extends SerialCom {
             @Override
             public void togglePower(boolean status) {
                 if (status) {
-                    powerOn(null);
+                    powerOn();
                 } else {
                     powerOff();
                 }
@@ -413,12 +465,19 @@ public class RadioCom extends SerialCom {
 
             @Override
             public boolean getPowerStatus() {
-                return mConnected;
+                return mIsPoweredOn;
             }
 
             @Override
             public void toggleMute(boolean status) {
                 sendRadioCommand(RadioKey.Command.MUTE, RadioKey.Operation.SET, status);
+            }
+
+            @Override
+            public void toggleHardwareMute(boolean status) {
+                if (mConnected) {
+                    ((UsbHelper)mSerialHelper).toggleRTS(status);
+                }
             }
 
             @Override
@@ -428,7 +487,9 @@ public class RadioCom extends SerialCom {
 
             @Override
             public void setVolumeUp() {
-                int volume = (int)mRadioController.getHdValue(RadioKey.Command.VOLUME);
+
+                //sendRadioCommand(RadioKey.Command.VOLUME, RadioKey.Operation.SET, RadioKey.Constant.UP);
+                int volume = mRadioController.getVolume();
                 volume++;
 
                 if (volume <= 90) {
@@ -438,7 +499,8 @@ public class RadioCom extends SerialCom {
 
             @Override
             public void setVolumeDown() {
-                int volume = (int)mRadioController.getHdValue(RadioKey.Command.VOLUME);
+                //sendRadioCommand(RadioKey.Command.VOLUME, RadioKey.Operation.SET, RadioKey.Constant.DOWN);
+                int volume = mRadioController.getVolume();
                 volume--;
 
                 if (volume >= 0) {
@@ -454,7 +516,7 @@ public class RadioCom extends SerialCom {
 
             @Override
             public void setBassUp() {
-                int bass = (int)mRadioController.getHdValue(RadioKey.Command.BASS);
+                int bass = (int)mRadioController.getBass();
                 bass++;
 
                 if (bass <= 90) {
@@ -464,7 +526,7 @@ public class RadioCom extends SerialCom {
 
             @Override
             public void setBassDown() {
-                int bass = (int)mRadioController.getHdValue(RadioKey.Command.BASS);
+                int bass =  mRadioController.getBass();
                 bass--;
 
                 if (bass >= 0) {
@@ -479,7 +541,7 @@ public class RadioCom extends SerialCom {
 
             @Override
             public void setTrebleUp() {
-                int treble = (int)mRadioController.getHdValue(RadioKey.Command.TREBLE);
+                int treble = mRadioController.getTreble();
                 treble++;
 
                 if (treble <= 90) {
@@ -489,7 +551,7 @@ public class RadioCom extends SerialCom {
 
             @Override
             public void setTrebleDown() {
-                int treble = (int)mRadioController.getHdValue(RadioKey.Command.TREBLE);
+                int treble = mRadioController.getTreble();
                 treble--;
 
                 if (treble >= 0) {
@@ -505,10 +567,9 @@ public class RadioCom extends SerialCom {
 
                 sendRadioCommand(RadioKey.Command.TUNE, RadioKey.Operation.SET, info);
 
+                // TODO: This functionality should probably move to activity
                 if (subchannel > 0 ) {
-                    final byte[] subChPacket = mRadioController.buildRadioPacket(RadioKey.Command.HD_SUBCHANNEL,
-                            RadioKey.Operation.SET, subchannel);
-                    mSerialHelper.writeBytes(subChPacket);
+                    sendRadioCommand(RadioKey.Command.HD_SUBCHANNEL, RadioKey.Operation.SET, subchannel);
 
                     Thread checkHDStreamLockThread = new Thread(new Runnable() {
                         @Override
@@ -517,7 +578,7 @@ public class RadioCom extends SerialCom {
 
                             // HD Streamlock can take time, retry every 100ms for 10 seconds
                             // to set the subchannel.
-                            while ((subchannel != (int) mRadioController.getHdValue(RadioKey.Command.HD_SUBCHANNEL))) {
+                            while (subchannel != mRadioController.getSubchannel()) {
 
                                 if ( SystemClock.elapsedRealtime() > (STREAM_LOCK_TIMEOUT + startTime)) {
                                     DLog.i(TAG, "Unable to Tune to HD Subchannel: " + subchannel);
@@ -530,7 +591,7 @@ public class RadioCom extends SerialCom {
                                 } catch (InterruptedException e) {
                                     e.printStackTrace();
                                 }
-                                mSerialHelper.writeBytes(subChPacket);
+                                sendRadioCommand(RadioKey.Command.HD_SUBCHANNEL, RadioKey.Operation.SET, subchannel);
                             }
                         }
                     });
@@ -563,10 +624,6 @@ public class RadioCom extends SerialCom {
                 sendRadioCommand(key, RadioKey.Operation.GET, null);
             }
 
-            @Override
-            public Object getHdValue(RadioKey.Command key) {
-                return mRadioController.getHdValue(key);
-            }
         };
     }
 }

@@ -18,6 +18,43 @@
 
     <LinearLayout
         android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginBottom="10dp">
+
+        <ToggleButton
+            android:id="@+id/btn_radio_power"
+            android:textOff="Power"
+            android:textOn="Power"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+
+        <ToggleButton
+            android:id="@+id/btn_radio_mute"
+            android:textOff="Mute"
+            android:textOn="Mute"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+
+        <ToggleButton
+            android:id="@+id/btn_radio_seekall"
+            android:textOff="Seek All"
+            android:textOn="Seek All"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+
+        <ToggleButton
+            android:id="@+id/btn_radio_band"
+            android:textOff="AM"
+            android:textOn="FM"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
         <TextView
@@ -40,14 +77,16 @@
         android:gravity="center">
 
         <ImageButton
+            android:id="@+id/btn_radio_seek_down"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-        android:src="@drawable/seek_down_button"
-        android:background="@color/CLEAR"
-        android:layout_marginEnd="30dp"/>
+            android:src="@drawable/seek_down_button"
+            android:background="@color/CLEAR"
+            android:layout_marginEnd="30dp"/>
 
 
         <ImageButton
+            android:id="@+id/btn_radio_tune_down"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:src="@drawable/left_arrow_button"
@@ -74,6 +113,7 @@
             android:layout_marginEnd="15dp"/>
 
         <ImageButton
+            android:id="@+id/btn_radio_tune_up"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:background="@color/CLEAR"
@@ -81,6 +121,7 @@
             android:layout_marginEnd="30dp"/>
 
         <ImageButton
+            android:id="@+id/btn_radio_seek_up"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:src="@drawable/seek_up_button"
@@ -123,42 +164,7 @@
 
     </ScrollView>
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center"
-        android:layout_marginBottom="10dp">
 
-        <ToggleButton
-            android:id="@+id/btn_radio_power"
-            android:textOff="Power"
-            android:textOn="Power"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"/>
-
-        <ToggleButton
-            android:id="@+id/btn_radio_mute"
-            android:textOff="Mute"
-            android:textOn="Mute"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"/>
-
-        <ToggleButton
-            android:id="@+id/btn_radio_seekall"
-            android:textOff="Seek All"
-            android:textOn="Seek All"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"/>
-
-        <ToggleButton
-            android:id="@+id/btn_radio_band"
-            android:textOff="AM"
-            android:textOn="FM"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"/>
-
-    </LinearLayout>
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -168,24 +174,24 @@
         android:layout_marginBottom="10dp">
 
         <Button
-            android:id="@+id/btn_radio_tune_up"
-            android:text="TuneUp"
+            android:id="@+id/btn_vol_up"
+            android:text="Volume Up"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"/>
 
         <Button
-            android:id="@+id/btn_radio_tune_down"
-            android:text="TuneDown"
+            android:id="@+id/btn_vol_down"
+            android:text="Volume Down"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"/>
 
         <Button
-            android:id="@+id/btn_radio_seek_up"
+
             android:text="SeekUp"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"/>
         <Button
-            android:id="@+id/btn_radio_seek_down"
+
             android:text="SeekDown"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"/>

@@ -302,6 +302,17 @@ public class UsbHelper implements SerialHelper {
         return serialPortConnected;
     }
 
+    public void toggleDTR(boolean state) {
+        if (serialPortConnected) {
+            mSerialPort.setDTR(state);
+        }
+    }
+
+    public void toggleRTS(boolean state) {
+        if (serialPortConnected) {
+            mSerialPort.setRTS(state);
+        }
+    }
 
 
     // This thread opens a usb serial connection on the specified device

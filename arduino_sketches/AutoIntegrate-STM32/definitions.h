@@ -20,7 +20,7 @@
 #define DIMMER_ANALOG_PIN   PA1
 #define DIMMER_DIGITAL_PIN  PA12
 #define REVERSE_PIN         PA15
-#define AUDIO_SOURCE_PIN    PB8
+#define AUDIO_SOURCE_PIN    PB6
 
 // Data Type definitions
 #define TYPE_SHORT 0x01

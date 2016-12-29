@@ -18,7 +18,9 @@ public abstract class RadioControlCallback implements IInterface {
     // Radio Callbacks
     public abstract void OnRadioDataReceived(RadioKey.Command key, Object value) throws RemoteException;
     public abstract void OnError() throws RemoteException;
-    public abstract void OnPowerOff() throws RemoteException;
+    public abstract void OnDisconnect() throws RemoteException;
+    public abstract void OnPowerOn () throws RemoteException;
+    public abstract void OnPowerOff () throws RemoteException;
 
     @Override
     public IBinder asBinder() {

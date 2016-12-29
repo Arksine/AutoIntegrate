@@ -256,7 +256,7 @@ public class MainActivity extends AppCompatActivity {
                 .replace(R.id.content_frame, fragment)
                 .commit();
 
-        // Highlight the selected item, update the title, and close the drawer
+        // Highlight the selected item, update the title, and onDisconnect the drawer
         mDrawerList.setItemChecked(position, true);
         setTitle(title);
         if(mDrawerLayout != null) {

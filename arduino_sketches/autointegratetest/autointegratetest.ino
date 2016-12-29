@@ -27,8 +27,8 @@
 
 char testcmd[20];
 char testdata[30];
-int  tstIdx   = 0;
-boolean isCmd = true;
+int  tstIdx = 0;
+bool isCmd  = true;
 
 char command[30];
 int  cmdIdx = 0;
@@ -127,49 +127,32 @@ void sendTestCommand(const char *command, const char *testdata) {
     sendPacketToPc(CMD_CONNECTED, TYPE_STRING, (byte *)testdata,
                    strlen(testdata));
   } else if (strcmp(command, "Click") == 0) {
-    /*#ifdef ARCH_8BIT
-       long data = atol(testdata);
-       #else // ifdef ARCH_8BIT
-       int data = atoi(testdata);
-     #endif // ifdef ARCH_8BIT*/
-    short data = atoi(testdata);
-    sendPacketToPc(CMD_CLICK, TYPE_SHORT, (byte *)&data, 2);
+    int data = atoi(testdata);
+    sendPacketToPc(CMD_CLICK, TYPE_INT, (byte *)&data, sizeof(data));
   } else if (strcmp(command, "Hold") == 0) {
-    #ifdef ARCH_8BIT
-    long data = atol(testdata);
-    #else // ifdef ARCH_8BIT
     int data = atoi(testdata);
-    #endif // ifdef ARCH_8BIT
-    sendPacketToPc(CMD_HOLD, TYPE_INT, (byte *)&data, 4);
+    sendPacketToPc(CMD_HOLD, TYPE_INT, (byte *)&data, sizeof(data));
   } else if (strcmp(command, "Release") == 0) {
-    #ifdef ARCH_8BIT
-    long data = atol(testdata);
-    #else // ifdef ARCH_8BIT
     int data = atoi(testdata);
-    #endif // ifdef ARCH_8BIT
-    sendPacketToPc(CMD_RELEASE, TYPE_INT, (byte *)&data, 4);
+    sendPacketToPc(CMD_RELEASE, TYPE_INT, (byte *)&data, sizeof(data));
   } else if (strcmp(command, "Dimmer") == 0) {
     if (strcmp(testdata, "On") == 0) {
-      boolean dim = true;
-      sendPacketToPc(CMD_DIMMER, TYPE_BOOLEAN, (byte *)&dim, 1);
+      bool dim = true;
+      sendPacketToPc(CMD_DIMMER, TYPE_BOOLEAN, (byte *)&dim, sizeof(dim));
     } else if (strcmp(testdata, "Off") == 0) {
-      boolean dim = false;
-      sendPacketToPc(CMD_DIMMER, TYPE_BOOLEAN, (byte *)&dim, 1);
+      bool dim = false;
+      sendPacketToPc(CMD_DIMMER, TYPE_BOOLEAN, (byte *)&dim, sizeof(dim));
     } else {
-      #ifdef ARCH_8BIT
-      long data = atol(testdata);
-      #else // ifdef ARCH_8BIT
       int data = atoi(testdata);
-      #endif // ifdef ARCH_8BIT
-      sendPacketToPc(CMD_DIMMER, TYPE_INT, (byte *)&data, 4);
+      sendPacketToPc(CMD_DIMMER, TYPE_INT, (byte *)&data, sizeof(data));
     }
   } else if (strcmp(command, "Reverse") == 0) {
     if (strcmp(testdata, "On") == 0) {
-      boolean rev = true;
-      sendPacketToPc(CMD_REVERSE, TYPE_BOOLEAN, (byte *)&rev, 1);
+      bool rev = true;
+      sendPacketToPc(CMD_REVERSE, TYPE_BOOLEAN, (byte *)&rev, sizeof(rev));
     } else if (strcmp(testdata, "Off") == 0) {
-      boolean rev = false;
-      sendPacketToPc(CMD_REVERSE, TYPE_BOOLEAN, (byte *)&rev, 1);
+      bool rev = false;
+      sendPacketToPc(CMD_REVERSE, TYPE_BOOLEAN, (byte *)&rev, sizeof(rev));
     }
   } else if (strcmp(command, "Radio") == 0) {
     // TODO: parse testdata with simulated radio packet, send to PC

@@ -19,16 +19,17 @@ ButtonCB button(BUTTON_DIGITAL_PIN, Button::PULL_UP, BUTTON_DEBOUNCE_DELAY);
 AudioInput audio_input_selection = HD_RADIO;
 
 
+// TODO: change shorts to ints, should be able to handle the different sizes
 unsigned short btn_analog_value      = 0;
 unsigned short analog_dimmer_reading = 0;
 
 unsigned long reverse_start_time = 0;
 
-boolean isStarted           = false;
-boolean isHolding           = false;
-boolean inReverse           = false;
-boolean isDimmerOn          = false;
-boolean analogDimmerEnabled = false;
+bool isStarted           = false;
+bool isHolding           = false;
+bool inReverse           = false;
+bool isDimmerOn          = false;
+bool analogDimmerEnabled = false;
 
 char command[30];
 byte cmd_index = 0;
@@ -42,18 +43,21 @@ void onResistivePress(const Button& b) {
 }
 
 void onResistiveClick(const Button& b) {
-  sendPacketToPc(CMD_CLICK, TYPE_SHORT, (byte *)&btn_analog_value, 2);
+  sendPacketToPc(CMD_CLICK, TYPE_SHORT, (byte *)&btn_analog_value,
+                 sizeof(btn_analog_value));
 }
 
 void onResistiveHold(const Button& b) {
   isHolding = true;
-  sendPacketToPc(CMD_HOLD, TYPE_SHORT, (byte *)&btn_analog_value, 2);
+  sendPacketToPc(CMD_HOLD, TYPE_SHORT, (byte *)&btn_analog_value,
+                 sizeof(btn_analog_value));
 }
 
 void onResistiveRelease(const Button& b) {
   if (isHolding) {
     isHolding = false;
-    sendPacketToPc(CMD_RELEASE, TYPE_SHORT, (byte *)&btn_analog_value, 2);
+    sendPacketToPc(CMD_RELEASE, TYPE_SHORT, (byte *)&btn_analog_value,
+                   sizeof(btn_analog_value));
   }
 }
 
@@ -112,6 +116,8 @@ void loop() {
   }
 }
 
+// TODO: For AVR architecture I should probably use strcmp_P and PSTR() for all
+// of the constants
 void executeCmd() {
   if (strcmp(command, "START") == 0) {
     delay(1000); // delay one sec so the app is ready
@@ -152,7 +158,7 @@ void executeCmd() {
       digitalWrite(AUDIO_SOURCE_PIN, LOW);
       audio_input_selection = HD_RADIO;
 
-      const char *str = "HD_RADIO_INPUT_SET";
+      const char str[] = "HD_RADIO_INPUT_SET";
       sendPacketToPc(CMD_LOG, TYPE_STRING, (byte *)str, strlen(str));
     }
   } else if (strcmp(command, "Source:AUX") == 0) {
@@ -160,8 +166,8 @@ void executeCmd() {
       digitalWrite(AUDIO_SOURCE_PIN, HIGH);
       audio_input_selection = AUX;
 
-      const char *str = "AUX_INPUT_SET";
-      sendPacketToPc(CMD_LOG, TYPE_STRING, (byte *)PSTR("AUX_INPUT_SET"), strlen(str));
+      const char str[] = "AUX_INPUT_SET";
+      sendPacketToPc(CMD_LOG, TYPE_STRING, (byte *)str, strlen(str));
     }
   } else if (command[0] != 0) {
     // Unknown command, send it back to the device log
@@ -178,12 +184,14 @@ void processReverse() {
         reverse_start_time = millis();
       } else if (millis() >= reverse_start_time + REVERSE_DELAY) {
         inReverse = true;
-        sendPacketToPc(CMD_REVERSE, TYPE_BOOLEAN, (byte *)&inReverse, 1);
+        sendPacketToPc(CMD_REVERSE, TYPE_BOOLEAN, (byte *)&inReverse,
+                       sizeof(inReverse));
       }
     } else {
       inReverse          = false;
       reverse_start_time = 0;
-      sendPacketToPc(CMD_REVERSE, TYPE_BOOLEAN, (byte *)&inReverse, 1);
+      sendPacketToPc(CMD_REVERSE, TYPE_BOOLEAN, (byte *)&inReverse,
+                     sizeof(inReverse));
     }
   }
 }
@@ -192,7 +200,8 @@ void processDimmer() {
   if (digitalRead(DIMMER_DIGITAL_PIN) == HIGH) {
     if (!isDimmerOn) {
       isDimmerOn = true;
-      sendPacketToPc(CMD_DIMMER, TYPE_BOOLEAN, (byte *)&isDimmerOn, 1);
+      sendPacketToPc(CMD_DIMMER, TYPE_BOOLEAN, (byte *)&isDimmerOn,
+                     sizeof(isDimmerOn));
     } else {
       // Analog read here, but only if analog is enabled
       if (analogDimmerEnabled) {
@@ -201,18 +210,16 @@ void processDimmer() {
         if ((reading > analog_dimmer_reading + ANALOG_DIMMER_VARIANCE) ||
             (reading < analog_dimmer_reading - ANALOG_DIMMER_VARIANCE)) {
           analog_dimmer_reading = reading;
-          Serial.print("<Dimmer:");
-          Serial.print(analog_dimmer_reading);
-          Serial.print(">");
           sendPacketToPc(CMD_DIMMER, TYPE_SHORT, (byte *)&analog_dimmer_reading,
-                         2);
+                         sizeof(analog_dimmer_reading));
         }
       }
     }
   } else {
     if (isDimmerOn) {
       isDimmerOn = false;
-      sendPacketToPc(CMD_DIMMER, TYPE_BOOLEAN, (byte *)&isDimmerOn, 1);
+      sendPacketToPc(CMD_DIMMER, TYPE_BOOLEAN, (byte *)&isDimmerOn,
+                     sizeof(isDimmerOn));
     }
   }
 }

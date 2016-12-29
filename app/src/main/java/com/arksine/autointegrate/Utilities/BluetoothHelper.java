@@ -232,7 +232,7 @@ public class BluetoothHelper implements SerialHelper {
                 mSocket.close();
             }
             catch (IOException e) {
-                Log.w(TAG, "Unable to close Socket", e);
+                Log.w(TAG, "Unable to onDisconnect Socket", e);
             }
         }
     }
@@ -334,7 +334,7 @@ public class BluetoothHelper implements SerialHelper {
             } catch (IOException connectException) {
 
                 Log.i (TAG, "Unable to connect to bluetooth socket for device " + macAddr);
-                // Unable to connect; close the socket and get out
+                // Unable to connect; onDisconnect the socket and get out
                 try {
                     mSocket.close();
                 } catch (IOException closeException) {

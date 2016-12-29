@@ -141,4 +141,19 @@ public class RadioSettingsDialog {
         }
     }
 
+    public int getSeekBarProgress(RadioKey.Command key) {
+        switch (key) {
+            case VOLUME:
+                return mVolumeSeekbar.getProgress();
+            case BASS:
+                return mBassSeekbar.getProgress();
+            case TREBLE:
+                return mTrebleSeekbar.getProgress();
+            default:
+                DLog.v(TAG, "Invalid command, cannot set seekbar progress");
+                return 0;
+        }
+    }
+
+
 }

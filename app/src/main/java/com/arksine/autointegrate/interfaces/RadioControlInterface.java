@@ -16,6 +16,7 @@ public interface RadioControlInterface {
     boolean getPowerStatus();
 
     void toggleMute(boolean status);
+    void toggleHardwareMute(boolean status);
 
     void setVolume(int volume);
     void setVolumeUp();
@@ -38,5 +39,4 @@ public interface RadioControlInterface {
     void seekDown();
 
     void requestUpdate(RadioKey.Command key);
-    Object getHdValue(RadioKey.Command key);
 }
