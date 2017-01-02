@@ -164,7 +164,7 @@ public class RadioController {
                     msg = new String(stringBytes);
                 }
 
-                DLog.d(TAG, "First byte (length?): " + intValue +"\nConverted String: \n" + msg);
+                DLog.d(TAG, "First byte (length?): " + intValue + "\nConverted String: \n" + msg);
                 sendHDValue(radioCmd, msg);
                 break;
 
@@ -203,16 +203,6 @@ public class RadioController {
                 }
 
                 sendHDValue(radioCmd, songInfo);
-
-                // TODO: Should I really set the subchannel here?  The HDRC application did, but
-                // This is perhaps something
-                // the activity should decide.
-
-                // If the current subchannel is zero, tune to the included subchannel (Is this necessary?)
-                if (subchannel == 0){
-                    sendHDValue(RadioKey.Command.HD_SUBCHANNEL, songInfo.subchannel);
-                }
-
                 break;
             case RadioCommand.Type.NONE:
 

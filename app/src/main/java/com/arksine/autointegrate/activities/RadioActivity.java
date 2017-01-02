@@ -691,6 +691,11 @@ public class RadioActivity extends AppCompatActivity {
                     break;
                 case HD_TITLE:
                 case HD_ARTIST:
+                    // TODO: request current subchannel
+                    if ((int)mRadioValues.getHdValue(RadioKey.Command.HD_SUBCHANNEL) < 1) {
+                        mRadioInterface.requestUpdate(RadioKey.Command.HD_SUBCHANNEL);
+                    }
+                    break;
                 case HD_CALLSIGN:
                 case RDS_RADIO_TEXT:
                 case RDS_GENRE:

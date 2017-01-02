@@ -67,6 +67,18 @@ public class HardwareReceiver extends BroadcastReceiver {
                 synchronized (this) {
                     // send a broadcast for the main activity to repopulate the device list if a device
                     // is connected or disconnected
+
+                    // TODO: If using the HD Radio Cable I should automatically request
+                    //       Permission here to avoid doing it in the FTDI library
+                    UsbDevice uDev = (UsbDevice) intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
+                    if ((uDev.getVendorId() == 1027) && (uDev.getProductId() ==  37752)) {
+                        DLog.v(TAG, "MJS Cable Attached");
+                        // Try to grant automatic permission
+                        if (UtilityFunctions.hasSignaturePermission(context)) {
+                            grantAutomaticUsbPermission(uDev, context);
+                        }
+                    }
+
                     Intent devChanged = new Intent(ACTION_DEVICE_CHANGED);
                     LocalBroadcastManager.getInstance(context).sendBroadcast(devChanged);
                     DLog.v(TAG, "Usb device attached");

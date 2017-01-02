@@ -96,6 +96,8 @@ public class MicroControllerCom extends SerialCom {
 
             @Override
             public void OnDataReceived(byte[] data) {
+                // TODO: I should move this to the handler
+                // TODO: I should include the header in the checksum calculation (need to do it in sketch as well)
                 // add the incoming bytes to a buffer
                 for (byte ch : data) {
                     if (ch == (byte) 0xF1) {

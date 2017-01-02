@@ -80,9 +80,17 @@ public class HDRadioValues {
             switch (key) {
                 case HD_SUBCHANNEL:
                     int index = (int) value;
-                    mHdValues.put(RadioKey.Command.HD_TITLE, mHdTitles.get(index));
-                    mHdValues.put(RadioKey.Command.HD_ARTIST, mHdArtists.get(index));
-                    ((RadioController.TuneInfo) mHdValues.get(RadioKey.Command.TUNE)).subchannel = index;
+                    String title = mHdTitles.get(index);
+                    String artist = mHdArtists.get(index);
+
+                    // check for null values
+                    if (title == null)
+                        title = "";
+                    if (artist == null)
+                        artist = "";
+
+                    mHdValues.put(RadioKey.Command.HD_TITLE, title);
+                    mHdValues.put(RadioKey.Command.HD_ARTIST, artist);
                     break;
                 case TUNE:
                     // reset values when we tune to a new channel
