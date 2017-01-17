@@ -1,6 +1,8 @@
 package com.arksine.autointegrate.dialogs;
 
 import android.content.Context;
+import android.content.SharedPreferences;
+import android.preference.PreferenceManager;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -9,8 +11,8 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 
 import com.arksine.autointegrate.R;
-import com.arksine.autointegrate.radio.RadioKey;
 import com.arksine.autointegrate.utilities.DLog;
+import com.arksine.hdradiolib.enums.RadioCommand;
 import com.orhanobut.dialogplus.DialogPlus;
 import com.orhanobut.dialogplus.ViewHolder;
 
@@ -22,7 +24,7 @@ public class RadioSettingsDialog {
     private static final String TAG = RadioSettingsDialog.class.getSimpleName();
 
     public interface SeekBarListener {
-        void OnSeekBarChanged(RadioKey.Command key, int value);
+        void OnSeekBarChanged(RadioCommand key, int value);
     }
 
     private Context mContext;
@@ -64,7 +66,7 @@ public class RadioSettingsDialog {
 
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
-                mSeekBarListener.OnSeekBarChanged(RadioKey.Command.VOLUME, seekBar.getProgress());
+                mSeekBarListener.OnSeekBarChanged(RadioCommand.VOLUME, seekBar.getProgress());
             }
         });
 
@@ -77,7 +79,7 @@ public class RadioSettingsDialog {
 
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
-                mSeekBarListener.OnSeekBarChanged(RadioKey.Command.BASS, seekBar.getProgress());
+                mSeekBarListener.OnSeekBarChanged(RadioCommand.BASS, seekBar.getProgress());
             }
         });
 
@@ -90,7 +92,7 @@ public class RadioSettingsDialog {
 
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
-                mSeekBarListener.OnSeekBarChanged(RadioKey.Command.TREBLE, seekBar.getProgress());
+                mSeekBarListener.OnSeekBarChanged(RadioCommand.TREBLE, seekBar.getProgress());
             }
         });
 
@@ -112,11 +114,15 @@ public class RadioSettingsDialog {
                 mVolumeSeekbar.setProgress(75);
                 mBassSeekbar.setProgress(15);
                 mTrebleSeekbar.setProgress(15);
-                mSeekBarListener.OnSeekBarChanged(RadioKey.Command.VOLUME, 75);
-                mSeekBarListener.OnSeekBarChanged(RadioKey.Command.BASS, 15);
-                mSeekBarListener.OnSeekBarChanged(RadioKey.Command.TREBLE, 15);
+                mSeekBarListener.OnSeekBarChanged(RadioCommand.VOLUME, 75);
+                mSeekBarListener.OnSeekBarChanged(RadioCommand.BASS, 15);
+                mSeekBarListener.OnSeekBarChanged(RadioCommand.TREBLE, 15);
             }
         });
+
+
+
+
         // TODO: The header has a help button, don't really need it for this. Should make a new header
         // layout with title only
     }
@@ -125,7 +131,7 @@ public class RadioSettingsDialog {
         mDialog.show();
     }
 
-    public void setSeekBarProgress(RadioKey.Command key, int progress) {
+    public void setSeekBarProgress(RadioCommand key, int progress) {
         switch (key) {
             case VOLUME:
                 mVolumeSeekbar.setProgress(progress);
@@ -141,7 +147,7 @@ public class RadioSettingsDialog {
         }
     }
 
-    public int getSeekBarProgress(RadioKey.Command key) {
+    public int getSeekBarProgress(RadioCommand key) {
         switch (key) {
             case VOLUME:
                 return mVolumeSeekbar.getProgress();
@@ -155,5 +161,23 @@ public class RadioSettingsDialog {
         }
     }
 
+    public void restoreValues() {
+        SharedPreferences globalPrefs = PreferenceManager.getDefaultSharedPreferences(mContext);
 
+        int volume = globalPrefs.getInt("radio_pref_key_volume", 50);
+        int bass = globalPrefs.getInt("radio_pref_key_bass", 15);
+        int treble = globalPrefs.getInt("radio_pref_key_treble", 15);
+
+        mVolumeSeekbar.setProgress(volume);
+        mBassSeekbar.setProgress(bass);
+        mTrebleSeekbar.setProgress(treble);
+    }
+
+    public void persistValues() {
+        PreferenceManager.getDefaultSharedPreferences(mContext).edit()
+                .putInt("radio_pref_key_volume", mVolumeSeekbar.getProgress())
+                .putInt("radio_pref_key_bass", mBassSeekbar.getProgress())
+                .putInt("radio_pref_key_treble", mTrebleSeekbar.getProgress())
+                .apply();
+    }
 }

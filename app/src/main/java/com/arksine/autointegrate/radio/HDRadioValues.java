@@ -6,6 +6,10 @@ import android.preference.PreferenceManager;
 import android.util.SparseArray;
 
 import com.arksine.autointegrate.utilities.DLog;
+import com.arksine.hdradiolib.HDSongInfo;
+import com.arksine.hdradiolib.TuneInfo;
+import com.arksine.hdradiolib.enums.RadioBand;
+import com.arksine.hdradiolib.enums.RadioCommand;
 
 import java.util.HashMap;
 
@@ -23,59 +27,56 @@ public class HDRadioValues {
 
     private SparseArray<String> mHdTitles = new SparseArray<>(5);
     private SparseArray<String> mHdArtists = new SparseArray<>(5);
-    private final HashMap<RadioKey.Command, Object> mHdValues = new HashMap<>(26);
+    private final HashMap<RadioCommand, Object> mHdValues = new HashMap<>(26);
 
     public HDRadioValues (Context context) {
 
         // Restore persisted values
         SharedPreferences globalPrefs = PreferenceManager.getDefaultSharedPreferences(context);
-        RadioController.TuneInfo info = new RadioController.TuneInfo();
-        info.frequency = globalPrefs.getInt("radio_pref_key_frequency", 879);
-        info.band = (globalPrefs.getString("radio_pref_key_band", "FM").equals("FM")) ?
-                RadioKey.Band.FM : RadioKey.Band.AM;
+
+        int frequency = globalPrefs.getInt("radio_pref_key_frequency", 879);
+        RadioBand band = RadioBand.valueOf(globalPrefs.getString("radio_pref_key_band", "FM"));
         int subchannel = globalPrefs.getInt("radio_pref_key_subchannel", 0);
-        int volume = globalPrefs.getInt("radio_pref_key_volume", 50);
-        int bass = globalPrefs.getInt("radio_pref_key_bass", 15);
-        int treble = globalPrefs.getInt("radio_pref_key_treble", 15);
+        TuneInfo info = new TuneInfo(band, frequency, subchannel);
 
         mSeekAll = globalPrefs.getBoolean("radio_pref_key_seekall", true);
 
         // TODO: Don't really need to store seek
-        mHdValues.put(RadioKey.Command.POWER, false);
-        mHdValues.put(RadioKey.Command.MUTE, false);
-        mHdValues.put(RadioKey.Command.SIGNAL_STRENGTH, 0);
-        mHdValues.put(RadioKey.Command.TUNE, info);
-        mHdValues.put(RadioKey.Command.SEEK, 0);
-        mHdValues.put(RadioKey.Command.HD_ACTIVE, false);
-        mHdValues.put(RadioKey.Command.HD_STREAM_LOCK, false);
-        mHdValues.put(RadioKey.Command.HD_SIGNAL_STRENGH, 0);
-        mHdValues.put(RadioKey.Command.HD_SUBCHANNEL, subchannel);
-        mHdValues.put(RadioKey.Command.HD_SUBCHANNEL_COUNT, 0);
-        mHdValues.put(RadioKey.Command.HD_TUNER_ENABLED, true);
-        mHdValues.put(RadioKey.Command.HD_TITLE, "");
-        mHdValues.put(RadioKey.Command.HD_ARTIST, "");
-        mHdValues.put(RadioKey.Command.HD_CALLSIGN, "");
-        mHdValues.put(RadioKey.Command.HD_STATION_NAME, "");
-        mHdValues.put(RadioKey.Command.HD_UNIQUE_ID, "");
-        mHdValues.put(RadioKey.Command.HD_API_VERSION, "");
-        mHdValues.put(RadioKey.Command.HD_HW_VERSION, "");
-        mHdValues.put(RadioKey.Command.RDS_ENABLED, false);
-        mHdValues.put(RadioKey.Command.RDS_GENRE, "");
-        mHdValues.put(RadioKey.Command.RDS_PROGRAM_SERVICE, "");
-        mHdValues.put(RadioKey.Command.RDS_RADIO_TEXT, "");
-        mHdValues.put(RadioKey.Command.VOLUME, volume);
-        mHdValues.put(RadioKey.Command.BASS, bass);
-        mHdValues.put(RadioKey.Command.TREBLE, treble);
-        mHdValues.put(RadioKey.Command.COMPRESSION, 0);
+        mHdValues.put(RadioCommand.POWER, false);
+        mHdValues.put(RadioCommand.MUTE, false);
+        mHdValues.put(RadioCommand.SIGNAL_STRENGTH, 0);
+        mHdValues.put(RadioCommand.TUNE, info);
+        mHdValues.put(RadioCommand.SEEK, 0);
+        mHdValues.put(RadioCommand.HD_ACTIVE, false);
+        mHdValues.put(RadioCommand.HD_STREAM_LOCK, false);
+        mHdValues.put(RadioCommand.HD_SIGNAL_STRENGTH, 0);
+        mHdValues.put(RadioCommand.HD_SUBCHANNEL, subchannel);
+        mHdValues.put(RadioCommand.HD_SUBCHANNEL_COUNT, 0);
+        mHdValues.put(RadioCommand.HD_ENABLE_HD_TUNER, true);
+        mHdValues.put(RadioCommand.HD_TITLE, "");
+        mHdValues.put(RadioCommand.HD_ARTIST, "");
+        mHdValues.put(RadioCommand.HD_CALLSIGN, "");
+        mHdValues.put(RadioCommand.HD_STATION_NAME, "");
+        mHdValues.put(RadioCommand.HD_UNIQUE_ID, "");
+        mHdValues.put(RadioCommand.HD_API_VERSION, "");
+        mHdValues.put(RadioCommand.HD_HW_VERSION, "");
+        mHdValues.put(RadioCommand.RDS_ENABLED, false);
+        mHdValues.put(RadioCommand.RDS_GENRE, "");
+        mHdValues.put(RadioCommand.RDS_PROGRAM_SERVICE, "");
+        mHdValues.put(RadioCommand.RDS_RADIO_TEXT, "");
+        mHdValues.put(RadioCommand.VOLUME, 0);
+        mHdValues.put(RadioCommand.BASS, 0);
+        mHdValues.put(RadioCommand.TREBLE, 0);
+        mHdValues.put(RadioCommand.COMPRESSION, 0);
     }
 
-    public Object getHdValue(RadioKey.Command key) {
+    public Object getHdValue(RadioCommand key) {
         synchronized (WRITE_LOCK) {
             return mHdValues.get(key);
         }
     }
 
-    public void setHdValue(RadioKey.Command key, Object value) {
+    public void setHdValue(RadioCommand key, Object value) {
         synchronized (WRITE_LOCK) {
             switch (key) {
                 case HD_SUBCHANNEL:
@@ -89,35 +90,41 @@ public class HDRadioValues {
                     if (artist == null)
                         artist = "";
 
-                    mHdValues.put(RadioKey.Command.HD_TITLE, title);
-                    mHdValues.put(RadioKey.Command.HD_ARTIST, artist);
+                    mHdValues.put(RadioCommand.HD_TITLE, title);
+                    mHdValues.put(RadioCommand.HD_ARTIST, artist);
+
+                    // update the subchannel in tuneinfo
+                    TuneInfo info = (TuneInfo)mHdValues.get(RadioCommand.TUNE);
+                    if (info != null) {
+                        info.setSubChannel((int)value);
+                    }
                     break;
                 case TUNE:
                     // reset values when we tune to a new channel
-                    mHdValues.put(RadioKey.Command.HD_SUBCHANNEL, 0);
-                    mHdValues.put(RadioKey.Command.HD_SUBCHANNEL_COUNT, 0);
-                    mHdValues.put(RadioKey.Command.HD_ACTIVE, false);
-                    mHdValues.put(RadioKey.Command.HD_STREAM_LOCK, false);
-                    mHdValues.put(RadioKey.Command.RDS_ENABLED, false);
-                    mHdValues.put(RadioKey.Command.RDS_GENRE, "");
-                    mHdValues.put(RadioKey.Command.RDS_PROGRAM_SERVICE, "");
-                    mHdValues.put(RadioKey.Command.RDS_RADIO_TEXT, "");
-                    mHdValues.put(RadioKey.Command.HD_CALLSIGN, "");
-                    mHdValues.put(RadioKey.Command.HD_STATION_NAME, "");
-                    mHdValues.put(RadioKey.Command.HD_TITLE, "");
-                    mHdValues.put(RadioKey.Command.HD_ARTIST, "");
+                    mHdValues.put(RadioCommand.HD_SUBCHANNEL, 0);
+                    mHdValues.put(RadioCommand.HD_SUBCHANNEL_COUNT, 0);
+                    mHdValues.put(RadioCommand.HD_ACTIVE, false);
+                    mHdValues.put(RadioCommand.HD_STREAM_LOCK, false);
+                    mHdValues.put(RadioCommand.RDS_ENABLED, false);
+                    mHdValues.put(RadioCommand.RDS_GENRE, "");
+                    mHdValues.put(RadioCommand.RDS_PROGRAM_SERVICE, "");
+                    mHdValues.put(RadioCommand.RDS_RADIO_TEXT, "");
+                    mHdValues.put(RadioCommand.HD_CALLSIGN, "");
+                    mHdValues.put(RadioCommand.HD_STATION_NAME, "");
+                    mHdValues.put(RadioCommand.HD_TITLE, "");
+                    mHdValues.put(RadioCommand.HD_ARTIST, "");
                     mHdArtists.clear();
                     mHdTitles.clear();
                     break;
                 case HD_TITLE:
-                    RadioController.HDSongInfo val = (RadioController.HDSongInfo) value;
-                    mHdTitles.put(val.subchannel, val.description);
-                    value = val.description;
+                    HDSongInfo val = (HDSongInfo) value;
+                    mHdTitles.put(val.getSubchannel(), val.getInfo());
+                    value = val.getInfo();
                     break;
                 case HD_ARTIST:
-                    RadioController.HDSongInfo val2 = (RadioController.HDSongInfo) value;
-                    mHdArtists.put(val2.subchannel, val2.description);
-                    value = val2.description;
+                    HDSongInfo val2 = (HDSongInfo) value;
+                    mHdArtists.put(val2.getSubchannel(), val2.getInfo());
+                    value = val2.getInfo();
                     break;
                 case SEEK:
                     // Don't need to store seek value
@@ -126,10 +133,10 @@ public class HDRadioValues {
             }
 
             if (DLog.DEBUG) {
-                if (value instanceof RadioController.TuneInfo) {
+                if (value instanceof TuneInfo) {
                     DLog.i(TAG, "Stored " + key.toString() + ": "
-                            + ((RadioController.TuneInfo) value).frequency + " "
-                            + ((RadioController.TuneInfo) value).band.toString());
+                            + ((TuneInfo) value).getFrequency() + " "
+                            + ((TuneInfo) value).getBand().toString());
                 } else {
                     DLog.i(TAG, "Stored " + key.toString() + ": " + value);
                 }
@@ -151,21 +158,18 @@ public class HDRadioValues {
     public void savePersistentPrefs(Context context) {
         // Persist changeable values
         SharedPreferences globalPrefs = PreferenceManager.getDefaultSharedPreferences(context);
-        RadioController.TuneInfo tuneInfo = (RadioController.TuneInfo)mHdValues.get(RadioKey.Command.TUNE);
-        boolean hdActive = (boolean)mHdValues.get(RadioKey.Command.HD_ACTIVE);
+        TuneInfo tuneInfo = (TuneInfo)mHdValues.get(RadioCommand.TUNE);
+        boolean hdActive = (boolean)mHdValues.get(RadioCommand.HD_ACTIVE);
 
-        int subchannel = (hdActive) ? (int)mHdValues.get(RadioKey.Command.HD_SUBCHANNEL) : 0;
-        int volume = (int)mHdValues.get(RadioKey.Command.VOLUME);
-        int bass = (int)mHdValues.get(RadioKey.Command.BASS);
-        int treble = (int)mHdValues.get(RadioKey.Command.TREBLE);
+        int subchannel = (hdActive) ? (int)mHdValues.get(RadioCommand.HD_SUBCHANNEL) : 0;
+        int volume = (int)mHdValues.get(RadioCommand.VOLUME);
+        int bass = (int)mHdValues.get(RadioCommand.BASS);
+        int treble = (int)mHdValues.get(RadioCommand.TREBLE);
 
         globalPrefs.edit()
-                .putInt("radio_pref_key_frequency", tuneInfo.frequency)
-                .putString("radio_pref_key_band", tuneInfo.band.toString())
+                .putInt("radio_pref_key_frequency", tuneInfo.getFrequency())
+                .putString("radio_pref_key_band", tuneInfo.getBand().toString())
                 .putInt("radio_pref_key_subchannel", subchannel)
-                .putInt("radio_pref_key_volume", volume)
-                .putInt("radio_pref_key_bass", bass)
-                .putInt("radio_pref_key_treble", treble)
                 .putBoolean("radio_pref_key_seekall", mSeekAll)
                 .apply();
     }

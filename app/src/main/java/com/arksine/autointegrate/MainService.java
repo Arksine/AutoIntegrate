@@ -21,8 +21,8 @@ import android.widget.Toast;
 
 import com.arksine.autointegrate.activities.MainActivity;
 import com.arksine.autointegrate.interfaces.RadioControlCallback;
-import com.arksine.autointegrate.interfaces.RadioControlInterface;
 import com.arksine.autointegrate.utilities.DLog;
+import com.arksine.hdradiolib.RadioController;
 
 //TODO:  Rename App/Service/Package to Road Mage
 
@@ -171,7 +171,7 @@ public class MainService extends Service {
     }
 
     public class LocalBinder extends Binder {
-        public RadioControlInterface getRadioInterface() {
+        public RadioController getRadioInterface() {
             return mServiceThread.getRadioInterface();
         }
 

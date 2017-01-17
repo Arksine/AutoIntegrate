@@ -12,6 +12,7 @@ import android.view.animation.LinearInterpolator;
 import android.widget.TextView;
 
 import com.arksine.autointegrate.utilities.DLog;
+import com.arksine.hdradiolib.enums.RadioCommand;
 
 import java.util.ArrayList;
 
@@ -208,9 +209,9 @@ public class TextSwapAnimator {
         }
     }
 
-    public void setTextItem(RadioKey.Command key, String item) {
+    public void setTextItem(RadioCommand command, String item) {
         int idx;
-        switch (key) {
+        switch (command) {
             case TUNE:
                 idx = 0;
                 break;
@@ -250,11 +251,11 @@ public class TextSwapAnimator {
         }
     }
 
-    public void clearTextItem(RadioKey.Command key) {
+    public void clearTextItem(RadioCommand command) {
 
         int idx;
 
-        switch (key) {
+        switch (command) {
             case TUNE:
                 Log.i(TAG, "Frequency should not be cleared");
                 return;

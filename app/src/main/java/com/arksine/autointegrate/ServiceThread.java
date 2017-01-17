@@ -9,7 +9,6 @@ import android.preference.PreferenceManager;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
-import com.arksine.autointegrate.interfaces.RadioControlInterface;
 import com.arksine.autointegrate.microcontroller.MicroControllerCom;
 import com.arksine.autointegrate.power.IntegratedPowerManager;
 import com.arksine.autointegrate.preferences.MainSettings;
@@ -17,6 +16,7 @@ import com.arksine.autointegrate.radio.RadioCom;
 import com.arksine.autointegrate.utilities.BackgroundThreadFactory;
 import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
+import com.arksine.hdradiolib.RadioController;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -135,13 +135,17 @@ public class ServiceThread implements Runnable {
                 Log.i(TAG, "Micro Controller Integration Disabled");
             }
 
+            // TODO: need to also check for a preference on whether to use the HDRadio Libary
+            // to communicate with the radio via usb OR use the Microcontroller to do it
+
             // Check for HD Radio Integration
             if (sharedPrefs.getBoolean("main_pref_key_toggle_radio", false)) {
 
                 // Since the connection status determines if the radio is powered on or not,
                 // its possible for it to be disconnected.  We will only create a new mHdRadio object
                 // if its null or if the hdRadio wasn't able to successfully setup
-                if (mHdRadio == null || !mHdRadio.isRadioReady()) {
+                if (mHdRadio == null) {
+
                     mHdRadio = new RadioCom(mService);
                     if (mHdRadio.connect()) {
                         DLog.v(TAG, "HD Radio Connection Set Up");
@@ -205,7 +209,7 @@ public class ServiceThread implements Runnable {
         }
 
         if (globalPrefs.getBoolean("main_pref_key_toggle_radio", false)) {
-            connected = (connected && (mHdRadio != null && mHdRadio.isRadioReady()));
+            connected = (connected && (mHdRadio != null && mHdRadio.isConnected()));
         }
 
         DLog.i(TAG, "All connected status: " + connected);
@@ -293,8 +297,8 @@ public class ServiceThread implements Runnable {
         }
     }
 
-    public RadioControlInterface getRadioInterface() {
-        if (mHdRadio != null && mHdRadio.isRadioReady()) {
+    public RadioController getRadioInterface() {
+        if (mHdRadio != null && mHdRadio.isConnected()) {
             return mHdRadio.getRadioInterface();
         } else {
             return null;

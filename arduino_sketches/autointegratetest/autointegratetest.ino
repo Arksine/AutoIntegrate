@@ -105,7 +105,7 @@ void executeCmd() {
                  // to receive
 
     const char *success = "SUCCESS";
-    sendPacketToPc(CMD_LOG, TYPE_STRING, (byte *)success, 7);
+    sendPacketToPc(CMD_LOG, TYPE_STRING, (byte *)success, strlen(success));
 
     Serial1.println(F("<START:SUCCESS>"));
 

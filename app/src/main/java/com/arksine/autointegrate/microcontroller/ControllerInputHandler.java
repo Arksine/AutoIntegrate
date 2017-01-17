@@ -10,14 +10,13 @@ import android.util.Log;
 
 import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.interfaces.MCUControlInterface;
-import com.arksine.autointegrate.radio.RadioController;
-import com.arksine.autointegrate.radio.RadioKey;
-import com.arksine.autointegrate.radio.TextStreamAnimator;
 import com.arksine.autointegrate.utilities.DLog;
+import com.arksine.hdradiolib.HDSongInfo;
+import com.arksine.hdradiolib.TuneInfo;
+import com.arksine.hdradiolib.enums.RadioBand;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-
 
 /**
  * Handler to parse incoming packets from the Micro Controller and process its events
@@ -199,20 +198,19 @@ public class ControllerInputHandler extends Handler {
                     return null;
                 }
 
-                RadioController.TuneInfo tuneInfo = new RadioController.TuneInfo();
-                tuneInfo.subchannel = 0;
+                RadioBand band;
                 byte bnd = mMessageBuf.get();
                 if (bnd == 0) {
-                    tuneInfo.band = RadioKey.Band.AM;
+                    band = RadioBand.AM;
                 } else if (bnd == 1) {
-                    tuneInfo.band = RadioKey.Band.FM;
+                    band = RadioBand.FM;
                 } else {
                     Log.wtf(TAG, "Band byte received is invalid");
                     return null;
                 }
+                int frequency = mMessageBuf.getInt();
 
-
-                tuneInfo.frequency = mMessageBuf.getInt();
+                TuneInfo tuneInfo = new TuneInfo(band, frequency, 0);
                 ctrlMsg.data = tuneInfo;
                 break;
             case HD_SONG_INFO:
@@ -223,14 +221,13 @@ public class ControllerInputHandler extends Handler {
                     Log.i(TAG, "Invalid Song Info data size: " + mMessageBuf.remaining());
                     return null;
                 }
-                RadioController.HDSongInfo songInfo = new RadioController.HDSongInfo();
 
-
-                songInfo.subchannel = mMessageBuf.getInt();
-
+                int subchannel = mMessageBuf.getInt();
                 byte[] songBytes = new byte[mMessageBuf.remaining()];
                 mMessageBuf.get(songBytes);
-                songInfo.description = new String(songBytes);
+                String info = new String(songBytes);
+
+                HDSongInfo songInfo = new HDSongInfo(info, subchannel);
                 ctrlMsg.data = songInfo;
                 break;
             default:

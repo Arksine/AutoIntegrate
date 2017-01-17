@@ -28,14 +28,17 @@ import com.arksine.autointegrate.MainService;
 import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.dialogs.RadioSettingsDialog;
 import com.arksine.autointegrate.interfaces.RadioControlCallback;
-import com.arksine.autointegrate.interfaces.RadioControlInterface;
 import com.arksine.autointegrate.radio.HDRadioValues;
-import com.arksine.autointegrate.radio.RadioController;
-import com.arksine.autointegrate.radio.RadioKey;
+import com.arksine.autointegrate.radio.RadioCom;
 import com.arksine.autointegrate.radio.TextStreamAnimator;
 import com.arksine.autointegrate.utilities.BackgroundThreadFactory;
 import com.arksine.autointegrate.radio.TextSwapAnimator;
 import com.arksine.autointegrate.utilities.DLog;
+import com.arksine.hdradiolib.HDSongInfo;
+import com.arksine.hdradiolib.RadioController;
+import com.arksine.hdradiolib.TuneInfo;
+import com.arksine.hdradiolib.enums.RadioBand;
+import com.arksine.hdradiolib.enums.RadioCommand;
 
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
@@ -49,7 +52,7 @@ public class RadioActivity extends AppCompatActivity {
     private ExecutorService EXECUTOR = Executors.newCachedThreadPool(new BackgroundThreadFactory());
     private Handler mHandler;
     private boolean mBound = false;
-    private RadioControlInterface mRadioInterface = null;
+    private RadioController mRadioInterface = null;
 
     private HDRadioValues mRadioValues;
 
@@ -81,7 +84,7 @@ public class RadioActivity extends AppCompatActivity {
 
     private RadioControlCallback mRadioCallback = new RadioControlCallback() {
         @Override
-        public void OnRadioDataReceived(final RadioKey.Command key, final Object value) throws RemoteException {
+        public void OnRadioDataReceived(final RadioCommand key, final Object value) throws RemoteException {
             mRadioValues.setHdValue(key, value);
 
             RadioMessage radioMessage = new RadioMessage();
@@ -120,21 +123,19 @@ public class RadioActivity extends AppCompatActivity {
             EXECUTOR.execute(new Runnable() {
                 @Override
                 public void run() {
-                    // TODO: something funny is happening here, might need more time between sending items to radio.
-                    // It is getting set but not taking affect (seemed to work fine before)
+
+
                     mRadioInterface.setVolume(mRadioSettingsDialog
-                            .getSeekBarProgress(RadioKey.Command.VOLUME));
+                            .getSeekBarProgress(RadioCommand.VOLUME));
                     mRadioInterface.setBass(mRadioSettingsDialog
-                            .getSeekBarProgress(RadioKey.Command.BASS));
+                            .getSeekBarProgress(RadioCommand.BASS));
                     mRadioInterface.setTreble(mRadioSettingsDialog
-                            .getSeekBarProgress(RadioKey.Command.TREBLE));
+                            .getSeekBarProgress(RadioCommand.TREBLE));
 
-                    RadioController.TuneInfo tuneInfo = (RadioController.TuneInfo)mRadioValues
-                            .getHdValue(RadioKey.Command.TUNE);
-                    int subchannel = (int)mRadioValues.getHdValue(RadioKey.Command.HD_SUBCHANNEL);
+                    TuneInfo info = (TuneInfo) mRadioValues
+                            .getHdValue(RadioCommand.TUNE);
 
-
-                    mRadioInterface.tune(tuneInfo.band, tuneInfo.frequency, subchannel);
+                    mRadioInterface.tune(info);
                 }
             });
 
@@ -182,9 +183,6 @@ public class RadioActivity extends AppCompatActivity {
         @Override
         public void run() {
             if (mRadioInterface != null) {
-                // TODO: When I move hdvalues to its own class (or to this activity) I should
-                // get persisted settings from there. I should request power status from the radio, and set
-                // mute, volume, bass from persisted settings.
 
                 // get power status from the interface, because we are unable to receive the
                 // power command from the radio prior to binding to the service
@@ -193,8 +191,6 @@ public class RadioActivity extends AppCompatActivity {
                 // get persistent seekall value
                 final boolean seekAll = mRadioValues.getSeekAll();
                 mRadioInterface.setSeekAll(seekAll);
-
-                // TODO: I should mute persist?
 
                 runOnUiThread(new Runnable() {
                     @Override
@@ -208,17 +204,17 @@ public class RadioActivity extends AppCompatActivity {
 
                 // Request the status of a important radio values if the radio is already powered on
                 if (mIsPoweredOn) {
-                    mRadioInterface.requestUpdate(RadioKey.Command.MUTE);
-                    mRadioInterface.requestUpdate(RadioKey.Command.VOLUME);
-                    mRadioInterface.requestUpdate(RadioKey.Command.BASS);
-                    mRadioInterface.requestUpdate(RadioKey.Command.TREBLE);
-                    mRadioInterface.requestUpdate(RadioKey.Command.HD_ACTIVE);
-                    mRadioInterface.requestUpdate(RadioKey.Command.RDS_ENABLED);
+                    mRadioInterface.requestUpdate(RadioCommand.MUTE);
+                    mRadioInterface.requestUpdate(RadioCommand.VOLUME);
+                    mRadioInterface.requestUpdate(RadioCommand.BASS);
+                    mRadioInterface.requestUpdate(RadioCommand.TREBLE);
+                    mRadioInterface.requestUpdate(RadioCommand.HD_ACTIVE);
+                    mRadioInterface.requestUpdate(RadioCommand.RDS_ENABLED);
 
 
                     // Ask the radio to send fresh tune info
-                    mRadioInterface.requestUpdate(RadioKey.Command.TUNE);
-                    mRadioInterface.requestUpdate(RadioKey.Command.HD_SUBCHANNEL);
+                    mRadioInterface.requestUpdate(RadioCommand.TUNE);
+                    mRadioInterface.requestUpdate(RadioCommand.HD_SUBCHANNEL);
 
                     if (!mIsRequestingSignal) {
                         EXECUTOR.execute(mRequestSignalRunnable);
@@ -272,16 +268,17 @@ public class RadioActivity extends AppCompatActivity {
         mPowerButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                //TODO: Disable power button for two seconds, then post delay a re-enable
                 DLog.v(TAG, "Power Clicked, interface is: " + (mRadioInterface != null));
                 if (mRadioInterface != null) {
                     final boolean status = ((ToggleButton)view).isChecked();
-                    EXECUTOR.execute(new Runnable() {
-                        @Override
-                        public void run() {
-                            DLog.v(TAG, "Set power: " + status);
-                            mRadioInterface.togglePower(status);
-                        }
-                    });
+
+                    DLog.v(TAG, "Set power: " + status);
+                    if (status) {
+                        mRadioInterface.powerOn();
+                    } else {
+                        mRadioInterface.powerOff();
+                    }
 
                 }
             }
@@ -292,14 +289,15 @@ public class RadioActivity extends AppCompatActivity {
             public void onClick(View view) {
                 if (mRadioInterface != null) {
                     final boolean status = ((ToggleButton)view).isChecked();
-                    EXECUTOR.execute(new Runnable() {
-                        @Override
-                        public void run() {
-                            DLog.v(TAG, "Set mute: " + status);
-                            mRadioInterface.toggleMute(status);
-                        }
-                    });
+
+                    DLog.v(TAG, "Set mute: " + status);
+                    if (status) {
+                        mRadioInterface.muteOn();
+                    } else {
+                        mRadioInterface.muteOff();
+                    }
                 }
+
             }
         });
 
@@ -308,12 +306,7 @@ public class RadioActivity extends AppCompatActivity {
             public void onClick(View view) {
                 if (mRadioInterface != null) {
                     final boolean status = ((ToggleButton) view).isChecked();
-                    EXECUTOR.execute(new Runnable() {
-                        @Override
-                        public void run() {
-                            mRadioInterface.setSeekAll(status);
-                        }
-                    });
+                    mRadioInterface.setSeekAll(status);
                 }
             }
         });
@@ -325,46 +318,39 @@ public class RadioActivity extends AppCompatActivity {
                     final boolean band = ((ToggleButton) view).isChecked();
                     DLog.v(TAG, "Switch Band to FM: " + band);
                     if (band) {
-                        EXECUTOR.execute(new Runnable() {
-                            @Override
-                            public void run() {
-                                // fm
-                                final int frequency = mRadioActivityPrefs.getInt("pref_key_stored_fm_freq", 879);
-                                final int subChannel = mRadioActivityPrefs.getInt("pref_key_stored_fm_subch", 0);
+                        // fm
+                        final int frequency = mRadioActivityPrefs.getInt("pref_key_stored_fm_freq", 879);
+                        final int subChannel = mRadioActivityPrefs.getInt("pref_key_stored_fm_subch", 0);
 
-                                //save am channel
-                                int prevFreq = ((RadioController.TuneInfo)mRadioValues
-                                        .getHdValue(RadioKey.Command.TUNE)).frequency;
-                                int prevSubCh = mHdActive ? (int)mRadioValues
-                                        .getHdValue(RadioKey.Command.HD_SUBCHANNEL) : 0;
-                                mRadioActivityPrefs.edit().putInt("pref_key_stored_am_freq", prevFreq)
-                                        .putInt("pref_key_stored_am_subch", prevSubCh)
-                                        .apply();
+                        //save am channel
+                        int prevFreq = ((TuneInfo)mRadioValues
+                                .getHdValue(RadioCommand.TUNE)).getFrequency();
+                        int prevSubCh = mHdActive ? (int)mRadioValues
+                                .getHdValue(RadioCommand.HD_SUBCHANNEL) : 0;
+                        mRadioActivityPrefs.edit().putInt("pref_key_stored_am_freq", prevFreq)
+                                .putInt("pref_key_stored_am_subch", prevSubCh)
+                                .apply();
 
+                        TuneInfo tuneInfo = new TuneInfo(RadioBand.FM, frequency, subChannel);
 
-                                mRadioInterface.tune(RadioKey.Band.FM, frequency, subChannel);
-                            }
-                        });
+                        mRadioInterface.tune(tuneInfo);
                     } else {
                         // am
-                        EXECUTOR.execute(new Runnable() {
-                            @Override
-                            public void run() {
-                                final int frequency = mRadioActivityPrefs.getInt("pref_key_stored_am_freq", 900);
-                                final int subChannel = mRadioActivityPrefs.getInt("pref_key_stored_am_subch", 0);
+                        final int frequency = mRadioActivityPrefs.getInt("pref_key_stored_am_freq", 900);
+                        final int subChannel = mRadioActivityPrefs.getInt("pref_key_stored_am_subch", 0);
 
-                                //save fm channel
-                                int prevFreq = ((RadioController.TuneInfo)mRadioValues
-                                        .getHdValue(RadioKey.Command.TUNE)).frequency;
-                                int prevSubCh = mHdActive ? (int)mRadioValues
-                                        .getHdValue(RadioKey.Command.HD_SUBCHANNEL) : 0;
+                        //save fm channel
+                        int prevFreq = ((TuneInfo)mRadioValues
+                                .getHdValue(RadioCommand.TUNE)).getFrequency();
+                        int prevSubCh = mHdActive ? (int)mRadioValues
+                                .getHdValue(RadioCommand.HD_SUBCHANNEL) : 0;
 
-                                mRadioActivityPrefs.edit().putInt("pref_key_stored_fm_freq", prevFreq)
-                                        .putInt("pref_key_stored_fm_subch", prevSubCh)
-                                        .apply();
-                                mRadioInterface.tune(RadioKey.Band.AM, frequency, subChannel);
-                            }
-                        });
+                        mRadioActivityPrefs.edit().putInt("pref_key_stored_fm_freq", prevFreq)
+                                .putInt("pref_key_stored_fm_subch", prevSubCh)
+                                .apply();
+
+                        TuneInfo tuneInfo = new TuneInfo(RadioBand.AM, frequency, subChannel);
+                        mRadioInterface.tune(tuneInfo);
                     }
                 }
             }
@@ -374,10 +360,24 @@ public class RadioActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 if (mRadioInterface != null) {
+                    // TODO: need to check if we have HD Stream lock.  If so, up increase
+                    //       the subchannel count
+
+
                     EXECUTOR.execute(new Runnable() {
                         @Override
                         public void run() {
-                            mRadioInterface.tuneUp();
+                            int curSc = (int)mRadioValues.getHdValue(RadioCommand.HD_SUBCHANNEL);
+                            int count = (int)mRadioValues.getHdValue(RadioCommand.HD_SUBCHANNEL);
+
+                            if (!mHdActive || curSc >= count) {
+                                // If not currently tuned to an HD Channel, or the channel is
+                                // already at the maximum listed HD Channel, regular tune up
+                                mRadioInterface.tuneUp();
+                            } else {
+                                curSc++;
+                                mRadioInterface.setHdSubChannel(curSc);
+                            }
                         }
                     });
                 }
@@ -391,9 +391,20 @@ public class RadioActivity extends AppCompatActivity {
                     EXECUTOR.execute(new Runnable() {
                         @Override
                         public void run() {
-                            mRadioInterface.tuneDown();
+
+                            int curSc = (int)mRadioValues.getHdValue(RadioCommand.HD_SUBCHANNEL);
+                            if (curSc < 2) {
+                                // tune down to the next channel, as we either arent on an HD channel
+                                // or are on channel 1
+                                mRadioInterface.tuneDown();
+                            } else {
+                                curSc--;
+                                mRadioInterface.setHdSubChannel(curSc);
+                            }
+
                         }
                     });
+
                 }
             }
         });
@@ -402,12 +413,7 @@ public class RadioActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 if (mRadioInterface != null) {
-                    EXECUTOR.execute(new Runnable() {
-                        @Override
-                        public void run() {
-                            mRadioInterface.seekUp();
-                        }
-                    });
+                    mRadioInterface.seekUp();
                 }
             }
         });
@@ -416,12 +422,7 @@ public class RadioActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 if (mRadioInterface != null) {
-                    EXECUTOR.execute(new Runnable() {
-                        @Override
-                        public void run() {
-                            mRadioInterface.seekDown();
-                        }
-                    });
+                    mRadioInterface.seekDown();
                 }
             }
         });
@@ -437,12 +438,7 @@ public class RadioActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 if (mRadioInterface != null) {
-                    EXECUTOR.execute(new Runnable() {
-                        @Override
-                        public void run() {
-                            mRadioInterface.setVolumeUp();
-                        }
-                    });
+                    mRadioInterface.setVolumeUp();
                 }
             }
         });
@@ -451,12 +447,7 @@ public class RadioActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 if (mRadioInterface != null) {
-                    EXECUTOR.execute(new Runnable() {
-                        @Override
-                        public void run() {
-                            mRadioInterface.setVolumeDown();
-                        }
-                    });
+                    mRadioInterface.setVolumeDown();
                 }
             }
         }));
@@ -466,41 +457,24 @@ public class RadioActivity extends AppCompatActivity {
 
         RadioSettingsDialog.SeekBarListener listener = new RadioSettingsDialog.SeekBarListener() {
             @Override
-            public void OnSeekBarChanged(RadioKey.Command key, int value) {
+            public void OnSeekBarChanged(RadioCommand key, int value) {
                 switch (key) {
                     case VOLUME:
                         if (mRadioInterface != null) {
                             final int vol = value;
-                            EXECUTOR.execute(new Runnable() {
-                                @Override
-                                public void run() {
-                                    mRadioInterface.setVolume(vol);
-                                }
-                            });
-
+                            mRadioInterface.setVolume(vol);
                         }
                         break;
                     case BASS:
                         if (mRadioInterface != null) {
                             final int bass = value;
-                            EXECUTOR.execute(new Runnable() {
-                                @Override
-                                public void run() {
-                                    mRadioInterface.setBass(bass);
-                                }
-                            });
-
+                            mRadioInterface.setBass(bass);
                         }
                         break;
                     case TREBLE:
                         if (mRadioInterface != null) {
                             final int treble = value;
-                            EXECUTOR.execute(new Runnable() {
-                                @Override
-                                public void run() {
-                                    mRadioInterface.setTreble(treble);
-                                }
-                            });
+                            mRadioInterface.setTreble(treble);
                         }
                         break;
                     default:
@@ -511,14 +485,6 @@ public class RadioActivity extends AppCompatActivity {
 
         mRadioSettingsDialog = new RadioSettingsDialog(this, listener);
 
-        // Set initial progress of bars
-        final int volume = (int)mRadioValues.getHdValue(RadioKey.Command.VOLUME);
-        final int bass =  (int)mRadioValues.getHdValue(RadioKey.Command.BASS);
-        final int treble = (int)mRadioValues.getHdValue(RadioKey.Command.VOLUME);
-
-        mRadioSettingsDialog.setSeekBarProgress(RadioKey.Command.VOLUME, volume);
-        mRadioSettingsDialog.setSeekBarProgress(RadioKey.Command.BASS, bass);
-        mRadioSettingsDialog.setSeekBarProgress(RadioKey.Command.TREBLE, treble);
     }
 
 
@@ -551,6 +517,8 @@ public class RadioActivity extends AppCompatActivity {
             DLog.v(TAG, "Display Metrics set width to:  " + scrollViewWidth);
         }
 
+        mRadioSettingsDialog.restoreValues();
+
         Intent intent = new Intent(this, MainService.class);
         bindService(intent, mServiceConnection, Context.BIND_AUTO_CREATE);
 
@@ -560,18 +528,20 @@ public class RadioActivity extends AppCompatActivity {
     protected void onPause() {
         super.onPause();
         mRadioValues.savePersistentPrefs(this);
+        mRadioSettingsDialog.persistValues();
         mTextSwapAnimator.stopAnimation();
 
         if (mBound) {
             unbindService(mServiceConnection);
-            mBound = false;        }
+            mBound = false;
+        }
 
         // TODO: I could assign a future to the signal request runnable and shut it down
         mIsRequestingSignal = false;
     }
 
     class RadioMessage {
-        RadioKey.Command key;
+        RadioCommand key;
         Object value;
     }
 
@@ -593,21 +563,19 @@ public class RadioActivity extends AppCompatActivity {
                     mMuteButton.setChecked((boolean)radioMessage.value);
                     break;
                 case VOLUME:
-                    mRadioSettingsDialog.setSeekBarProgress(RadioKey.Command.VOLUME, 
+                    mRadioSettingsDialog.setSeekBarProgress(RadioCommand.VOLUME,
                             (int)radioMessage.value);
                     break;
                 case BASS:
-                    mRadioSettingsDialog.setSeekBarProgress(RadioKey.Command.BASS,
+                    mRadioSettingsDialog.setSeekBarProgress(RadioCommand.BASS,
                             (int)radioMessage.value);
                     break;
                 case TREBLE:
-                    mRadioSettingsDialog.setSeekBarProgress(RadioKey.Command.TREBLE,
+                    mRadioSettingsDialog.setSeekBarProgress(RadioCommand.TREBLE,
                             (int)radioMessage.value);
                     break;
                 case HD_SUBCHANNEL:
                     if (mHdActive && (int)radioMessage.value > 0) {
-                        // TODO: I think this is causing an error.  I am sending a null value
-                        // To mTextSwapAnimator
                         String newFreq;
                         if (mBand.equals("FM")) {
                             newFreq = String.format(Locale.US, "%1$.1f-%2$d", (float)mFrequency/10, (int)radioMessage.value);
@@ -620,13 +588,13 @@ public class RadioActivity extends AppCompatActivity {
 
 
                         mRadioFreqText.setText(newFreq);
-                        mTextSwapAnimator.setTextItem(RadioKey.Command.TUNE, newFreq + " " + mBand);
+                        mTextSwapAnimator.setTextItem(RadioCommand.TUNE, newFreq + " " + mBand);
 
                         // Update info text with artist and title from current subchannel
-                        mTextSwapAnimator.setTextItem(RadioKey.Command.HD_TITLE,
-                                (String)mRadioValues.getHdValue(RadioKey.Command.HD_TITLE));
-                        mTextSwapAnimator.setTextItem(RadioKey.Command.HD_ARTIST,
-                                (String)mRadioValues.getHdValue(RadioKey.Command.HD_ARTIST));
+                        mTextSwapAnimator.setTextItem(RadioCommand.HD_TITLE,
+                                (String)mRadioValues.getHdValue(RadioCommand.HD_TITLE));
+                        mTextSwapAnimator.setTextItem(RadioCommand.HD_ARTIST,
+                                (String)mRadioValues.getHdValue(RadioCommand.HD_ARTIST));
 
                     } else {
                         if (mBand.equals("FM")) {
@@ -638,46 +606,45 @@ public class RadioActivity extends AppCompatActivity {
                             break;
                         }
                         mRadioFreqText.setText(tmpFreq);
-                        mTextSwapAnimator.setTextItem(RadioKey.Command.TUNE, tmpFreq + " " + mBand);
+                        mTextSwapAnimator.setTextItem(RadioCommand.TUNE, tmpFreq + " " + mBand);
 
                     }
                     break;
                 case TUNE:
                     mHandler.removeCallbacks(mPostTuneRunnable);
-                    RadioController.TuneInfo info = (RadioController.TuneInfo) radioMessage.value;
-                    mFrequency = info.frequency;
-                    if (info.band == RadioKey.Band.FM) {
+                    TuneInfo info = (TuneInfo) radioMessage.value;
+                    mFrequency = info.getFrequency();
+                    if (info.getBand() == RadioBand.FM) {
                         mBand = "FM";
                         tmpFreq = String.format(Locale.US, "%1$.1f", (float)mFrequency/10);
                         mBandButton.setChecked(true);
                     } else {
                         mBand = "AM";
-                        tmpFreq = String.valueOf(info.frequency);
+                        tmpFreq = String.valueOf(mFrequency);
                         mBandButton.setChecked(false);
                     }
                     mTextStreamAnimator.clear();
-                    mTextSwapAnimator.setTextItem(RadioKey.Command.TUNE, tmpFreq + " " + mBand);
+                    mTextSwapAnimator.setTextItem(RadioCommand.TUNE, tmpFreq + " " + mBand);
                     mTextSwapAnimator.resetAnimator();
                     mRdsEnabled = false;
                     mHdActive = false;
 
                     mHdStatusText.setText("");
                     mRadioFreqText.setText(tmpFreq);
-                    mRadioBandText.setText(info.band.toString());
+                    mRadioBandText.setText(info.getBand().toString());
                     mHandler.postDelayed(mPostTuneRunnable, 2000);
                     break;
                 case SEEK:
-                    RadioController.TuneInfo seekInfo = (RadioController.TuneInfo) radioMessage.value;
-                    if (seekInfo.band == RadioKey.Band.FM) {
+                    TuneInfo seekInfo = (TuneInfo) radioMessage.value;
+                    if (seekInfo.getBand() == RadioBand.FM) {
                         tmpFreq = String.format(Locale.US, "%1$.1f",
-                                seekInfo.frequency/10f);
+                                seekInfo.getFrequency()/10f);
                     } else {
-                        tmpFreq = String.valueOf(seekInfo.frequency);
+                        tmpFreq = String.valueOf(seekInfo.getFrequency());
                     }
                     mRadioFreqText.setText(tmpFreq);
                     break;
                 case HD_ACTIVE:
-
                     // TODO: Show HD Icon if true, hide if false, the textview below is temporary
                     mHdActive = (boolean)radioMessage.value;
                     if (mHdActive) {
@@ -691,10 +658,12 @@ public class RadioActivity extends AppCompatActivity {
                     break;
                 case HD_TITLE:
                 case HD_ARTIST:
-                    // TODO: request current subchannel
-                    if ((int)mRadioValues.getHdValue(RadioKey.Command.HD_SUBCHANNEL) < 1) {
-                        mRadioInterface.requestUpdate(RadioKey.Command.HD_SUBCHANNEL);
+                    //  request current subchannel
+                    if ((int)mRadioValues.getHdValue(RadioCommand.HD_SUBCHANNEL) < 1) {
+                        mRadioInterface.requestUpdate(RadioCommand.HD_SUBCHANNEL);
                     }
+                    HDSongInfo songInfo = (HDSongInfo) radioMessage.value;
+                    mTextSwapAnimator.setTextItem(radioMessage.key, songInfo.getInfo());
                     break;
                 case HD_CALLSIGN:
                 case RDS_RADIO_TEXT:
@@ -724,7 +693,7 @@ public class RadioActivity extends AppCompatActivity {
     private Runnable mPostTuneRunnable = new Runnable() {
         @Override
         public void run() {
-            mRadioInterface.requestUpdate(RadioKey.Command.RDS_ENABLED);
+            mRadioInterface.requestUpdate(RadioCommand.RDS_ENABLED);
         }
     };
 
@@ -733,7 +702,7 @@ public class RadioActivity extends AppCompatActivity {
         public void run() {
             // Clear text views, set infoview frequency to PowerOff
             mTextStreamAnimator.clear();
-            mTextSwapAnimator.setTextItem(RadioKey.Command.TUNE, "Power Off");
+            mTextSwapAnimator.setTextItem(RadioCommand.TUNE, "Power Off");
             mTextSwapAnimator.resetAnimator();
             mHdStatusText.setText("");
             mRadioFreqText.setText("");
@@ -754,9 +723,10 @@ public class RadioActivity extends AppCompatActivity {
             mIsRequestingSignal = true;
             while (mRadioInterface != null && mIsPoweredOn && mIsRequestingSignal) {
                 if (mHdActive) {
-                    mRadioInterface.requestUpdate(RadioKey.Command.HD_SIGNAL_STRENGH);
+                    mRadioInterface.requestUpdate(RadioCommand.HD_SIGNAL_STRENGTH);
+                    mRadioInterface.requestUpdate(RadioCommand.HD_STREAM_LOCK);
                 } else {
-                    mRadioInterface.requestUpdate(RadioKey.Command.SIGNAL_STRENGTH);
+                    mRadioInterface.requestUpdate(RadioCommand.SIGNAL_STRENGTH);
                 }
 
                 try {
