@@ -50,3 +50,4 @@ proguard/
 *.exe
 *.out
 *.app
+libuvccamera/build/outputs/aar/libuvccamera-release.aar
