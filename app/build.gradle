@@ -1,18 +1,23 @@
 apply plugin: 'com.android.application'
 
+// Load keystore
+def keystorePropertiesFile = rootProject.file("keystore.properties");
+def keystoreProperties = new Properties()
+keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+
 android {
     signingConfigs {
         omnirom {
             keyAlias 'omnirom'
-            keyPassword '2calcul8int'
-            storeFile file('D:/Development/android/omnirom.keystore')
-            storePassword '2calcul8int'
+            keyPassword keystoreProperties['keyPassword']
+            storeFile file(keystoreProperties['omniStoreFile'])
+            storePassword keystoreProperties['storePassword']
         }
         standard {
             keyAlias 'autointegrate'
-            keyPassword '2calculateint'
-            storeFile file('D:/Development/android/android app signatures.jks')
-            storePassword '2calcul8int'
+            keyPassword keystoreProperties['keyPassword']
+            storeFile file(keystoreProperties['standardStoreFile'])
+            storePassword keystoreProperties['storePassword']
         }
     }
     compileSdkVersion 25
