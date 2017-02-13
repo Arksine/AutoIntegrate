@@ -152,11 +152,6 @@ public class UsbHelper implements SerialHelper {
                 name = uDevice.getProductName();
             }
 
-
-
-
-
-
             /**
              * Don't add the MJS HD Radio cable to the list if its connected.  Its an FTDI serial
              * comm device, but its specialized, not for MCU use

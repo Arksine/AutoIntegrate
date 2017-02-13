@@ -645,6 +645,8 @@ public class RadioActivity extends AppCompatActivity {
                     mRadioFreqText.setText(tmpFreq);
                     break;
                 case HD_ACTIVE:
+                    // TODO: should actual "hdactive" be HD_ACTIVE && HD_STREAM_LOCK?
+
                     // TODO: Show HD Icon if true, hide if false, the textview below is temporary
                     mHdActive = (boolean)radioMessage.value;
                     if (mHdActive) {

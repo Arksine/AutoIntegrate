@@ -6,6 +6,7 @@ import android.animation.ObjectAnimator;
 import android.graphics.Paint;
 import android.os.Handler;
 import android.util.Log;
+import android.util.SparseArray;
 import android.view.Gravity;
 import android.view.ViewGroup;
 import android.view.animation.LinearInterpolator;
@@ -13,8 +14,6 @@ import android.widget.TextView;
 
 import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.hdradiolib.enums.RadioCommand;
-
-import java.util.ArrayList;
 
 // TODO: Have two modes, one for HD Radio/Regular RDS, and one for Streaming RDS.  Wouldn't be
 //       bad if the streaming RDS version parsed words between current and previous
@@ -24,15 +23,11 @@ import java.util.ArrayList;
  * it will scroll as long as the textview is contained in a scrollview
  */
 
-// TODO: somewhere in here an exception is being thrown.  It happened when the radio received
-// HD Data.  Unfortunately I havent been able to retune to a HD Channel to replicate
-
 public class TextSwapAnimator {
     private static final String TAG = TextSwapAnimator.class.getSimpleName();
 
-    // TODO: replace arraylist with sparse array map
     private Handler mAnimationHandler;
-    private final ArrayList<String> mInfoItems = new ArrayList<>(4);
+    private final SparseArray<String> mInfoItems = new SparseArray<>(4);
     private TextView mTextView;
     private String mCurrentString;
     private int mScrollViewWidth;
@@ -66,7 +61,7 @@ public class TextSwapAnimator {
         mScrollDuration = 5000;  // This should be set programatically
         mScrollViewWidth = 1000;  // just a default width that should change
 
-        initializeArrayMap();
+        initializeArray();
         initAnimation();
     }
 
@@ -74,11 +69,11 @@ public class TextSwapAnimator {
         mScrollViewWidth = width;
     }
 
-    private void initializeArrayMap() {
-        mInfoItems.add("87.9 FM");
-        mInfoItems.add("");
-        mInfoItems.add("");
-        mInfoItems.add("");
+    private void initializeArray() {
+        mInfoItems.put(0, "87.9 FM");
+        mInfoItems.put(1, "");
+        mInfoItems.put(2, "");
+        mInfoItems.put(3, "");
     }
 
     private void initAnimation() {
@@ -210,6 +205,10 @@ public class TextSwapAnimator {
     }
 
     public void setTextItem(RadioCommand command, String item) {
+        if (item == null) {
+            return;
+        }
+
         int idx;
         switch (command) {
             case TUNE:
@@ -240,11 +239,11 @@ public class TextSwapAnimator {
                 return;
         }
 
-        if (mInfoItems.get(idx).equals("") && !item.equals("")) {
+        if (mInfoItems.get(idx, "").equals("") && !item.equals("")) {
             mCapacity++;
         }
 
-        mInfoItems.set(idx, item);
+        mInfoItems.put(idx, item);
 
         if (mCapacity > 1 && !mAnimationStarted) {
             startAnimation();
@@ -283,7 +282,7 @@ public class TextSwapAnimator {
         }
 
         if (!(mInfoItems.get(idx).equals(""))) {
-            mInfoItems.set(idx, "");
+            mInfoItems.put(idx, "");
             mCapacity--;
 
             if (mCapacity <= 1) {
@@ -319,9 +318,9 @@ public class TextSwapAnimator {
         stopAnimation();
         mIndex = 0;
         mCapacity = 1;
-        mInfoItems.set(1, "");
-        mInfoItems.set(2, "");
-        mInfoItems.set(3, "");
+        mInfoItems.put(1, "");
+        mInfoItems.put(2, "");
+        mInfoItems.put(3, "");
         mCurrentString = mInfoItems.get(0);
         mTextView.setText(mCurrentString);
         ViewGroup.LayoutParams params = mTextView.getLayoutParams();
