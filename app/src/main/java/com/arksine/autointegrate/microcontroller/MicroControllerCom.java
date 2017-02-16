@@ -67,12 +67,7 @@ public class MicroControllerCom extends SerialCom {
     private final WriteReciever writeReciever = new WriteReciever();
     private boolean isWriteReceiverRegistered = false;
 
-    private ByteBuffer mReceivedBuffer = ByteBuffer.allocate(512);
-    private volatile boolean mIsLengthByte = false;
-    private volatile boolean mIsEscapedByte = false;
-    private volatile boolean mIsValidPacket = false;
-    private volatile int mPacketLength = 0;
-    private volatile int mChecksum = 0;
+
 
     public MicroControllerCom(MainService svc, boolean learningMode) {
         super(svc);
@@ -96,60 +91,10 @@ public class MicroControllerCom extends SerialCom {
 
             @Override
             public void OnDataReceived(byte[] data) {
-                // TODO: I should move this to the handler
-                // TODO: I should include the header in the checksum calculation (need to do it in sketch as well)
-                // add the incoming bytes to a buffer
-                for (byte ch : data) {
-                    if (ch == (byte) 0xF1) {
-                        mIsValidPacket = true;
-                        mIsEscapedByte = false;
-                        mIsLengthByte = true;
-
-                        mReceivedBuffer.clear();
-                        mPacketLength = 0;
-                        mChecksum = 0;
-                    } else if (!mIsValidPacket) {
-                      DLog.i(TAG, "Invalid byte received: " + ch);
-                    } else if (ch == (byte)0x1B && !mIsEscapedByte) {
-                        mIsEscapedByte = true;
-                    } else {
-                        if (mIsEscapedByte) {
-                            mIsEscapedByte = false;
-                            if (ch == (byte)0x20) {
-                                // 0xF1 is escaped as 0x20
-                                ch = (byte) 0xF1;
-                            }
-                            // Note: 0x1B is escaped as 0x1B, so we don't need to reset the current byte
-                        }
-
-                        if (mIsLengthByte) {
-                            mIsLengthByte = false;
-                            mPacketLength = ch & (0xFF);
-                            mChecksum = mPacketLength;
-                        } else if (mReceivedBuffer.position() == mPacketLength) {
-                           // This is the checksum byte
-
-                            // Checksum is all bytes added up (not counting header and escape bytes) mod 256
-                            if ((mChecksum % 256) == (ch & 0xFF)) {
-                                Message msg = mInputHandler.obtainMessage();
-                                mReceivedBuffer.flip();
-                                byte[] buf = new byte[mReceivedBuffer.limit()];
-                                mReceivedBuffer.get(buf);
-                                msg.obj = buf;
-                                mInputHandler.sendMessage(msg);
-
-                            } else {
-                                Log.i(TAG, "Invalid checksum, discarding packet");
-                            }
-
-                            // The next byte received must be 0xF1, regardless of what happened here
-                            mIsValidPacket = false;
-                        } else {
-                            // Add byte to packet buffer
-                            mReceivedBuffer.put(ch);
-                            mChecksum += (ch & 0xFF);
-                        }
-                    }
+                if (data.length > 0) {
+                    Message msg = mInputHandler.obtainMessage();
+                    msg.obj = data;
+                    mInputHandler.sendMessage(msg);
                 }
             }
 

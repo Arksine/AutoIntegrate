@@ -22,6 +22,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Main Background Thread for service
@@ -36,13 +38,13 @@ public class ServiceThread implements Runnable {
     private Future mMainThreadFuture = null;
 
     private IntegratedPowerManager mPowerManager = null;
-    private volatile MicroControllerCom mMicroController = null;
-    private volatile RadioCom mHdRadio = null;
-    private volatile boolean mLearningMode = false;
+    private AtomicReference<MicroControllerCom> mMicroController = new AtomicReference<>(null);
+    private AtomicReference<RadioCom> mHdRadio = new AtomicReference<>(null);
 
-    private volatile boolean serviceSuspended = false;
-    private volatile boolean serviceThreadRunning = false;
-    private volatile boolean isWaiting = false;
+    private AtomicBoolean mLearningMode = new AtomicBoolean(false);
+    private AtomicBoolean mServiceSuspended = new AtomicBoolean(false);
+    private AtomicBoolean mServiceThreadRunning = new AtomicBoolean(false);
+    private AtomicBoolean mIsWaiting = new AtomicBoolean(false);
 
     private LocalBroadcastManager mLocalBM;
 
@@ -79,7 +81,7 @@ public class ServiceThread implements Runnable {
             String action = intent.getAction();
 
             if (mService.getString(R.string.ACTION_WAKE_DEVICE).equals(action)) {
-                if (serviceSuspended) {
+                if (mServiceSuspended.get()) {
                     EXECUTOR.execute(wakeUpDevice);
                     Log.i(TAG, "Service resumed.");
                 }
@@ -90,7 +92,7 @@ public class ServiceThread implements Runnable {
 
             } else if (mService.getString(R.string.ACTION_REFRESH_CONTROLLER_CONNECTION).equals(action)) {
                 DLog.v(TAG, "Refresh MicroController Connection");
-                mLearningMode = intent.getBooleanExtra("LearningMode", false);
+                mLearningMode.set(intent.getBooleanExtra("LearningMode", false));
                 EXECUTOR.execute(stopMicroControllerConnection);
 
             } else if (mService.getString(R.string.ACTION_REFRESH_RADIO_CONNECTION).equals(action)) {
@@ -109,23 +111,26 @@ public class ServiceThread implements Runnable {
         synchronized (this) {
             if (UtilityFunctions.isRootAvailable() == null) {
                 try {
-                    isWaiting = true;
+                    mIsWaiting.set(true);
                     wait();
                 } catch (InterruptedException e) {
-                    isWaiting = false;
                     Log.w(TAG, e.getMessage());
+                } finally {
+                    if (mIsWaiting.compareAndSet(true, false)) {
+                        Log.i(TAG, "Wait interrupted");
+                    }
                 }
             }
         }
 
-        while (serviceThreadRunning) {
+        while (mServiceThreadRunning.get()) {
             // Check to see if MicroController Integration is enabled
             if (sharedPrefs.getBoolean("main_pref_key_toggle_controller", false)) {
 
                 // If the MicroController connection hasn't been established, do so.
-                if (mMicroController == null || !mMicroController.isConnected()) {
-                    mMicroController = new MicroControllerCom(mService, mLearningMode);
-                    if (mMicroController.connect()) {
+                if (mMicroController.get() == null || !mMicroController.get().isConnected()) {
+                    mMicroController.set(new MicroControllerCom(mService, mLearningMode.get()));
+                    if (mMicroController.get().connect()) {
                         DLog.v(TAG, "Micro Controller connection established");
                     } else {
                         DLog.v(TAG, "Error connecting to Micro Controller: Connection Attempt " + connectionAttempts);
@@ -144,10 +149,10 @@ public class ServiceThread implements Runnable {
                 // Since the connection status determines if the radio is powered on or not,
                 // its possible for it to be disconnected.  We will only create a new mHdRadio object
                 // if its null or if the hdRadio wasn't able to successfully setup
-                if (mHdRadio == null) {
+                if (mHdRadio.get() == null) {
 
-                    mHdRadio = new RadioCom(mService);
-                    if (mHdRadio.connect()) {
+                    mHdRadio.set(new RadioCom(mService));
+                    if (mHdRadio.get().connect()) {
                         DLog.v(TAG, "HD Radio Connection Set Up");
                     } else {
                         DLog.v(TAG, "Error Setting up HD Radio: Attempt " + connectionAttempts);
@@ -170,13 +175,16 @@ public class ServiceThread implements Runnable {
                 // someone changed a setting or the device has had power applied
                 synchronized (this) {
                     try {
-                        isWaiting = true;
+                        mIsWaiting.set(true);
                         wait();
                         // sleep for 100ms to make sure settings and vars are updated
                         Thread.sleep(100);
                     } catch (InterruptedException e) {
-                        isWaiting = false;
                         Log.w(TAG, e.getMessage());
+                    } finally {
+                        if (mIsWaiting.compareAndSet(true, false)) {
+                            Log.i(TAG, "Wait interrupted");
+                        }
                     }
                 }
             } else {
@@ -196,7 +204,7 @@ public class ServiceThread implements Runnable {
         stopHdRadioConnection.run();
 
 
-        serviceThreadRunning = false;
+        mServiceThreadRunning.set(false);
         DLog.v(TAG, "Service Thread finished executing");
 
     }
@@ -205,11 +213,11 @@ public class ServiceThread implements Runnable {
         boolean connected = true;
         SharedPreferences globalPrefs = PreferenceManager.getDefaultSharedPreferences(mService);
         if (globalPrefs.getBoolean("main_pref_key_toggle_controller", false)) {
-            connected = (mMicroController != null && mMicroController.isConnected());
+            connected = (mMicroController.get() != null && mMicroController.get().isConnected());
         }
 
         if (globalPrefs.getBoolean("main_pref_key_toggle_radio", false)) {
-            connected = (connected && (mHdRadio != null && mHdRadio.isConnected()));
+            connected = (connected && (mHdRadio.get() != null && mHdRadio.get().isConnected()));
         }
 
         DLog.i(TAG, "All connected status: " + connected);
@@ -217,12 +225,12 @@ public class ServiceThread implements Runnable {
         return connected;
     }
 
-    public boolean isServiceThreadRunning() {
-        return serviceThreadRunning;
+    boolean isServiceThreadRunning() {
+        return mServiceThreadRunning.get();
     }
 
 
-    public void startServiceThread() {
+    void startServiceThread() {
 
         // Just in case, make sure the executor is active
         if (EXECUTOR == null || EXECUTOR.isShutdown()) {
@@ -236,9 +244,9 @@ public class ServiceThread implements Runnable {
         }
 
 
-        serviceSuspended = false;
-        isWaiting = false;
-        serviceThreadRunning = true;
+        mServiceSuspended.set(false);
+        mIsWaiting.set(false);
+        mServiceThreadRunning.set(true);
         mMainThreadFuture = EXECUTOR.submit(this);
 
         // Send intent to status fragment so it knows service status has changed
@@ -253,8 +261,8 @@ public class ServiceThread implements Runnable {
     // Only call this when you are ready to shut down the service, as it shuts down the executor.
 
     // DO NOT call on the UI thread, as it is blocking.
-    public void destroyServiceThread() {
-        serviceThreadRunning = false;
+    void destroyServiceThread() {
+        mServiceThreadRunning.set(false);
         notifyServiceThread();
         EXECUTOR.shutdown();
         try {
@@ -291,15 +299,14 @@ public class ServiceThread implements Runnable {
     }
 
     private synchronized void notifyServiceThread() {
-        if (isWaiting) {
-            isWaiting = false;
+        if (mIsWaiting.compareAndSet(true, false)) {
             notify();
         }
     }
 
-    public RadioController getRadioInterface() {
-        if (mHdRadio != null && mHdRadio.isConnected()) {
-            return mHdRadio.getRadioInterface();
+    RadioController getRadioInterface() {
+        if (mHdRadio.get() != null && mHdRadio.get().isConnected()) {
+            return mHdRadio.get().getRadioInterface();
         } else {
             return null;
         }
@@ -312,7 +319,7 @@ public class ServiceThread implements Runnable {
         @Override
         public void run() {
             if (mMainThreadFuture != null ) {
-                serviceThreadRunning = false;
+                mServiceThreadRunning.set(false);
 
                 // Make sure the service thread isn't waiting
                 notifyServiceThread();
@@ -342,9 +349,9 @@ public class ServiceThread implements Runnable {
         @Override
         public void run() {
             // Disconnect from Micro Controller if connected
-            if (mMicroController != null ) {
-                mMicroController.disconnect();
-                mMicroController = null;
+            if (mMicroController.get() != null ) {
+                mMicroController.get().disconnect();
+                mMicroController.set(null);
             }
             // make sure the service thread isn't waiting
             notifyServiceThread();
@@ -356,9 +363,9 @@ public class ServiceThread implements Runnable {
     private Runnable stopHdRadioConnection = new Runnable() {
         @Override
         public void run() {
-            if (mHdRadio != null) {
-                mHdRadio.disconnect();
-                mHdRadio = null;
+            if (mHdRadio.get() != null) {
+                mHdRadio.get().disconnect();
+                mHdRadio.set(null);
             }
 
             notifyServiceThread();
@@ -378,7 +385,7 @@ public class ServiceThread implements Runnable {
             } catch (InterruptedException e) {
                 Log.w(TAG, e.getMessage());
             }
-            serviceSuspended = false;
+            mServiceSuspended.set(false);
             startServiceThread();
         }
     };
@@ -386,7 +393,7 @@ public class ServiceThread implements Runnable {
     private Runnable suspendDevice = new Runnable() {
         @Override
         public void run() {
-            serviceSuspended = true;
+            mServiceSuspended.set(true);
             stopMainThread.run();
 
             // Broadcast Intent to Status Fragment notifying that service status has changed

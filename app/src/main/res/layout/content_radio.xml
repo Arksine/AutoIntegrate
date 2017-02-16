@@ -58,7 +58,7 @@
         android:layout_height="wrap_content">
 
         <TextView
-            android:id="@+id/txt_radio_hd_status"
+            android:id="@+id/txt_radio_status"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textAppearance="?android:attr/textAppearanceMedium"
@@ -93,7 +93,7 @@
             android:background="@color/transparent"/>
 
         <TextView
-            android:text="101.1"
+            android:text="101.1 FM"
             android:id="@+id/txt_radio_frequency"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -102,15 +102,6 @@
             android:textAppearance="?android:attr/textAppearanceLarge"
             android:layout_marginStart="15dp"
             android:layout_marginEnd="10dp"/>
-
-        <TextView
-            android:text="FM"
-            android:id="@+id/txt_radio_band"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="40sp"
-            android:textAppearance="?android:attr/textAppearanceLarge"
-            android:layout_marginEnd="15dp"/>
 
         <ImageButton
             android:id="@+id/btn_radio_tune_up"

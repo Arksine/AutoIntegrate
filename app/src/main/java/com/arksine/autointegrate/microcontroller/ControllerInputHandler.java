@@ -34,13 +34,19 @@ public class ControllerInputHandler extends Handler {
     }
     private MessageProcessor mProcessor;
 
-    private ByteBuffer mMessageBuf;
+    private ByteBuffer mReceivedBuffer = ByteBuffer.allocate(512);
+    private boolean mIsLengthByte = false;
+    private boolean mIsEscapedByte = false;
+    private boolean mIsValidPacket = false;
+    private int mPacketLength = 0;
+    private int mChecksum = 0;
 
     // TODO: rename "learning mode" to direct access mode if using a remote callback
     ControllerInputHandler(Looper looper, Context context, MCUControlInterface controlInterface,
                            boolean isLearningMode) {
         super(looper);
         mContext = context;
+        mReceivedBuffer.order(ByteOrder.LITTLE_ENDIAN);
 
         if (isLearningMode) {
             DLog.v(TAG, "Controller is in Learning Mode.");
@@ -82,64 +88,101 @@ public class ControllerInputHandler extends Handler {
 
     @Override
     public void handleMessage(Message msg) {
-        mMessageBuf = ByteBuffer.wrap((byte[])msg.obj);
-        mMessageBuf.order(ByteOrder.LITTLE_ENDIAN);
-        ControllerMessage ctrlMsg =  parseMessage();
+        parseIncomingBytes((byte[])msg.obj);
+    }
 
-        if (ctrlMsg != null) {
-            if (ctrlMsg.command == MCUDefs.MCUCommand.LOG) {
-                Log.i("Micro Controller", (String) ctrlMsg.data);
+    private void parseIncomingBytes(byte[] data) {
+        // TODO: I should include the header in the checksum calculation (need to do it in sketch as well)
+        // add the incoming bytes to a buffer
+        for (byte ch : data) {
+            if (ch == (byte) 0xF1) {
+                mIsValidPacket = true;
+                mIsEscapedByte = false;
+                mIsLengthByte = true;
 
+                mReceivedBuffer.clear();
+                mPacketLength = 0;
+                mChecksum = 0xF1;
+            } else if (!mIsValidPacket) {
+                DLog.i(TAG, "Invalid byte received: " + ch);
+            } else if (ch == (byte)0x1B && !mIsEscapedByte) {
+                mIsEscapedByte = true;
             } else {
-                DLog.v(TAG, ctrlMsg.command + " " + ctrlMsg.data);
-                mProcessor.ProcessMessage(ctrlMsg);
+                if (mIsEscapedByte) {
+                    mIsEscapedByte = false;
+                    if (ch == (byte)0x20) {
+                        // 0xF1 is escaped as 0x20
+                        ch = (byte) 0xF1;
+                    }
+                    // Note: 0x1B is escaped as 0x1B, so we don't need to reset the current byte
+                }
+
+                if (mIsLengthByte) {
+                    mIsLengthByte = false;
+                    mPacketLength = ch & (0xFF);
+                    mChecksum += mPacketLength;
+                } else if (mReceivedBuffer.position() == mPacketLength) {
+                    // This is the checksum byte
+
+                    // Checksum is all bytes added up (not counting header and escape bytes) mod 256
+                    if ((mChecksum % 256) == (ch & 0xFF)) {
+                        mReceivedBuffer.flip();
+                        parsePacket();
+
+                    } else {
+                        Log.i(TAG, "Invalid checksum, discarding packet");
+                    }
+
+                    // The next byte received must be 0xF1, regardless of what happened here
+                    mIsValidPacket = false;
+                } else {
+                    // Add byte to packet buffer
+                    mReceivedBuffer.put(ch);
+                    mChecksum += (ch & 0xFF);
+                }
             }
         }
     }
 
     // Reads a message from the Micro Controller and parses it
-    private ControllerMessage parseMessage() {
-        /**
-         * TODO: My parsing wont work with binary data.  If my control chars are 0x02 and 0x03 then any byte (such as a control byte or part of an integer) that
-         * contains those chars will get parsed incorrectly.
-         */
+    private boolean parsePacket() {
 
-        DLog.i(TAG, "MCU Packet Length: " + mMessageBuf.limit());
+        DLog.i(TAG, "MCU Packet Length: " + mReceivedBuffer.limit());
 
         // TODO: May want type NONE to be possible, and just receive a command without accompanying data.
         // In that case, only 2 bytes in the packet is possible, data type of none is possible.
 
 
-        if(mMessageBuf.limit() < 3) {
+        if(mReceivedBuffer.limit() < 3) {
             Log.e(TAG, "Invalid data packet, must at least be three bytes long");
-            return null;
+            return false;
         }
 
         ControllerMessage ctrlMsg = new ControllerMessage();
 
-        ctrlMsg.command = MCUDefs.MCUCommand.getMcuCommand(mMessageBuf.get());
+        ctrlMsg.command = MCUDefs.MCUCommand.getMcuCommand(mReceivedBuffer.get());
         DLog.v(TAG, "MCU Command Recd: " + ctrlMsg.command.toString());
         if (ctrlMsg.command == MCUDefs.MCUCommand.NONE) {
             Log.e(TAG, "Invalid Command Received");
-            return null;
+            return false;
         }
 
-        ctrlMsg.msgType = MCUDefs.DataType.getDataType(mMessageBuf.get());
+        ctrlMsg.msgType = MCUDefs.DataType.getDataType(mReceivedBuffer.get());
         DLog.v(TAG, "Data Type Recd: " + ctrlMsg.msgType.toString());
         if (ctrlMsg.msgType == MCUDefs.DataType.NONE) {
             Log.e(TAG, "Invalid Data Type Received");
-            return null;
+            return false;
         }
 
 
         // if a radio command is received, we need
         if (ctrlMsg.command == MCUDefs.MCUCommand.RADIO) {
             // get radio command
-            ctrlMsg.radioCmd = MCUDefs.RadioCommand.getRadioCommand(mMessageBuf.get());
+            ctrlMsg.radioCmd = MCUDefs.RadioCommand.getRadioCommand(mReceivedBuffer.get());
 
             if (ctrlMsg.radioCmd == MCUDefs.RadioCommand.NONE) {
                 Log.e(TAG, "Invalid Radio Command Received");
-                return null;
+                return false;
             }
 
         } else {
@@ -147,99 +190,110 @@ public class ControllerInputHandler extends Handler {
         }
 
 
-        if (!mMessageBuf.hasRemaining()) {
+        if (!mReceivedBuffer.hasRemaining()) {
             Log.i(TAG, "Invalid Packet, end of buffer reached before data received");
-            return null;
+            return false;
         }
+
+
 
         // TODO: Since the dimmer type can be string or Int, it might be best to just receive
         //       integers in string format and parse them later
         switch (ctrlMsg.msgType) {
             case SHORT:
-                if (mMessageBuf.remaining() < 2) {
-                    Log.i(TAG, "Invalid Short data size: " + mMessageBuf.remaining());
-                    return null;
+                if (mReceivedBuffer.remaining() < 2) {
+                    Log.i(TAG, "Invalid Short data size: " + mReceivedBuffer.remaining());
+                    return false;
                 }
 
                 // since we are dealing with ints throughout we will cast it to int
-                ctrlMsg.data = (int) mMessageBuf.getShort();
+                ctrlMsg.data = (int) mReceivedBuffer.getShort();
 
                 break;
             case INT:
-                if (mMessageBuf.remaining() == 2) {
+                if (mReceivedBuffer.remaining() == 2) {
                     // 8-bit MCU integer is two bytes
-                    ctrlMsg.data = mMessageBuf.getShort();
+                    ctrlMsg.data = mReceivedBuffer.getShort();
                     DLog.v(TAG, "8-bit MCU Integer received");
-                } else if (mMessageBuf.remaining() >= 4) {
+                } else if (mReceivedBuffer.remaining() >= 4) {
                     // 32-bit AVR integer is 4 bytes
-                    ctrlMsg.data = mMessageBuf.getInt();
+                    ctrlMsg.data = mReceivedBuffer.getInt();
                     DLog.v(TAG, "32-bit MCU Integer received");
                 } else {
-                    Log.i(TAG, "Invalid Integer data size: " + mMessageBuf.remaining());
-                    return null;
+                    Log.i(TAG, "Invalid Integer data size: " + mReceivedBuffer.remaining());
+                    return false;
                 }
 
                 break;
             case STRING:
-                byte[] strBytes = new byte[mMessageBuf.remaining()];
-                mMessageBuf.get(strBytes);
+                byte[] strBytes = new byte[mReceivedBuffer.remaining()];
+                mReceivedBuffer.get(strBytes);
                 ctrlMsg.data = new String(strBytes);
                 break;
 
             case BOOLEAN:
-                ctrlMsg.data = mMessageBuf.get()!= 0;
+                ctrlMsg.data = mReceivedBuffer.get()!= 0;
                 break;
             case TUNE_INFO:
                 // TODO: frequency could be a short, as the frequency can not be above 1080. That
                 // would make the rest of the packet 3 bytes long (1 for band, 2 for frequency)
 
-                if (mMessageBuf.remaining() < 5) {
-                    Log.i(TAG, "Invalid Tune Info data size: " + mMessageBuf.remaining());
-                    return null;
+                if (mReceivedBuffer.remaining() < 5) {
+                    Log.i(TAG, "Invalid Tune Info data size: " + mReceivedBuffer.remaining());
+                    return false;
                 }
 
                 RadioBand band;
-                byte bnd = mMessageBuf.get();
+                byte bnd = mReceivedBuffer.get();
                 if (bnd == 0) {
                     band = RadioBand.AM;
                 } else if (bnd == 1) {
                     band = RadioBand.FM;
                 } else {
                     Log.wtf(TAG, "Band byte received is invalid");
-                    return null;
+                    return false;
                 }
-                int frequency = mMessageBuf.getInt();
+                int frequency = mReceivedBuffer.getInt();
 
-                TuneInfo tuneInfo = new TuneInfo(band, frequency, 0);
-                ctrlMsg.data = tuneInfo;
+                ctrlMsg.data = new TuneInfo(band, frequency, 0);
                 break;
             case HD_SONG_INFO:
                 // TODO: this could be a byte, as the subchannel cannot be bigger than 10.  That would
                 // make the minimum remaining bytes 2, assuming the string is only 1 byte long
 
-                if (mMessageBuf.remaining() < 5) {
-                    Log.i(TAG, "Invalid Song Info data size: " + mMessageBuf.remaining());
-                    return null;
+                if (mReceivedBuffer.remaining() < 5) {
+                    Log.i(TAG, "Invalid Song Info data size: " + mReceivedBuffer.remaining());
+                    return false;
                 }
 
-                int subchannel = mMessageBuf.getInt();
-                byte[] songBytes = new byte[mMessageBuf.remaining()];
-                mMessageBuf.get(songBytes);
+                int subchannel = mReceivedBuffer.getInt();
+                byte[] songBytes = new byte[mReceivedBuffer.remaining()];
+                mReceivedBuffer.get(songBytes);
                 String info = new String(songBytes);
 
-                HDSongInfo songInfo = new HDSongInfo(info, subchannel);
-                ctrlMsg.data = songInfo;
+                ctrlMsg.data = new HDSongInfo(info, subchannel);
                 break;
             default:
                 Log.e(TAG, "Invalid Data Type Received");
-                return null;
+                return false;
         }
 
-        if (mMessageBuf.hasRemaining()) {
+        if (mReceivedBuffer.hasRemaining()) {
             Log.w(TAG, "There is data remaining in the buffer, despite structured parsing");
 
         }
-        return ctrlMsg;
+
+
+        // send the parsed message for processing
+        if (ctrlMsg.command == MCUDefs.MCUCommand.LOG) {
+            Log.i("Micro Controller", (String) ctrlMsg.data);
+
+        } else {
+            DLog.v(TAG, ctrlMsg.command + " " + ctrlMsg.data);
+            mProcessor.ProcessMessage(ctrlMsg);
+        }
+
+        return true;
     }
 
     public void setMode(boolean isLearningMode) {

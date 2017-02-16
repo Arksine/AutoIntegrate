@@ -14,13 +14,12 @@ import android.os.Binder;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.RemoteCallbackList;
-import android.os.RemoteException;
 import android.provider.Settings;
 import android.util.Log;
 import android.widget.Toast;
 
 import com.arksine.autointegrate.activities.MainActivity;
-import com.arksine.autointegrate.interfaces.RadioControlCallback;
+import com.arksine.autointegrate.interfaces.RemoteRadioEvents;
 import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.hdradiolib.RadioController;
 
@@ -32,8 +31,8 @@ public class MainService extends Service {
     private Notification mNotification;
     private final IBinder mBinder = new LocalBinder();
 
-    public final RemoteCallbackList<RadioControlCallback> mRadioCallbacks
-            = new RemoteCallbackList<RadioControlCallback>();
+    public final RemoteCallbackList<RemoteRadioEvents> mRadioCallbacks
+            = new RemoteCallbackList<RemoteRadioEvents>();
 
     // Stop Reciever cleans up and stops the service when the stop button is pressed on
     // the service notification, or when the device is ready to shutdown
@@ -175,13 +174,13 @@ public class MainService extends Service {
             return mServiceThread.getRadioInterface();
         }
 
-        public void registerCallback(RadioControlCallback cb) {
+        public void registerCallback(RemoteRadioEvents cb) {
             if (cb != null) {
                 mRadioCallbacks.register(cb);
             }
         }
 
-        public void unRegisterCallback(RadioControlCallback cb) {
+        public void unRegisterCallback(RemoteRadioEvents cb) {
             if (cb != null) {
                 mRadioCallbacks.unregister(cb);
             }

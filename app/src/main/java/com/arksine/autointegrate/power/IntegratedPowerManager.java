@@ -76,6 +76,10 @@ public class IntegratedPowerManager {
         mDefaultPrefs = PreferenceManager.getDefaultSharedPreferences(mContext);
 
         initPrivilegedAccess(rootStatus);
+
+        if (rootStatus) {
+            checkKernelSettings();
+        }
     }
 
 
@@ -171,6 +175,30 @@ public class IntegratedPowerManager {
             };
         }
 
+    }
+
+    /**
+     * Check current kernel settings, update them if necessary
+     */
+    private void checkKernelSettings() {
+        final boolean fixedInstall = mDefaultPrefs.getBoolean("power_pref_key_fast_charging" , false);
+        final boolean fastCharge = mDefaultPrefs.getBoolean("power_pref_key_fixed_install", false);
+
+        Thread checkKernelStatusThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                if (fixedInstall && !isFixedInstallEnabled()) {
+                    DLog.i(TAG, "Setting fixed install active on startup");
+                    setFixedInstallMode(true);
+                }
+
+                if (fastCharge && !isFastChargeEnabled()) {
+                    DLog.i(TAG, "Setting fast charge active on startup");
+                    setFastchargeMode(true);
+                }
+            }
+        });
+        checkKernelStatusThread.start();
     }
 
     // This is blocking, do not call from UI thread
