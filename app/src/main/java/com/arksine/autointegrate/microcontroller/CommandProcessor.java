@@ -23,6 +23,7 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 import java.lang.reflect.Type;
+import java.util.Arrays;
 import java.util.List;
 
 import eu.chainfire.libsuperuser.Shell;
@@ -562,13 +563,13 @@ public class CommandProcessor {
                 switch (mCurrentSource) {
                     case HD_RADIO:
                         mCurrentSource = AudioSource.AUX;
-                        mMcuControlInterface.sendMcuCommand("Source", mCurrentSource.toString());
-                        // TODO: broadcast power off command to HD_RADIO
+                        mMcuControlInterface.sendMcuCommand(MCUDefs.
+                                McuOutputCommand.AUDIO_SOURCE_AUX, null);
                         break;
                     case AUX:
                         mCurrentSource = AudioSource.HD_RADIO;
-                        mMcuControlInterface.sendMcuCommand("Source", "HD_RADIO");
-                        // TODO: broadcast power on command to HD_RADIO
+                        mMcuControlInterface.sendMcuCommand(MCUDefs.
+                                McuOutputCommand.AUDIO_SOURCE_HD, null);
                         break;
                 }
             }
@@ -581,12 +582,12 @@ public class CommandProcessor {
                     switch ((String)data) {
                         case "HD_RADIO":
                             mCurrentSource = AudioSource.HD_RADIO;
-                            mMcuControlInterface.sendMcuCommand("Source", (String)data);
-                            // TODO: broadcast power on command to HD_RADIO
+                            mMcuControlInterface.sendMcuCommand(MCUDefs.
+                                    McuOutputCommand.AUDIO_SOURCE_AUX, null);
                         case "AUX":
                             mCurrentSource = AudioSource.AUX;
-                            mMcuControlInterface.sendMcuCommand("Source", (String)data);
-                            // TODO: broadcast power off command to HD_RADIO
+                            mMcuControlInterface.sendMcuCommand(MCUDefs.
+                                    McuOutputCommand.AUDIO_SOURCE_HD, null);
                             break;
                         default:
                             Log.i(TAG, "Unknown Audio Source: " + data);
@@ -692,7 +693,7 @@ public class CommandProcessor {
                 if (type.equals("Application") || type.equals("Tasker")
                         || type.equals("Set Audio Source")) {
                     ActionRunnable actionRunnable = mActions.get(type);
-                    actionRunnable.setData(btn.getClickAction());
+                    actionRunnable.setData(action);
                     return actionRunnable;
                 } else {
                     return mActions.get(action);
@@ -714,17 +715,22 @@ public class CommandProcessor {
                 int dMode = PreferenceManager.getDefaultSharedPreferences(mContext)
                         .getInt("dimmer_pref_key_mode", 0);
 
-                // TODO: May want to change the sendMcuCommand to send a packet format similar
-                //       to what we receive.  Probably not necessary though.
                 if (dMode == DimmerMode.ANALOG) {
-                    mMcuControlInterface.sendMcuCommand("Dimmer", "Analog");
+                    mMcuControlInterface.sendMcuCommand(MCUDefs.
+                            McuOutputCommand.SET_DIMMER_ANALOG, null);
                 } else {
-                    mMcuControlInterface.sendMcuCommand("Dimmer", "Digital");
+                    mMcuControlInterface.sendMcuCommand(MCUDefs.
+                            McuOutputCommand.SET_DIMMER_DIGITAL, null);
                 }
 
                 // set the current audio source for external devices
-                mMcuControlInterface.sendMcuCommand("Source", mCurrentSource.toString());
-
+                if (mCurrentSource == AudioSource.AUX) {
+                    mMcuControlInterface.sendMcuCommand(MCUDefs.
+                            McuOutputCommand.AUDIO_SOURCE_AUX, null);
+                } else {
+                    mMcuControlInterface.sendMcuCommand(MCUDefs.
+                            McuOutputCommand.AUDIO_SOURCE_HD, null);
+                }
                 break;
             case CLICK:
                 mIsHoldingBtn = false;
@@ -747,26 +753,25 @@ public class CommandProcessor {
                 break;
             case CUSTOM:
                 if (mBroadcastCustomCommands) {
+                    byte[] custom = (byte[]) message.data;
 
-                    /**
-                     * Custom commands are all in the data and are completely string based. They
-                     * should come in the format of command:data.  This means that the ':' character
-                     * should not be used in either the command or the data.
-                      */
-                    String[] customCmd = ((String)message.data).split(":");
-
-                    if (customCmd.length != 2) {
-                        Log.i(TAG, "Invalid custom command format, discarding");
-                        break;
+                    // invalid command received
+                    if (custom == null || custom.length == 0) {
+                        return;
                     }
 
                     DLog.v(TAG, "Broacasting custom command: " + message.command);
-                    Intent customIntent = new Intent(mContext.getString(R.string.ACTION_DATA_RECIEVED));
-                    customIntent.putExtra(mContext.getString(R.string.EXTRA_COMMAND), customCmd[0]);
 
-                    // TODO: should probably get the type of data and use String.valueOf to make sure we are sending
-                    //       correct data
-                    customIntent.putExtra(mContext.getString(R.string.EXTRA_DATA), customCmd[1]);
+                    // First byte is the command
+                    Intent customIntent = new Intent(mContext.getString(R.string.ACTION_DATA_RECIEVED));
+                    customIntent.putExtra(mContext.getString(R.string.EXTRA_COMMAND), custom[0]);
+
+                    // If there is extra data add that extra as well
+                    if (custom.length > 1) {
+                        customIntent.putExtra(mContext.getString(R.string.EXTRA_DATA),
+                                Arrays.copyOfRange(custom, 1, (custom.length -1)));
+                    }
+
                     mContext.sendBroadcast(customIntent);
                 }
                 break;

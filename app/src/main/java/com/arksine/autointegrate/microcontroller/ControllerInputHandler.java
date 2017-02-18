@@ -241,6 +241,10 @@ public class ControllerInputHandler extends Handler {
             case BOOLEAN:
                 ctrlMsg.data = mReceivedBuffer.get()!= 0;
                 break;
+            case BYTE_ARRAY:
+                byte[] arrayBytes = new byte[mReceivedBuffer.remaining()];
+                mReceivedBuffer.get(arrayBytes);
+                ctrlMsg.data = arrayBytes;
             default:
                 Log.e(TAG, "Invalid Data Type Received");
                 return false;

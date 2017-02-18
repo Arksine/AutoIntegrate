@@ -97,7 +97,8 @@ public class MCUDefs {
         SHORT((byte)0x01),
         INT((byte)0x02),
         STRING((byte)0x03),
-        BOOLEAN((byte)0x04);
+        BOOLEAN((byte)0x04),
+        BYTE_ARRAY((byte)0x05);
 
         private final byte id;
 

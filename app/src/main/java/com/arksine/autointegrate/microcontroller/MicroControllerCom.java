@@ -108,11 +108,12 @@ public class MicroControllerCom extends SerialCom {
                     case CUSTOM:
                         // arg1 is the custom command
                         byte custom = (byte)msg.arg1;
-                        length = 1;
+                        length = 2;
                         if (msg.obj != null && (msg.obj instanceof byte[])) {
                             length += ((byte[])msg.obj).length;
-                            checksum += length + custom;
+                            checksum += length + command.getByte() + custom;
                             checkEscapeByte(outPacket, length);
+                            outPacket.put(command.getByte());
                             checkEscapeByte(outPacket, custom);
 
                             for (byte b : (byte[])msg.obj) {
@@ -121,8 +122,9 @@ public class MicroControllerCom extends SerialCom {
                             }
                         } else {
                             // no data, send only command
-                            checksum += length + custom;
+                            checksum += length + command.getByte() + custom;
                             checkEscapeByte(outPacket, length);
+                            outPacket.put(command.getByte());
                             checkEscapeByte(outPacket, custom);
                         }
 
