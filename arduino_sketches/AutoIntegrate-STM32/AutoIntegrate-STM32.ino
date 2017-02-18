@@ -18,21 +18,26 @@ ButtonCB button(BUTTON_DIGITAL_PIN, Button::PULL_UP, BUTTON_DEBOUNCE_DELAY);
 
 AudioInput audio_input_selection = HD_RADIO;
 
-
 // TODO: change shorts to ints, should be able to handle the different sizes
 unsigned short btn_analog_value      = 0;
 unsigned short analog_dimmer_reading = 0;
-
-unsigned long reverse_start_time = 0;
+unsigned long  reverse_start_time    = 0;
 
 bool isStarted           = false;
 bool isHolding           = false;
 bool inReverse           = false;
 bool isDimmerOn          = false;
 bool analogDimmerEnabled = false;
+bool radioDtrOn          = false;
+bool radioRtsOn          = false;
 
-char command[30];
-byte cmd_index = 0;
+uint8_t inBuffer[256]; // Maximum buffer size of 40 is probably way too large
+uint8_t bufIndex      = 0;
+uint8_t packetLength  = 0;
+int     checksum      = 0;
+bool    isLengthByte  = false;
+bool    isValidPacket = false;
+bool    isEscaped     = false;
 
 void onResistivePress(const Button& b) {
   for (int i = 0; i < SMOOTH; i++) {
@@ -62,17 +67,17 @@ void onResistiveRelease(const Button& b) {
 }
 
 void setup() {
-  Serial.begin(9600);
-
-  while (!Serial);
-  Serial.flush();
-
   pinMode(BUTTON_ANALOG_PIN, INPUT_ANALOG);
   pinMode(DIMMER_ANALOG_PIN, INPUT_ANALOG);
   pinMode(AUDIO_SOURCE_PIN,  OUTPUT);
 
+  #if defined(HDRadioSerial)
+  pinMode(RADIO_DTR_PIN,     OUTPUT);
+  pinMode(RADIO_RTS_PIN,     OUTPUT);
+  #endif // if defined(HDRadioSerial)
+
   #ifdef LED_PIN
-  pinMode(PB1,               OUTPUT);
+  pinMode(PB1, OUTPUT);
   #endif // ifdef LED_PIN
 
   button.setHoldThreshold(BUTTON_HOLD_DELAY);
@@ -81,30 +86,21 @@ void setup() {
   button.holdHandler(onResistiveHold);
   button.releaseHandler(onResistiveRelease);
 
-  delay(500);
+  Serial.begin(230400);
+
+  while (!Serial);
+  Serial.flush();
 }
 
 void loop() {
   // check for command data
-  if (Serial.available() > 0) {
-    char c = Serial.read();
-
-    if (c == '<') {
-      cmd_index = 0;
-    } else if (c == '>') {
-      if (cmd_index < 29) {
-        command[cmd_index] = 0;
-        executeCmd();
-      } else {
-        // TODO: send a log message that the incoming command is too big
-      }
-    } else if (cmd_index < 30) {
-      command[cmd_index] = c;
-      cmd_index++;
-    }
-  }
+  parseIncoming();
 
   if (isStarted) {
+    #if defined(HDRadioSerial)
+    processRadioIncoming();
+    #endif // if defined(HDRadioSerial)
+
     // check for reverse
     processReverse();
 
@@ -116,66 +112,262 @@ void loop() {
   }
 }
 
-// TODO: For AVR architecture I should probably use strcmp_P and PSTR() for all
-// of the constants
-void executeCmd() {
-  if (strcmp(command, "START") == 0) {
-    delay(1000); // delay one sec so the app is ready
-                 // to receive
+void parseIncoming() {
+  while (Serial.available() > 0) {
+    byte b = Serial.read();
 
-    if (isStarted) {
-      // reset variables so commands can be resent if necessary
-      isDimmerOn            = false;
-      inReverse             = false;
-      reverse_start_time    = 0;
-      analog_dimmer_reading = 0;
+    if (b == 0xF1) {
+      // header start
+      isValidPacket = true;
+      isLengthByte  = true;
+      isEscaped     = false;
+
+      checksum     = 0xF1;
+      packetLength = 0;
+      bufIndex     = 0;
+    } else if (!isValidPacket) {
+      // TODO: Send log back to device, the packet is invalid
+    } else if ((b == 0x1A) && !isEscaped) {
+      isEscaped = true;
+    } else {
+      // Unescape byte if necessary
+      if (isEscaped) {
+        isEscaped = false;
+
+        if (b == 0x20) {
+          b = 0xF1;
+        }
+      }
+
+      if (isLengthByte) {
+        isLengthByte = false;
+        packetLength = b;
+        checksum    += packetLength;
+      } else if (bufIndex == packetLength) {
+        // This is the checksum
+        uint8_t calcSum = checksum % 256;
+
+        if (calcSum == b) {
+          executeCommand();
+        } else {
+          // TODO: Invalid Checksum send log
+        }
+
+        // Packet if finished, not valid until a new header is received
+        isValidPacket = false;
+      } else {
+        // part of the packet
+        inBuffer[bufIndex] = b;
+        bufIndex++;
+        checksum += b;
+      }
     }
+  }
+}
 
-    const char *str = "SUCCESS";
-    sendPacketToPc(CMD_CONNECTED, TYPE_STRING, (byte *)str, strlen(str));
-    isStarted = true;
+/**
+ * Executes a given command.
+ */
+void executeCommand() {
+  byte command = inBuffer[0];
 
-    #ifdef LED_PIN
-    digitalWrite(LED_PIN, HIGH);
-    #endif // ifdef LED_PIN
-  } else if (strcmp(command, "STOP") == 0) {
-    isStarted             = false;
+  switch (command) {
+  case MCU_START:
+    processStartCommand();
+    break;
+
+  case MCU_STOP:
+    processStopCommand();
+    break;
+
+  case MCU_SET_DIMMER_ANALOG:
+    setDimmerAnalog();
+    break;
+
+  case MCU_SET_DIMMER_DIGITAL:
+    setDimmerDigital();
+    break;
+
+  case MCU_AUDIO_SOURCE_HD:
+    setSourceHd();
+    break;
+
+  case MCU_AUDIO_SOURCE_AUX:
+    setSourceAux();
+    break;
+
+  case MCU_RADIO_SEND_PACKET:
+    #if defined(HDRadioSerial)
+    sendRadioPacket();
+    #endif // if defined(HDRadioSerial)
+    break;
+
+  case MCU_RADIO_SET_DTR:
+    #if defined(HDRadioSerial)
+    setDtr((inBuffer[1] == 0x01));
+    #endif // if defined(HDRadioSerial)
+    break;
+
+  case MCU_RADIO_SET_RTS:
+    #if defined(HDRadioSerial)
+    setRts((inBuffer[1] == 0x01));
+    #endif // if defined(HDRadioSerial)
+    break;
+
+  case MCU_CUSTOM:
+    processCustom();
+    break;
+
+  default: {
+    // Unknown command, send it back to the device log
+    // TODO: convert the hex buffer to string and send via log
+    const char str[] = "Unknown Command Received";
+    sendPacketToPc(CMD_LOG, TYPE_STRING, (byte *)str, strlen(str));
+  }
+  }
+}
+
+/**
+ * Process custom commands received from the device here.  The commands
+ * type should be defined in defintions.h, it will be the 2nd byte in the
+ * buffer.  That byte is the basis of the switch statement.
+ */
+void processCustom() {
+  switch (inBuffer[1]) {}
+}
+
+void processStartCommand() {
+  delay(1000); // delay one sec so the app is ready
+               // to receive
+
+  if (isStarted) {
+    // reset variables so commands can be resent if necessary
     isDimmerOn            = false;
     inReverse             = false;
     reverse_start_time    = 0;
     analog_dimmer_reading = 0;
+  }
+  #if defined(HDRadioSerial)
+  else {
+    HDRadioSerial.begin(115200);
 
-    #ifdef LED_PIN
-    digitalWrite(LED_PIN, LOW);
-    #endif // ifdef LED_PIN
-  } else if (strcmp(command, "Dimmer:Analog") == 0) {
-    analogDimmerEnabled   = true;
-    analog_dimmer_reading = 0;
-  } else if (strcmp(command, "Dimmer:Digital") == 0) {
-    analogDimmerEnabled = false;
-  } else if (strcmp(command, "Source:HD_RADIO") == 0) {
-    if (audio_input_selection != HD_RADIO) {
-      digitalWrite(AUDIO_SOURCE_PIN, LOW);
-      audio_input_selection = HD_RADIO;
+    while (!HDRadioSerial);
+    HDRadioSerial.flush();
+  }
+  #endif // if defined(HDRadioSerial)
 
-      const char str[] = "HD_RADIO_INPUT_SET";
-      sendPacketToPc(CMD_LOG, TYPE_STRING, (byte *)str, strlen(str));
-    }
-  } else if (strcmp(command, "Source:AUX") == 0) {
-    if (audio_input_selection != AUX) {
-      digitalWrite(AUDIO_SOURCE_PIN, HIGH);
-      audio_input_selection = AUX;
+  const char *str = "SUCCESS";
+  sendPacketToPc(CMD_CONNECTED, TYPE_STRING, (byte *)str, strlen(str));
+  isStarted = true;
 
-      const char str[] = "AUX_INPUT_SET";
-      sendPacketToPc(CMD_LOG, TYPE_STRING, (byte *)str, strlen(str));
-    }
-  } else if (command[0] != 0) {
-    // Unknown command, send it back to the device log
-    char logstring[40] = "Unknown:";
-    strcat(logstring, command);
-    sendPacketToPc(CMD_LOG, TYPE_STRING, (byte *)logstring, strlen(logstring));
+  #ifdef LED_PIN
+  digitalWrite(LED_PIN, HIGH);
+  #endif // ifdef LED_PIN
+}
+
+void processStopCommand() {
+  isStarted             = false;
+  isDimmerOn            = false;
+  inReverse             = false;
+  reverse_start_time    = 0;
+  analog_dimmer_reading = 0;
+
+  #if defined(HDRadioSerial)
+
+  if (radioDtrOn) {
+    radioDtrOn = false;
+    digitalWrite(RADIO_DTR_PIN, LOW);
+  }
+
+  if (radioRtsOn) {
+    radioRtsOn = false;
+    digitalWrite(RADIO_RTS_PIN, LOW);
+  }
+  HDRadioSerial.end();
+  #endif // if defined(HDRadioSerial)
+
+  #ifdef LED_PIN
+  digitalWrite(LED_PIN, LOW);
+  #endif // ifdef LED_PIN
+}
+
+void setDimmerAnalog() {
+  analogDimmerEnabled   = true;
+  analog_dimmer_reading = 0;
+}
+
+void setDimmerDigital() {
+  analogDimmerEnabled = false;
+}
+
+void setSourceHd() {
+  if (audio_input_selection != HD_RADIO) {
+    digitalWrite(AUDIO_SOURCE_PIN, LOW);
+    audio_input_selection = HD_RADIO;
+
+    const char str[] = "HD_RADIO_INPUT_SET";
+    sendPacketToPc(CMD_LOG, TYPE_STRING, (byte *)str, strlen(str));
   }
 }
+
+void setSourceAux() {
+  if (audio_input_selection != AUX) {
+    digitalWrite(AUDIO_SOURCE_PIN, HIGH);
+    audio_input_selection = AUX;
+
+    const char str[] = "AUX_INPUT_SET";
+    sendPacketToPc(CMD_LOG, TYPE_STRING, (byte *)str, strlen(str));
+  }
+}
+
+#if defined(HDRadioSerial)
+void processRadioIncoming() {
+  while (HDRadioSerial.available() > 0) {
+    byte b = HDRadioSerial.read();
+    writeRadioByte(b);
+  }
+}
+
+void sendRadioPacket() {
+  uint8_t *radioBuf = inBuffer + 1;     // Radio packet starts after the command
+  int radioLength   = packetLength - 1; // buffer length minus command
+
+  HDRadioSerial.write(radioBuf, radioLength);
+}
+
+void setDtr(bool status) {
+  if (status) {
+    // raise dtr
+    if (!radioDtrOn) {
+      digitalWrite(RADIO_DTR_PIN, HIGH);
+      radioDtrOn = true;
+    }
+  } else {
+    // lower dtr
+    if (radioDtrOn) {
+      digitalWrite(RADIO_DTR_PIN, LOW);
+      radioDtrOn = false;
+    }
+  }
+}
+
+void setRts(bool status) {
+  if (status) {
+    // raise rts
+    if (!radioRtsOn) {
+      digitalWrite(RADIO_RTS_PIN, HIGH);
+      radioRtsOn = true;
+    }
+  } else {
+    // lower rts
+    if (radioRtsOn) {
+      digitalWrite(RADIO_RTS_PIN, LOW);
+      radioRtsOn = false;
+    }
+  }
+}
+
+#endif // if defined(HDRadioSerial)
 
 void processReverse() {
   if (digitalRead(REVERSE_PIN) == HIGH) {
@@ -234,37 +426,53 @@ void sendPacketToPc(byte        cmd,
 
   byte length = data_length + 2;
 
-  short checksum = length;
+  short checksum = 0xF1 + length;
 
-  Serial.write(0xF1);   // Start header
-  writeByte(length);    // Length of command (not including escape bytes and
-                        // header)
-  writeByte(cmd);       // command
+  writeMcuByte(0xF1);          // Start header
+  writeEscapedByte(length);    // Length of command (not including escape bytes
+                               // and
+  // header)
+  writeEscapedByte(cmd);       // command
   checksum += cmd;
 
-  writeByte(data_type); // data type
+  writeEscapedByte(data_type); // data type
   checksum += data_type;
 
   for (size_t i = 0; i < data_length; i++) {
-    writeByte(data[i]);
+    writeEscapedByte(data[i]);
     checksum += data[i];
   }
 
   byte cksum = checksum % 256;
-  writeByte(cksum);
+  writeEscapedByte(cksum);
 }
 
-// writes a byte to serial, checking to see if it should be escaped
-void writeByte(byte b) {
-  if (b == 0x1B) {
-    // escape 0x1B as 0x1B
-    Serial.write(0x1B);
-    Serial.write(0x1B);
+// writes a byte to serial, checking to see if it should be escaped.  This uses
+// 0x1A (ascii substitute) instead of 0x1B (Esc) for escaping, so as not to
+// confuse
+// with radio packets
+void writeEscapedByte(byte b) {
+  if (b == 0x1A) {
+    // escape 0x1A as 0x1A
+    writeMcuByte(0x1A);
+    writeMcuByte(0x1A);
   } else if (b == 0xF1) {
     // escape 0xF1 as 0x20
-    Serial.write(0x1B);
-    Serial.write(0x20);
+    writeMcuByte(0x1A);
+    writeMcuByte(0x20);
   } else {
-    Serial.write(b);
+    writeMcuByte(b);
   }
+}
+
+void writeMcuByte(byte data) {
+  byte out[] = { MCU_BYTE_ENCODING, data };
+
+  Serial.write(out, 2);
+}
+
+void writeRadioByte(byte data) {
+  byte out[] = { RADIO_BYTE_ENCODING, data };
+
+  Serial.write(out, 2);
 }
