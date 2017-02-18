@@ -8,7 +8,6 @@ package com.arksine.autointegrate.microcontroller;
 public class ControllerMessage {
 
     public MCUDefs.DataType msgType;
-    public MCUDefs.MCUCommand command;
-    public MCUDefs.RadioCommand radioCmd;
+    public MCUDefs.McuInputCommand command;
     public Object data;
 }

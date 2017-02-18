@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Message;
@@ -15,7 +16,7 @@ import android.util.Log;
 
 import com.arksine.autointegrate.MainService;
 import com.arksine.autointegrate.interfaces.MCUControlInterface;
-import com.arksine.autointegrate.interfaces.SerialHelper;
+import com.arksine.autointegrate.utilities.SerialHelper;
 import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.utilities.BluetoothHelper;
 import com.arksine.autointegrate.utilities.DLog;
@@ -24,6 +25,7 @@ import com.arksine.autointegrate.utilities.UsbHelper;
 import com.arksine.autointegrate.utilities.UsbSerialSettings;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 /* TODO: I have decided that in an effort to reduce the number of USB devices connected to the
 * Android tablet it would be a good idea to have the option to use the MCU and one of its UARTs
@@ -42,13 +44,137 @@ import java.nio.ByteBuffer;
  * a serial connection and confirms that the micro controller is connected.
  */
 public class MicroControllerCom extends SerialCom {
-
-
-
-    private static final String TAG = "MicroControllerCom";
+    private static final String TAG = MicroControllerCom.class.getSimpleName();
 
     private ControllerInputHandler mInputHandler;
-    private MCUControlInterface mControlInterface;
+    private Handler mWriteHandler;
+    private final Handler.Callback mWriteCallback = new Handler.Callback() {
+        @Override
+        public boolean handleMessage(Message msg) {
+            MCUDefs.McuOutputCommand command = MCUDefs.McuOutputCommand
+                    .getCommandFromOrdinal(msg.what);
+
+            if (mSerialHelper != null) {
+                ByteBuffer outPacket = ByteBuffer.allocate(50);
+                outPacket.order(ByteOrder.LITTLE_ENDIAN);
+                outPacket.put((byte)0xF1);  // put header
+
+                int checksum = 0xF1;
+                byte length;
+
+                switch (command) {
+                    case START:
+                    case STOP:
+                    case SET_DIMMER_ANALOG:
+                    case SET_DIMMER_DIGITAL:
+                    case AUDIO_SOURCE_HD:
+                    case AUDIO_SOURCE_AUX:
+                        length = 1;
+                        outPacket.put(length);
+                        outPacket.put(command.getByte());
+                        checksum += length + command.getByte();
+                        break;
+                    case RADIO_SET_DTR:
+                    case RADIO_SET_RTS:
+                        if (msg.obj != null && !(msg.obj instanceof Boolean)) {
+                            Log.d(TAG, "Cannot send command, data is not a byte array");
+                            return true;
+                        }
+                        byte boolByte = ((boolean)msg.obj) ? (byte)0x01 : (byte)0x00;
+
+                        length = 2;
+                        outPacket.put(length);
+                        outPacket.put(command.getByte());
+                        outPacket.put(boolByte);
+                        checksum += length + command.getByte() + boolByte;
+                        break;
+                    case  RADIO_SEND_PACKET:
+                        if (msg.obj == null || !(msg.obj instanceof byte[])) {
+                            Log.d(TAG, "Cannot send command, data is not a byte array");
+                            return true;
+                        }
+                        byte[] out = (byte[])msg.obj;
+                        length = (byte)(out.length + 1);   // packet length plus command byte
+                        checksum += length + command.getByte();
+                        checkEscapeByte(outPacket, length);
+                        outPacket.put(command.getByte());
+
+                        for (byte b : out) {
+                            checkEscapeByte(outPacket, b);
+                            checksum += b;
+                        }
+
+                        break;
+                    case CUSTOM:
+                        // arg1 is the custom command
+                        byte custom = (byte)msg.arg1;
+                        length = 1;
+                        if (msg.obj != null && (msg.obj instanceof byte[])) {
+                            length += ((byte[])msg.obj).length;
+                            checksum += length + custom;
+                            checkEscapeByte(outPacket, length);
+                            checkEscapeByte(outPacket, custom);
+
+                            for (byte b : (byte[])msg.obj) {
+                                checkEscapeByte(outPacket, b);
+                                checksum += b;
+                            }
+                        } else {
+                            // no data, send only command
+                            checksum += length + custom;
+                            checkEscapeByte(outPacket, length);
+                            checkEscapeByte(outPacket, custom);
+                        }
+
+                        break;
+                    default:
+                        Log.d(TAG, "Unknown Command, cannot send");
+                        return true;
+                }
+
+                byte chk = (byte)(checksum % 256);
+                checkEscapeByte(outPacket, chk);
+
+                outPacket.flip();
+                byte[] outBuf = new byte[outPacket.limit()];
+                outPacket.get(outBuf);
+                mSerialHelper.writeBytes(outBuf);
+            }
+
+            return true;
+        }
+
+        private void checkEscapeByte(ByteBuffer outPacket, byte b) {
+            if (b == (byte)0xF1) {
+                outPacket.put((byte)0x1A);
+                outPacket.put((byte)0x20);
+            } else if (b == (byte)0x1A) {
+                outPacket.put((byte)0x1A);
+                outPacket.put((byte)0x1A);
+            } else {
+                outPacket.put(b);
+            }
+        }
+    };
+
+    private final MCUControlInterface mControlInterface = new MCUControlInterface() {
+        @Override
+        public void sendMcuCommand(MCUDefs.McuOutputCommand command, Object data) {
+
+            Message msg = mInputHandler.obtainMessage(command.ordinal(), data);
+            mWriteHandler.sendMessage(msg);
+        }
+
+        @Override
+        public void setMode(boolean isLearningMode) {
+            mInputHandler.setMode(isLearningMode);
+        }
+
+        @Override
+        public boolean isConnected() {
+            return mConnected;
+        }
+    };
 
     // Broadcast reciever to listen for write commands.
     public class WriteReciever extends BroadcastReceiver {
@@ -56,11 +182,37 @@ public class MicroControllerCom extends SerialCom {
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
             if (mService.getString(R.string.ACTION_SEND_DATA).equals(action)) {
+                // TODO: should the write receiver allow app commands, and only accept custom
+                // commands?  App commands should only be sent by apps bound with the service
+                // or via localbroadcasts anyway
+
                 // stops all queued services
-                String command = intent.getStringExtra(mService.getString(R.string.EXTRA_COMMAND));
-                String data = intent.getStringExtra(mService.getString(R.string.EXTRA_DATA));
-                String out = "<" + command + ":" + data + ">";
-                mSerialHelper.writeString(out);
+                byte command = intent.getByteExtra(mService.getString(R.string.EXTRA_COMMAND), (byte)0x00);
+                MCUDefs.McuOutputCommand cmd = MCUDefs.McuOutputCommand.getCommand(command);
+
+                Message msg = mInputHandler.obtainMessage();
+                switch (cmd) {
+                    case NONE:
+                        // The command was not found, in the enumeration, so it will be sent as custom
+                        msg.what = MCUDefs.McuOutputCommand.CUSTOM.ordinal();
+                        msg.arg1 = command;
+                        msg.obj = intent.getByteArrayExtra(mService.getString(R.string.EXTRA_DATA));
+                        break;
+                    case RADIO_SEND_PACKET:
+                        msg.what = cmd.ordinal();
+                        msg.obj = intent.getByteArrayExtra(mService.getString(R.string.EXTRA_DATA));
+                        break;
+                    case RADIO_SET_DTR:
+                    case RADIO_SET_RTS:
+                        msg.what = cmd.ordinal();
+                        msg.obj = intent.getBooleanArrayExtra(mService.getString(R.string.EXTRA_DATA));
+                        break;
+                    default:
+                        msg.what = cmd.ordinal();
+                }
+
+                mWriteHandler.sendMessage(msg);
+
             }
         }
     }
@@ -72,15 +224,16 @@ public class MicroControllerCom extends SerialCom {
     public MicroControllerCom(MainService svc, boolean learningMode) {
         super(svc);
 
-        HandlerThread thread = new HandlerThread("ControllerMessageHandler",
+        HandlerThread inputThread = new HandlerThread("ControllerMessageHandler",
                 Process.THREAD_PRIORITY_BACKGROUND);
-        thread.start();
-        Looper mInputLooper = thread.getLooper();
+        inputThread.start();
+        mInputHandler = new ControllerInputHandler(inputThread.getLooper(), mService,
+                mControlInterface, learningMode);
 
-        mControlInterface = buildInterface();
-
-        mInputHandler = new ControllerInputHandler(mInputLooper, mService, mControlInterface,
-                learningMode);
+        HandlerThread writeThread = new HandlerThread("Write Handler Thread",
+                Process.THREAD_PRIORITY_BACKGROUND);
+        writeThread.start();
+        mWriteHandler = new Handler(writeThread.getLooper(), mWriteCallback);
 
         mCallbacks = new SerialHelper.Callbacks() {
             @Override
@@ -168,22 +321,17 @@ public class MicroControllerCom extends SerialCom {
             mDeviceError = false;
 
             // Tell the Arudino that it is time to start
-            if (!mSerialHelper.writeString("<START>")) {
-                // unable to write start command
-                Log.w(TAG, "Unable to start Micro Controller");
-                mSerialHelper.disconnect();
-                mConnected = false;
-                mSerialHelper = null;
-            } else {   // Connection was successful
+            mControlInterface.sendMcuCommand(MCUDefs.McuOutputCommand.START, null);
+            // TODO: Should I wait for a response?
 
-                //Register write data receiver
-                IntentFilter sendDataFilter = new IntentFilter(mService.getString(R.string.ACTION_SEND_DATA));
-                mService.registerReceiver(writeReciever, sendDataFilter);
-                isWriteReceiverRegistered = true;
+            //Register write data receiver
+            IntentFilter sendDataFilter = new IntentFilter(mService.getString(R.string.ACTION_SEND_DATA));
+            mService.registerReceiver(writeReciever, sendDataFilter);
+            isWriteReceiverRegistered = true;
 
-                DLog.v(TAG, "Sucessfully connected to Micro Controller");
-                // TODO: need to request dimmer status
-            }
+            DLog.v(TAG, "Sucessfully connected to Micro Controller");
+
+
         } else {
             mSerialHelper = null;
         }
@@ -200,7 +348,7 @@ public class MicroControllerCom extends SerialCom {
             mInputHandler.close();
             // If there was a device error then we cannot write to it
             if (!mDeviceError) {
-                mSerialHelper.writeString("<STOP>");
+                mControlInterface.sendMcuCommand(MCUDefs.McuOutputCommand.STOP, null);
 
                 // If we disconnect too soon after writing "stop", an exception will be thrown
                 try {
@@ -218,29 +366,6 @@ public class MicroControllerCom extends SerialCom {
             mService.unregisterReceiver(writeReciever);
             isWriteReceiverRegistered = false;
         }
-    }
-
-    private MCUControlInterface buildInterface() {
-        return new MCUControlInterface() {
-            @Override
-            public void sendMcuCommand(String command, String data) {
-                // TODO: probably need to syncronize this.
-                if (mSerialHelper != null) {
-                    String packet = "<" + command + ":" + data + ">";
-                    mSerialHelper.writeString(packet);
-                }
-            }
-
-            @Override
-            public void setMode(boolean isLearningMode) {
-                mInputHandler.setMode(isLearningMode);
-            }
-
-            @Override
-            public boolean isConnected() {
-                return mConnected;
-            }
-        };
     }
 
     public MCUControlInterface getControlInterface() {

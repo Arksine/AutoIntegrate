@@ -13,14 +13,12 @@ import android.util.Log;
 import android.widget.Toast;
 
 import com.arksine.autointegrate.R;
-import com.arksine.autointegrate.interfaces.SerialHelper;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
@@ -32,7 +30,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Class BluetoothHelper - Handles basic bluetooth tasks, implements async read/write
  */
-public class BluetoothHelper implements SerialHelper {
+public class BluetoothHelper extends SerialHelper {
 
     private static String TAG = "BluetoothHelper";
 
@@ -99,6 +97,7 @@ public class BluetoothHelper implements SerialHelper {
      * This unitializes the bluetooth manager.  It should always be called before a context is
      * destroyed in the onDestroy method.
      */
+    @Override
     public void disconnect() {
 
         deviceConnected = false;
@@ -131,6 +130,7 @@ public class BluetoothHelper implements SerialHelper {
         return mBluetoothAdapter != null && mBluetoothAdapter.isEnabled();
     }
 
+    @Override
     public ArrayList<String> enumerateSerialDevices() {
 
         if (!isBluetoothOn()) {
@@ -171,6 +171,7 @@ public class BluetoothHelper implements SerialHelper {
      *
      * @param macAddr - The mac address of the device to connect
      */
+    @Override
     public boolean connectDevice (String macAddr, SerialHelper.Callbacks cbs) {
         if (deviceConnected) {
             disconnect();
@@ -217,6 +218,7 @@ public class BluetoothHelper implements SerialHelper {
         }
     }
 
+    @Override
     public String getConnectedId() {
         if (deviceConnected) {
             return mBtDevice.getAddress();
@@ -241,32 +243,8 @@ public class BluetoothHelper implements SerialHelper {
         return deviceConnected;
     }
 
-    public boolean writeString(final String data) {
-
-        if (mSocket == null) return false;
-
-        EXECUTOR.execute(new Runnable() {
-            @Override
-            public void run() {
-
-                synchronized (WRITELOCK) {
-                    try {
-                        serialOut.write(data.getBytes());
-                    } catch (IOException e) {
-                        Log.w(TAG, "Error writing to device\n", e);
-                        mSerialHelperCallbacks.OnDeviceError();
-                    }
-                }
-            }
-        });
-
-
-
-        return true;
-    }
-
+    @Override
     public boolean writeBytes(final byte[] data) {
-
         if (mSocket == null) return false;
 
 
@@ -286,6 +264,11 @@ public class BluetoothHelper implements SerialHelper {
         });
 
         return true;
+    }
+
+    @Override
+    public boolean writeString(String data) {
+        return writeBytes(data.getBytes());
     }
 
     /**

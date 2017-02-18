@@ -11,9 +11,6 @@ import android.util.Log;
 import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.interfaces.MCUControlInterface;
 import com.arksine.autointegrate.utilities.DLog;
-import com.arksine.hdradiolib.HDSongInfo;
-import com.arksine.hdradiolib.TuneInfo;
-import com.arksine.hdradiolib.enums.RadioBand;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -25,6 +22,8 @@ import java.nio.ByteOrder;
 public class ControllerInputHandler extends Handler {
 
     private static final String TAG = "ControllerInputHandler";
+    private static final byte MCU_COMMAND_ENCODING = 0x00;
+    private static final byte RADIO_COMMAND_ENCODING = 0x01;
 
     private Context mContext = null;
     private CommandProcessor mCommandProcessor;
@@ -33,6 +32,9 @@ public class ControllerInputHandler extends Handler {
         void ProcessMessage(ControllerMessage ctrlMsg);
     }
     private MessageProcessor mProcessor;
+
+    private boolean isEncodeByte  = true;  // The first byte of the pair is always the encoding
+    private byte encoding = 0;
 
     private ByteBuffer mReceivedBuffer = ByteBuffer.allocate(512);
     private boolean mIsLengthByte = false;
@@ -56,7 +58,7 @@ public class ControllerInputHandler extends Handler {
                 public void ProcessMessage(ControllerMessage ctrlMsg) {
                     // TODO: Instead of broadcasting an intent I can use a RemoteCallback to send data back to bound activity
                     // Local broadcast to learning activity, we only learn click and dimmer events
-                    if(ctrlMsg.command == MCUDefs.MCUCommand.CLICK || ctrlMsg.command == MCUDefs.MCUCommand.DIMMER) {
+                    if(ctrlMsg.command == MCUDefs.McuInputCommand.CLICK || ctrlMsg.command == MCUDefs.McuInputCommand.DIMMER) {
                         Intent msgIntent = new Intent(mContext.getString(R.string.ACTION_CONTROLLER_LEARN_DATA));
                         msgIntent.putExtra("Command", ctrlMsg.command.toString());
                         if (ctrlMsg.msgType == MCUDefs.DataType.INT) {
@@ -88,60 +90,80 @@ public class ControllerInputHandler extends Handler {
 
     @Override
     public void handleMessage(Message msg) {
-        parseIncomingBytes((byte[])msg.obj);
+        decodeBytes((byte[])msg.obj);
     }
 
-    private void parseIncomingBytes(byte[] data) {
-        // TODO: I should include the header in the checksum calculation (need to do it in sketch as well)
-        // add the incoming bytes to a buffer
-        for (byte ch : data) {
-            if (ch == (byte) 0xF1) {
-                mIsValidPacket = true;
-                mIsEscapedByte = false;
-                mIsLengthByte = true;
-
-                mReceivedBuffer.clear();
-                mPacketLength = 0;
-                mChecksum = 0xF1;
-            } else if (!mIsValidPacket) {
-                DLog.i(TAG, "Invalid byte received: " + ch);
-            } else if (ch == (byte)0x1B && !mIsEscapedByte) {
-                mIsEscapedByte = true;
+    private void decodeBytes(byte[] data) {
+        for (byte b : data) {
+            if (isEncodeByte) {
+                isEncodeByte = false;
+                encoding = b;
             } else {
-                if (mIsEscapedByte) {
-                    mIsEscapedByte = false;
-                    if (ch == (byte)0x20) {
-                        // 0xF1 is escaped as 0x20
-                        ch = (byte) 0xF1;
-                    }
-                    // Note: 0x1B is escaped as 0x1B, so we don't need to reset the current byte
-                }
+                isEncodeByte = true;
+                switch (encoding) {
+                    case MCU_COMMAND_ENCODING:
+                        parseCommandByte(b);
+                        break;
+                    case RADIO_COMMAND_ENCODING:
+                        // TODO: send to Custom radio driver for parsing
+                        break;
+                    default:
 
-                if (mIsLengthByte) {
-                    mIsLengthByte = false;
-                    mPacketLength = ch & (0xFF);
-                    mChecksum += mPacketLength;
-                } else if (mReceivedBuffer.position() == mPacketLength) {
-                    // This is the checksum byte
-
-                    // Checksum is all bytes added up (not counting header and escape bytes) mod 256
-                    if ((mChecksum % 256) == (ch & 0xFF)) {
-                        mReceivedBuffer.flip();
-                        parsePacket();
-
-                    } else {
-                        Log.i(TAG, "Invalid checksum, discarding packet");
-                    }
-
-                    // The next byte received must be 0xF1, regardless of what happened here
-                    mIsValidPacket = false;
-                } else {
-                    // Add byte to packet buffer
-                    mReceivedBuffer.put(ch);
-                    mChecksum += (ch & 0xFF);
+                        break;
                 }
             }
         }
+    }
+
+    private void parseCommandByte(byte cmdByte) {
+
+        if (cmdByte == (byte) 0xF1) {
+            mIsValidPacket = true;
+            mIsEscapedByte = false;
+            mIsLengthByte = true;
+
+            mReceivedBuffer.clear();
+            mPacketLength = 0;
+            mChecksum = 0xF1;
+        } else if (!mIsValidPacket) {
+            DLog.i(TAG, "Invalid byte received: " + cmdByte);
+        } else if (cmdByte == (byte)0x1A && !mIsEscapedByte) {
+            mIsEscapedByte = true;
+        } else {
+            if (mIsEscapedByte) {
+                mIsEscapedByte = false;
+                if (cmdByte == (byte)0x20) {
+                    // 0xF1 is escaped as 0x20
+                    cmdByte = (byte) 0xF1;
+                }
+                // Note: 0x1A is escaped as 0x1A, so we don't need to reset the current byte
+            }
+
+            if (mIsLengthByte) {
+                mIsLengthByte = false;
+                mPacketLength = cmdByte & (0xFF);
+                mChecksum += mPacketLength;
+            } else if (mReceivedBuffer.position() == mPacketLength) {
+                // This is the checksum byte
+
+                // Checksum is all bytes added up (not counting header and escape bytes) mod 256
+                if ((mChecksum % 256) == (cmdByte & 0xFF)) {
+                    mReceivedBuffer.flip();
+                    parsePacket();
+
+                } else {
+                    Log.i(TAG, "Invalid checksum, discarding packet");
+                }
+
+                // The next byte received must be 0xF1, regardless of what happened here
+                mIsValidPacket = false;
+            } else {
+                // Add byte to packet buffer
+                mReceivedBuffer.put(cmdByte);
+                mChecksum += (cmdByte & 0xFF);
+            }
+        }
+
     }
 
     // Reads a message from the Micro Controller and parses it
@@ -160,9 +182,9 @@ public class ControllerInputHandler extends Handler {
 
         ControllerMessage ctrlMsg = new ControllerMessage();
 
-        ctrlMsg.command = MCUDefs.MCUCommand.getMcuCommand(mReceivedBuffer.get());
+        ctrlMsg.command = MCUDefs.McuInputCommand.getCommandFromByte(mReceivedBuffer.get());
         DLog.v(TAG, "MCU Command Recd: " + ctrlMsg.command.toString());
-        if (ctrlMsg.command == MCUDefs.MCUCommand.NONE) {
+        if (ctrlMsg.command == MCUDefs.McuInputCommand.NONE) {
             Log.e(TAG, "Invalid Command Received");
             return false;
         }
@@ -172,21 +194,6 @@ public class ControllerInputHandler extends Handler {
         if (ctrlMsg.msgType == MCUDefs.DataType.NONE) {
             Log.e(TAG, "Invalid Data Type Received");
             return false;
-        }
-
-
-        // if a radio command is received, we need
-        if (ctrlMsg.command == MCUDefs.MCUCommand.RADIO) {
-            // get radio command
-            ctrlMsg.radioCmd = MCUDefs.RadioCommand.getRadioCommand(mReceivedBuffer.get());
-
-            if (ctrlMsg.radioCmd == MCUDefs.RadioCommand.NONE) {
-                Log.e(TAG, "Invalid Radio Command Received");
-                return false;
-            }
-
-        } else {
-            ctrlMsg.radioCmd = MCUDefs.RadioCommand.NONE;
         }
 
 
@@ -234,45 +241,6 @@ public class ControllerInputHandler extends Handler {
             case BOOLEAN:
                 ctrlMsg.data = mReceivedBuffer.get()!= 0;
                 break;
-            case TUNE_INFO:
-                // TODO: frequency could be a short, as the frequency can not be above 1080. That
-                // would make the rest of the packet 3 bytes long (1 for band, 2 for frequency)
-
-                if (mReceivedBuffer.remaining() < 5) {
-                    Log.i(TAG, "Invalid Tune Info data size: " + mReceivedBuffer.remaining());
-                    return false;
-                }
-
-                RadioBand band;
-                byte bnd = mReceivedBuffer.get();
-                if (bnd == 0) {
-                    band = RadioBand.AM;
-                } else if (bnd == 1) {
-                    band = RadioBand.FM;
-                } else {
-                    Log.wtf(TAG, "Band byte received is invalid");
-                    return false;
-                }
-                int frequency = mReceivedBuffer.getInt();
-
-                ctrlMsg.data = new TuneInfo(band, frequency, 0);
-                break;
-            case HD_SONG_INFO:
-                // TODO: this could be a byte, as the subchannel cannot be bigger than 10.  That would
-                // make the minimum remaining bytes 2, assuming the string is only 1 byte long
-
-                if (mReceivedBuffer.remaining() < 5) {
-                    Log.i(TAG, "Invalid Song Info data size: " + mReceivedBuffer.remaining());
-                    return false;
-                }
-
-                int subchannel = mReceivedBuffer.getInt();
-                byte[] songBytes = new byte[mReceivedBuffer.remaining()];
-                mReceivedBuffer.get(songBytes);
-                String info = new String(songBytes);
-
-                ctrlMsg.data = new HDSongInfo(info, subchannel);
-                break;
             default:
                 Log.e(TAG, "Invalid Data Type Received");
                 return false;
@@ -285,7 +253,7 @@ public class ControllerInputHandler extends Handler {
 
 
         // send the parsed message for processing
-        if (ctrlMsg.command == MCUDefs.MCUCommand.LOG) {
+        if (ctrlMsg.command == MCUDefs.McuInputCommand.LOG) {
             Log.i("Micro Controller", (String) ctrlMsg.data);
 
         } else {

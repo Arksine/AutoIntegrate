@@ -19,7 +19,7 @@ import android.util.Log;
 import android.widget.Toast;
 
 import com.arksine.autointegrate.activities.MainActivity;
-import com.arksine.autointegrate.interfaces.RemoteRadioEvents;
+import com.arksine.autointegrate.radio.RemoteRadioEvents;
 import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.hdradiolib.RadioController;
 

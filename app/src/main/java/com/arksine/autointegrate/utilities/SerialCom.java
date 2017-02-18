@@ -1,7 +1,6 @@
 package com.arksine.autointegrate.utilities;
 
 import com.arksine.autointegrate.MainService;
-import com.arksine.autointegrate.interfaces.SerialHelper;
 
 /**
  * Abstract class for Serial Communcations handling.  Children must override connect and

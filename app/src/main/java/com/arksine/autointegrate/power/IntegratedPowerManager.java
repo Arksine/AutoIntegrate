@@ -201,6 +201,7 @@ public class IntegratedPowerManager {
         checkKernelStatusThread.start();
     }
 
+    // TODO: add black screen with countdown similar to Power event manager
     // This is blocking, do not call from UI thread
     public void goToSleep() {
         if (mSystemFunctions == null) {

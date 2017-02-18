@@ -22,7 +22,7 @@ import android.widget.Toast;
 import com.arksine.autointegrate.activities.ButtonLearningActivity;
 import com.arksine.autointegrate.adapters.AppListAdapter;
 import com.arksine.autointegrate.dialogs.ListPreferenceEx;
-import com.arksine.autointegrate.interfaces.SerialHelper;
+import com.arksine.autointegrate.utilities.SerialHelper;
 import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.utilities.AppItem;
 import com.arksine.autointegrate.utilities.DLog;

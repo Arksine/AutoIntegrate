@@ -26,7 +26,7 @@ import android.widget.ToggleButton;
 import com.arksine.autointegrate.MainService;
 import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.dialogs.RadioSettingsDialog;
-import com.arksine.autointegrate.interfaces.RemoteRadioEvents;
+import com.arksine.autointegrate.radio.RemoteRadioEvents;
 import com.arksine.autointegrate.radio.TextStreamAnimator;
 import com.arksine.autointegrate.utilities.BackgroundThreadFactory;
 import com.arksine.autointegrate.radio.TextSwapAnimator;

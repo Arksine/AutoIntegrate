@@ -13,7 +13,6 @@ import android.util.Log;
 import android.widget.Toast;
 
 import com.arksine.autointegrate.R;
-import com.arksine.autointegrate.interfaces.SerialHelper;
 import com.felhr.deviceids.CH34xIds;
 import com.felhr.deviceids.CP210xIds;
 import com.felhr.deviceids.FTDISioIds;
@@ -33,11 +32,9 @@ import java.util.HashMap;
 /**
  *  Helper class to enumerate usb devices and establish a connection
  */
-public class UsbHelper implements SerialHelper {
+public class UsbHelper extends SerialHelper {
 
     private static final String TAG = "UsbHelper";
-
-    private static final String ACTION_USB_PERMISSION = "com.arksine.autointegrate.USB_PERMISSION";
 
     private Context mContext;
     private UsbManager mUsbManager;
@@ -103,6 +100,7 @@ public class UsbHelper implements SerialHelper {
 
     }
 
+    @Override
     public ArrayList<String> enumerateSerialDevices() {
 
         ArrayList<String> deviceList = new ArrayList<>(5);
@@ -189,6 +187,7 @@ public class UsbHelper implements SerialHelper {
      * @param cbs
      * @return
      */
+    @Override
     public boolean connectDevice(String id, SerialHelper.Callbacks cbs) {
 
         if (serialPortConnected) {
@@ -251,6 +250,7 @@ public class UsbHelper implements SerialHelper {
         }
     }
 
+    @Override
     public String getConnectedId() {
         if (serialPortConnected) {
             return (mUsbDevice.getVendorId() + ":" + mUsbDevice.getProductId() + ":"
@@ -259,6 +259,7 @@ public class UsbHelper implements SerialHelper {
         return "";
     }
 
+    @Override
     public void disconnect() {
 
         if (mSerialPort != null) {
@@ -274,17 +275,8 @@ public class UsbHelper implements SerialHelper {
 
     }
 
-    public boolean writeString(final String data) {
-
-        if (mSerialPort != null) {
-            mSerialPort.write(data.getBytes());
-            return true;
-        }
-
-        return false;
-    }
-
-    public boolean writeBytes(final byte[] data) {
+    @Override
+    public boolean writeBytes(byte[] data) {
         if (mSerialPort != null) {
             mSerialPort.write(data);
             return true;
@@ -293,6 +285,12 @@ public class UsbHelper implements SerialHelper {
         return false;
     }
 
+    @Override
+    public boolean writeString(String data) {
+        return writeBytes(data.getBytes());
+    }
+
+    @Override
     public boolean isDeviceConnected() {
         return serialPortConnected;
     }

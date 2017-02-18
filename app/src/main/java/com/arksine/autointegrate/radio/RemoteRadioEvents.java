@@ -1,4 +1,4 @@
-package com.arksine.autointegrate.interfaces;
+package com.arksine.autointegrate.radio;
 
 import android.os.Binder;
 import android.os.IBinder;
