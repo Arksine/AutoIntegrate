@@ -11,6 +11,7 @@ import android.util.Log;
 import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.interfaces.MCUControlInterface;
 import com.arksine.autointegrate.utilities.DLog;
+import com.arksine.autointegrate.microcontroller.MCUDefs.*;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -28,10 +29,41 @@ public class ControllerInputHandler extends Handler {
     private Context mContext = null;
     private CommandProcessor mCommandProcessor;
 
-    private interface MessageProcessor {
-        void ProcessMessage(ControllerMessage ctrlMsg);
+    private interface InputMode {
+        void ProcessInput(ControllerMessage ctrlMsg);
     }
-    private MessageProcessor mProcessor;
+    private final InputMode mLearningMode = new InputMode() {
+        @Override
+        public void ProcessInput(ControllerMessage ctrlMsg) {
+            // TODO: Instead of broadcasting an intent I can use a RemoteCallback to send data back to bound activity
+            // Local broadcast to learning activity, we only learn click and dimmer events
+            if(ctrlMsg.command == McuInputCommand.CLICK || ctrlMsg.command == McuInputCommand.DIMMER) {
+                Intent msgIntent = new Intent(mContext.getString(R.string.ACTION_CONTROLLER_LEARN_DATA));
+                msgIntent.putExtra("Command", ctrlMsg.command.toString());
+                if (ctrlMsg.msgType == DataType.INT) {
+                    msgIntent.putExtra("Data", String.valueOf((int)ctrlMsg.data));
+                } else if (ctrlMsg.msgType == DataType.BOOLEAN){
+                    String bData =(boolean) ctrlMsg.data ? "On" : "Off";
+                    msgIntent.putExtra("Data", bData);
+                } else {
+                    // incorrect data type
+                    Log.i(TAG, "Incorrect data type for calibration received");
+                    return;
+                }
+
+                LocalBroadcastManager.getInstance(mContext).sendBroadcast(msgIntent);
+            }
+        }
+    };
+
+    private final InputMode mExecutionMode = new InputMode() {
+        @Override
+        public void ProcessInput(ControllerMessage ctrlMsg) {
+            mCommandProcessor.executeAction(ctrlMsg);
+        }
+    };
+
+    private InputMode mInputMode;
 
     private boolean isEncodeByte  = true;  // The first byte of the pair is always the encoding
     private byte encoding = 0;
@@ -49,43 +81,8 @@ public class ControllerInputHandler extends Handler {
         super(looper);
         mContext = context;
         mReceivedBuffer.order(ByteOrder.LITTLE_ENDIAN);
-
-        if (isLearningMode) {
-            DLog.v(TAG, "Controller is in Learning Mode.");
-            mCommandProcessor = null;
-            mProcessor = new MessageProcessor() {
-                @Override
-                public void ProcessMessage(ControllerMessage ctrlMsg) {
-                    // TODO: Instead of broadcasting an intent I can use a RemoteCallback to send data back to bound activity
-                    // Local broadcast to learning activity, we only learn click and dimmer events
-                    if(ctrlMsg.command == MCUDefs.McuInputCommand.CLICK || ctrlMsg.command == MCUDefs.McuInputCommand.DIMMER) {
-                        Intent msgIntent = new Intent(mContext.getString(R.string.ACTION_CONTROLLER_LEARN_DATA));
-                        msgIntent.putExtra("Command", ctrlMsg.command.toString());
-                        if (ctrlMsg.msgType == MCUDefs.DataType.INT) {
-                            msgIntent.putExtra("Data", String.valueOf((int)ctrlMsg.data));
-                        } else if (ctrlMsg.msgType == MCUDefs.DataType.BOOLEAN){
-                            String bData =(boolean) ctrlMsg.data ? "On" : "Off";
-                            msgIntent.putExtra("Data", bData);
-                        } else {
-                            // incorrect data type
-                            Log.i(TAG, "Incorrect data type for calibration received");
-                            return;
-                        }
-
-                        LocalBroadcastManager.getInstance(mContext).sendBroadcast(msgIntent);
-                    }
-                }
-            };
-        } else {
-            DLog.v(TAG, "Controller is in Execution Mode.");
-            mCommandProcessor = new CommandProcessor(mContext, controlInterface);
-            mProcessor = new MessageProcessor() {
-                @Override
-                public void ProcessMessage(ControllerMessage ctrlMsg) {
-                    mCommandProcessor.executeAction(ctrlMsg);
-                }
-            };
-        }
+        mCommandProcessor = new CommandProcessor(mContext, controlInterface);
+        this.setMode(isLearningMode);
     }
 
     @Override
@@ -105,10 +102,11 @@ public class ControllerInputHandler extends Handler {
                         parseCommandByte(b);
                         break;
                     case RADIO_COMMAND_ENCODING:
+
                         // TODO: send to Custom radio driver for parsing
                         break;
                     default:
-
+                        Log.i(TAG, "Invalid encoding byte: " + String.format("%02X", b));
                         break;
                 }
             }
@@ -182,16 +180,16 @@ public class ControllerInputHandler extends Handler {
 
         ControllerMessage ctrlMsg = new ControllerMessage();
 
-        ctrlMsg.command = MCUDefs.McuInputCommand.getCommandFromByte(mReceivedBuffer.get());
+        ctrlMsg.command = McuInputCommand.getCommandFromByte(mReceivedBuffer.get());
         DLog.v(TAG, "MCU Command Recd: " + ctrlMsg.command.toString());
-        if (ctrlMsg.command == MCUDefs.McuInputCommand.NONE) {
+        if (ctrlMsg.command == McuInputCommand.NONE) {
             Log.e(TAG, "Invalid Command Received");
             return false;
         }
 
-        ctrlMsg.msgType = MCUDefs.DataType.getDataType(mReceivedBuffer.get());
+        ctrlMsg.msgType = DataType.getDataType(mReceivedBuffer.get());
         DLog.v(TAG, "Data Type Recd: " + ctrlMsg.msgType.toString());
-        if (ctrlMsg.msgType == MCUDefs.DataType.NONE) {
+        if (ctrlMsg.msgType == DataType.NONE) {
             Log.e(TAG, "Invalid Data Type Received");
             return false;
         }
@@ -257,19 +255,25 @@ public class ControllerInputHandler extends Handler {
 
 
         // send the parsed message for processing
-        if (ctrlMsg.command == MCUDefs.McuInputCommand.LOG) {
+        if (ctrlMsg.command == McuInputCommand.LOG) {
             Log.i("Micro Controller", (String) ctrlMsg.data);
 
         } else {
             DLog.v(TAG, ctrlMsg.command + " " + ctrlMsg.data);
-            mProcessor.ProcessMessage(ctrlMsg);
+            mInputMode.ProcessInput(ctrlMsg);
         }
 
         return true;
     }
 
     public void setMode(boolean isLearningMode) {
-        // TODO:
+        if (isLearningMode) {
+            DLog.v(TAG, "Controller is in Learning Mode.");
+            mInputMode = mLearningMode;
+        } else {
+            DLog.v(TAG, "Controller is in Execution Mode.");
+            mInputMode = mExecutionMode;
+        }
     }
 
 

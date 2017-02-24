@@ -1,13 +1,13 @@
 package com.arksine.autointegrate.interfaces;
 
-import com.arksine.autointegrate.microcontroller.MCUDefs;
+import com.arksine.autointegrate.microcontroller.MCUDefs.*;
 
 /**
  * Inteface to access MCU functionality
  */
 
 public interface MCUControlInterface {
-    void sendMcuCommand(MCUDefs.McuOutputCommand command, Object data);
+    void sendMcuCommand(McuOutputCommand command, Object data);
     void setMode(boolean isLearningMode);
     boolean isConnected();
 
