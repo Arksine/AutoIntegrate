@@ -1,0 +1,541 @@
+#include <Arduino.h>
+#line 1 "d:\\Development\\android_projects\\AutoIntegrate\\arduino_sketches\\AutoIntegrate-STM32\\AutoIntegrate-STM32.ino"
+#line 1 "d:\\Development\\android_projects\\AutoIntegrate\\arduino_sketches\\AutoIntegrate-STM32\\AutoIntegrate-STM32.ino"
+/**
+ * AutoIntegrate-STM32
+ *
+ * Arudino sketch to communicate with Android AutoIntegrate applicaton.
+ * This particular sketch is initially designed for STM32 boards (maple mini),
+ * but should work with Atmel AVR based MCUs as well
+ */
+
+#include <Average.h>
+#include <Button.h>
+#include "definitions.h"
+
+// Set your own unique ID, it should be 8 alphanumeric digits
+const char *mcuId = "TEST1234";
+
+enum AudioInput { HD_RADIO, AUX };
+
+Average<unsigned int> ave(SMOOTH);
+
+ButtonCB button(BUTTON_DIGITAL_PIN, Button::PULL_UP, BUTTON_DEBOUNCE_DELAY);
+
+AudioInput audio_input_selection = HD_RADIO;
+
+// TODO: change shorts to ints, should be able to handle the different sizes
+unsigned short btn_analog_value      = 0;
+unsigned short analog_dimmer_reading = 0;
+unsigned long  reverse_start_time    = 0;
+
+bool isStarted           = false;
+bool isHolding           = false;
+bool inReverse           = false;
+bool isDimmerOn          = false;
+bool analogDimmerEnabled = false;
+bool radioDtrOn          = false;
+bool radioRtsOn          = false;
+
+uint8_t inBuffer[256]; // Maximum buffer size of 40 is probably way too large
+uint8_t bufIndex      = 0;
+uint8_t packetLength  = 0;
+int     checksum      = 0;
+bool    isLengthByte  = false;
+bool    isValidPacket = false;
+bool    isEscaped     = false;
+
+#line 45 "d:\\Development\\android_projects\\AutoIntegrate\\arduino_sketches\\AutoIntegrate-STM32\\AutoIntegrate-STM32.ino"
+void onResistivePress(const Button& b);
+#line 53 "d:\\Development\\android_projects\\AutoIntegrate\\arduino_sketches\\AutoIntegrate-STM32\\AutoIntegrate-STM32.ino"
+void onResistiveClick(const Button& b);
+#line 58 "d:\\Development\\android_projects\\AutoIntegrate\\arduino_sketches\\AutoIntegrate-STM32\\AutoIntegrate-STM32.ino"
+void onResistiveHold(const Button& b);
+#line 64 "d:\\Development\\android_projects\\AutoIntegrate\\arduino_sketches\\AutoIntegrate-STM32\\AutoIntegrate-STM32.ino"
+void onResistiveRelease(const Button& b);
+#line 72 "d:\\Development\\android_projects\\AutoIntegrate\\arduino_sketches\\AutoIntegrate-STM32\\AutoIntegrate-STM32.ino"
+void setup();
+#line 98 "d:\\Development\\android_projects\\AutoIntegrate\\arduino_sketches\\AutoIntegrate-STM32\\AutoIntegrate-STM32.ino"
+void loop();
+#line 118 "d:\\Development\\android_projects\\AutoIntegrate\\arduino_sketches\\AutoIntegrate-STM32\\AutoIntegrate-STM32.ino"
+void parseIncoming();
+#line 174 "d:\\Development\\android_projects\\AutoIntegrate\\arduino_sketches\\AutoIntegrate-STM32\\AutoIntegrate-STM32.ino"
+void executeCommand();
+#line 242 "d:\\Development\\android_projects\\AutoIntegrate\\arduino_sketches\\AutoIntegrate-STM32\\AutoIntegrate-STM32.ino"
+void processCustom();
+#line 246 "d:\\Development\\android_projects\\AutoIntegrate\\arduino_sketches\\AutoIntegrate-STM32\\AutoIntegrate-STM32.ino"
+void processStartCommand();
+#line 276 "d:\\Development\\android_projects\\AutoIntegrate\\arduino_sketches\\AutoIntegrate-STM32\\AutoIntegrate-STM32.ino"
+void processStopCommand();
+#line 302 "d:\\Development\\android_projects\\AutoIntegrate\\arduino_sketches\\AutoIntegrate-STM32\\AutoIntegrate-STM32.ino"
+void setDimmerAnalog();
+#line 307 "d:\\Development\\android_projects\\AutoIntegrate\\arduino_sketches\\AutoIntegrate-STM32\\AutoIntegrate-STM32.ino"
+void setDimmerDigital();
+#line 311 "d:\\Development\\android_projects\\AutoIntegrate\\arduino_sketches\\AutoIntegrate-STM32\\AutoIntegrate-STM32.ino"
+void setSourceHd();
+#line 321 "d:\\Development\\android_projects\\AutoIntegrate\\arduino_sketches\\AutoIntegrate-STM32\\AutoIntegrate-STM32.ino"
+void setSourceAux();
+#line 332 "d:\\Development\\android_projects\\AutoIntegrate\\arduino_sketches\\AutoIntegrate-STM32\\AutoIntegrate-STM32.ino"
+void processRadioIncoming();
+#line 339 "d:\\Development\\android_projects\\AutoIntegrate\\arduino_sketches\\AutoIntegrate-STM32\\AutoIntegrate-STM32.ino"
+void sendRadioPacket();
+#line 346 "d:\\Development\\android_projects\\AutoIntegrate\\arduino_sketches\\AutoIntegrate-STM32\\AutoIntegrate-STM32.ino"
+void setDtr(bool status);
+#line 362 "d:\\Development\\android_projects\\AutoIntegrate\\arduino_sketches\\AutoIntegrate-STM32\\AutoIntegrate-STM32.ino"
+void setRts(bool status);
+#line 380 "d:\\Development\\android_projects\\AutoIntegrate\\arduino_sketches\\AutoIntegrate-STM32\\AutoIntegrate-STM32.ino"
+void processReverse();
+#line 399 "d:\\Development\\android_projects\\AutoIntegrate\\arduino_sketches\\AutoIntegrate-STM32\\AutoIntegrate-STM32.ino"
+void processDimmer();
+#line 427 "d:\\Development\\android_projects\\AutoIntegrate\\arduino_sketches\\AutoIntegrate-STM32\\AutoIntegrate-STM32.ino"
+void sendPacketToPc(byte cmd, byte data_type, const byte *data, short data_length);
+#line 462 "d:\\Development\\android_projects\\AutoIntegrate\\arduino_sketches\\AutoIntegrate-STM32\\AutoIntegrate-STM32.ino"
+void writeEscapedByte(byte b);
+#line 476 "d:\\Development\\android_projects\\AutoIntegrate\\arduino_sketches\\AutoIntegrate-STM32\\AutoIntegrate-STM32.ino"
+void writeMcuByte(byte data);
+#line 482 "d:\\Development\\android_projects\\AutoIntegrate\\arduino_sketches\\AutoIntegrate-STM32\\AutoIntegrate-STM32.ino"
+void writeRadioByte(byte data);
+#line 45 "d:\\Development\\android_projects\\AutoIntegrate\\arduino_sketches\\AutoIntegrate-STM32\\AutoIntegrate-STM32.ino"
+void onResistivePress(const Button& b) {
+  for (int i = 0; i < SMOOTH; i++) {
+    ave.push(analogRead(BUTTON_ANALOG_PIN));
+  }
+  btn_analog_value = ave.mean();
+  ave.clear();
+}
+
+void onResistiveClick(const Button& b) {
+  sendPacketToPc(CMD_CLICK, TYPE_SHORT, (byte *)&btn_analog_value,
+                 sizeof(btn_analog_value));
+}
+
+void onResistiveHold(const Button& b) {
+  isHolding = true;
+  sendPacketToPc(CMD_HOLD, TYPE_SHORT, (byte *)&btn_analog_value,
+                 sizeof(btn_analog_value));
+}
+
+void onResistiveRelease(const Button& b) {
+  if (isHolding) {
+    isHolding = false;
+    sendPacketToPc(CMD_RELEASE, TYPE_SHORT, (byte *)&btn_analog_value,
+                   sizeof(btn_analog_value));
+  }
+}
+
+void setup() {
+  pinMode(BUTTON_ANALOG_PIN, INPUT_ANALOG);
+  pinMode(DIMMER_ANALOG_PIN, INPUT_ANALOG);
+  pinMode(AUDIO_SOURCE_PIN,  OUTPUT);
+
+  #if defined(HDRadioSerial)
+  pinMode(RADIO_DTR_PIN,     OUTPUT);
+  pinMode(RADIO_RTS_PIN,     OUTPUT);
+  #endif // if defined(HDRadioSerial)
+
+  #ifdef LED_PIN
+  pinMode(PB1, OUTPUT);
+  #endif // ifdef LED_PIN
+
+  button.setHoldThreshold(BUTTON_HOLD_DELAY);
+  button.pressHandler(onResistivePress);
+  button.clickHandler(onResistiveClick);
+  button.holdHandler(onResistiveHold);
+  button.releaseHandler(onResistiveRelease);
+
+  Serial.begin(230400);
+
+  while (!Serial);
+  Serial.flush();
+}
+
+void loop() {
+  // check for command data
+  parseIncoming();
+
+  if (isStarted) {
+    #if defined(HDRadioSerial)
+    processRadioIncoming();
+    #endif // if defined(HDRadioSerial)
+
+    // check for reverse
+    processReverse();
+
+    // check dimmer
+    processDimmer();
+
+    // check for button press
+    button.process();
+  }
+}
+
+void parseIncoming() {
+  while (Serial.available() > 0) {
+    byte b = Serial.read();
+
+    if (b == 0xF1) {
+      // header start
+      isValidPacket = true;
+      isLengthByte  = true;
+      isEscaped     = false;
+
+      checksum     = 0xF1;
+      packetLength = 0;
+      bufIndex     = 0;
+    } else if (!isValidPacket) {
+      // TODO: Send log back to device, the packet is invalid
+    } else if ((b == 0x1A) && !isEscaped) {
+      isEscaped = true;
+    } else {
+      // Unescape byte if necessary
+      if (isEscaped) {
+        isEscaped = false;
+
+        if (b == 0x20) {
+          b = 0xF1;
+        }
+      }
+
+      if (isLengthByte) {
+        isLengthByte = false;
+        packetLength = b;
+        checksum    += packetLength;
+      } else if (bufIndex == packetLength) {
+        // This is the checksum
+        uint8_t calcSum = checksum % 256;
+
+        if (calcSum == b) {
+          executeCommand();
+        } else {
+          // TODO: Invalid Checksum send log
+        }
+
+        // Packet if finished, not valid until a new header is received
+        isValidPacket = false;
+      } else {
+        // part of the packet
+        inBuffer[bufIndex] = b;
+        bufIndex++;
+        checksum += b;
+      }
+    }
+  }
+}
+
+/**
+ * Executes a given command.
+ */
+void executeCommand() {
+  byte command = inBuffer[0];
+
+  switch (command) {
+  case MCU_START:
+    processStartCommand();
+    break;
+
+  case MCU_STOP:
+    processStopCommand();
+    break;
+
+  case MCU_REQUEST_ID:
+    sendPacketToPc(CMD_IDENT, TYPE_STRING, (byte *)mcuId, strlen(mcuId));
+    break;
+
+  case MCU_SET_DIMMER_ANALOG:
+    setDimmerAnalog();
+    break;
+
+  case MCU_SET_DIMMER_DIGITAL:
+    setDimmerDigital();
+    break;
+
+  case MCU_AUDIO_SOURCE_HD:
+    setSourceHd();
+    break;
+
+  case MCU_AUDIO_SOURCE_AUX:
+    setSourceAux();
+    break;
+
+  case MCU_RADIO_SEND_PACKET:
+    #if defined(HDRadioSerial)
+    sendRadioPacket();
+    #endif // if defined(HDRadioSerial)
+    break;
+
+  case MCU_RADIO_SET_DTR:
+    #if defined(HDRadioSerial)
+    setDtr((inBuffer[1] == 0x01));
+    #endif // if defined(HDRadioSerial)
+    break;
+
+  case MCU_RADIO_SET_RTS:
+    #if defined(HDRadioSerial)
+    setRts((inBuffer[1] == 0x01));
+    #endif // if defined(HDRadioSerial)
+    break;
+
+  case MCU_CUSTOM:
+    processCustom();
+    break;
+
+  default: {
+    // Unknown command, send it back to the device log
+    // TODO: convert the hex buffer to string and send via log
+    const char str[] = "Unknown Command Received";
+    sendPacketToPc(CMD_LOG, TYPE_STRING, (byte *)str, strlen(str));
+  }
+  }
+}
+
+/**
+ * Process custom commands received from the device here.  The commands
+ * type should be defined in defintions.h, it will be the 2nd byte in the
+ * buffer.  That byte is the basis of the switch statement.
+ */
+void processCustom() {
+  switch (inBuffer[1]) {}
+}
+
+void processStartCommand() {
+  delay(1000); // delay one sec so the app is ready
+               // to receive
+
+  if (isStarted) {
+    // reset variables so commands can be resent if necessary
+    isDimmerOn            = false;
+    inReverse             = false;
+    reverse_start_time    = 0;
+    analog_dimmer_reading = 0;
+  }
+  #if defined(HDRadioSerial)
+  else {
+    HDRadioSerial.begin(115200);
+
+    while (!HDRadioSerial);
+    HDRadioSerial.flush();
+  }
+  #endif // if defined(HDRadioSerial)
+
+  // TODO: I could send back some status here instead of ID, since I have
+  // a metho for requesting ID.
+  sendPacketToPc(CMD_STARTED, TYPE_STRING, (byte *)mcuId, strlen(mcuId));
+  isStarted = true;
+
+  #ifdef LED_PIN
+  digitalWrite(LED_PIN, HIGH);
+  #endif // ifdef LED_PIN
+}
+
+void processStopCommand() {
+  isStarted             = false;
+  isDimmerOn            = false;
+  inReverse             = false;
+  reverse_start_time    = 0;
+  analog_dimmer_reading = 0;
+
+  #if defined(HDRadioSerial)
+
+  if (radioDtrOn) {
+    radioDtrOn = false;
+    digitalWrite(RADIO_DTR_PIN, LOW);
+  }
+
+  if (radioRtsOn) {
+    radioRtsOn = false;
+    digitalWrite(RADIO_RTS_PIN, LOW);
+  }
+  HDRadioSerial.end();
+  #endif // if defined(HDRadioSerial)
+
+  #ifdef LED_PIN
+  digitalWrite(LED_PIN, LOW);
+  #endif // ifdef LED_PIN
+}
+
+void setDimmerAnalog() {
+  analogDimmerEnabled   = true;
+  analog_dimmer_reading = 0;
+}
+
+void setDimmerDigital() {
+  analogDimmerEnabled = false;
+}
+
+void setSourceHd() {
+  if (audio_input_selection != HD_RADIO) {
+    digitalWrite(AUDIO_SOURCE_PIN, LOW);
+    audio_input_selection = HD_RADIO;
+
+    const char str[] = "HD_RADIO_INPUT_SET";
+    sendPacketToPc(CMD_LOG, TYPE_STRING, (byte *)str, strlen(str));
+  }
+}
+
+void setSourceAux() {
+  if (audio_input_selection != AUX) {
+    digitalWrite(AUDIO_SOURCE_PIN, HIGH);
+    audio_input_selection = AUX;
+
+    const char str[] = "AUX_INPUT_SET";
+    sendPacketToPc(CMD_LOG, TYPE_STRING, (byte *)str, strlen(str));
+  }
+}
+
+#if defined(HDRadioSerial)
+void processRadioIncoming() {
+  while (HDRadioSerial.available() > 0) {
+    byte b = HDRadioSerial.read();
+    writeRadioByte(b);
+  }
+}
+
+void sendRadioPacket() {
+  uint8_t *radioBuf = inBuffer + 1;     // Radio packet starts after the command
+  int radioLength   = packetLength - 1; // buffer length minus command
+
+  HDRadioSerial.write(radioBuf, radioLength);
+}
+
+void setDtr(bool status) {
+  if (status) {
+    // raise dtr
+    if (!radioDtrOn) {
+      digitalWrite(RADIO_DTR_PIN, HIGH);
+      radioDtrOn = true;
+    }
+  } else {
+    // lower dtr
+    if (radioDtrOn) {
+      digitalWrite(RADIO_DTR_PIN, LOW);
+      radioDtrOn = false;
+    }
+  }
+}
+
+void setRts(bool status) {
+  if (status) {
+    // raise rts
+    if (!radioRtsOn) {
+      digitalWrite(RADIO_RTS_PIN, HIGH);
+      radioRtsOn = true;
+    }
+  } else {
+    // lower rts
+    if (radioRtsOn) {
+      digitalWrite(RADIO_RTS_PIN, LOW);
+      radioRtsOn = false;
+    }
+  }
+}
+
+#endif // if defined(HDRadioSerial)
+
+void processReverse() {
+  if (digitalRead(REVERSE_PIN) == HIGH) {
+    if (!inReverse) {
+      if (reverse_start_time == 0) {
+        reverse_start_time = millis();
+      } else if (millis() >= reverse_start_time + REVERSE_DELAY) {
+        inReverse = true;
+        sendPacketToPc(CMD_REVERSE, TYPE_BOOLEAN, (byte *)&inReverse,
+                       sizeof(inReverse));
+      }
+    } else {
+      inReverse          = false;
+      reverse_start_time = 0;
+      sendPacketToPc(CMD_REVERSE, TYPE_BOOLEAN, (byte *)&inReverse,
+                     sizeof(inReverse));
+    }
+  }
+}
+
+void processDimmer() {
+  if (digitalRead(DIMMER_DIGITAL_PIN) == HIGH) {
+    if (!isDimmerOn) {
+      isDimmerOn = true;
+      sendPacketToPc(CMD_DIMMER, TYPE_BOOLEAN, (byte *)&isDimmerOn,
+                     sizeof(isDimmerOn));
+    } else {
+      // Analog read here, but only if analog is enabled
+      if (analogDimmerEnabled) {
+        unsigned int reading = analogRead(DIMMER_ANALOG_PIN);
+
+        if ((reading > analog_dimmer_reading + ANALOG_DIMMER_VARIANCE) ||
+            (reading < analog_dimmer_reading - ANALOG_DIMMER_VARIANCE)) {
+          analog_dimmer_reading = reading;
+          sendPacketToPc(CMD_DIMMER, TYPE_SHORT, (byte *)&analog_dimmer_reading,
+                         sizeof(analog_dimmer_reading));
+        }
+      }
+    }
+  } else {
+    if (isDimmerOn) {
+      isDimmerOn = false;
+      sendPacketToPc(CMD_DIMMER, TYPE_BOOLEAN, (byte *)&isDimmerOn,
+                     sizeof(isDimmerOn));
+    }
+  }
+}
+
+void sendPacketToPc(byte        cmd,
+                    byte        data_type,
+                    const byte *data,
+                    short       data_length) {
+  if (data_length > 253) {
+    // TODO: packet is too big
+  }
+
+  byte length = data_length + 2;
+
+  short checksum = 0xF1 + length;
+
+  writeMcuByte(0xF1);          // Start header
+  writeEscapedByte(length);    // Length of command (not including escape bytes
+                               // and
+  // header)
+  writeEscapedByte(cmd);       // command
+  checksum += cmd;
+
+  writeEscapedByte(data_type); // data type
+  checksum += data_type;
+
+  for (size_t i = 0; i < data_length; i++) {
+    writeEscapedByte(data[i]);
+    checksum += data[i];
+  }
+
+  byte cksum = checksum % 256;
+  writeEscapedByte(cksum);
+}
+
+// writes a byte to serial, checking to see if it should be escaped.  This uses
+// 0x1A (ascii substitute) instead of 0x1B (Esc) for escaping, so as not to
+// confuse
+// with radio packets
+void writeEscapedByte(byte b) {
+  if (b == 0x1A) {
+    // escape 0x1A as 0x1A
+    writeMcuByte(0x1A);
+    writeMcuByte(0x1A);
+  } else if (b == 0xF1) {
+    // escape 0xF1 as 0x20
+    writeMcuByte(0x1A);
+    writeMcuByte(0x20);
+  } else {
+    writeMcuByte(b);
+  }
+}
+
+void writeMcuByte(byte data) {
+  byte out[] = { MCU_BYTE_ENCODING, data };
+
+  Serial.write(out, 2);
+}
+
+void writeRadioByte(byte data) {
+  byte out[] = { RADIO_BYTE_ENCODING, data };
+
+  Serial.write(out, 2);
+}
+

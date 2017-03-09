@@ -43,26 +43,30 @@
 #define TYPE_BYTE_ARRAY 0x05
 
 // Outgoing Command Definitions (sent to host)
-#define CMD_CONNECTED 0x01
-#define CMD_CLICK 0x02
-#define CMD_HOLD 0x03
-#define CMD_RELEASE 0x04
-#define CMD_DIMMER 0x05
-#define CMD_REVERSE 0x06
-#define CMD_LOG 0x07
-#define CMD_CUSTOM 0x08
+#define CMD_STARTED 0x01
+#define CMD_IDENT 0x02
+#define CMD_CLICK 0x03
+#define CMD_HOLD 0x04
+#define CMD_RELEASE 0x05
+#define CMD_DIMMER 0x06
+#define CMD_REVERSE 0x07
+#define CMD_LOG 0x08
+#define CMD_CUSTOM 0x09
 
 // MCU Command Definitions (received from host)
-// Enter custom commands here, do not use 0x1A or 0xF1 as command values
 #define MCU_START 0x01
 #define MCU_STOP 0x02
-#define MCU_SET_DIMMER_ANALOG 0x03
-#define MCU_SET_DIMMER_DIGITAL 0x04
-#define MCU_AUDIO_SOURCE_HD 0x05
-#define MCU_AUDIO_SOURCE_AUX 0x06
-#define MCU_RADIO_SEND_PACKET 0x07
-#define MCU_RADIO_SET_DTR 0x08
-#define MCU_RADIO_SET_RTS 0x09
-#define MCU_CUSTOM 0x0A
+#define MCU_REQUEST_ID 0x03
+#define MCU_SET_DIMMER_ANALOG 0x04
+#define MCU_SET_DIMMER_DIGITAL 0x05
+#define MCU_AUDIO_SOURCE_HD 0x06
+#define MCU_AUDIO_SOURCE_AUX 0x07
+#define MCU_RADIO_SEND_PACKET 0x08
+#define MCU_RADIO_SET_DTR 0x09
+#define MCU_RADIO_SET_RTS 0x0A
+#define MCU_CUSTOM 0x0B
+
+
+// Enter custom commands here, do not use 0x1A or 0xF1 as custom command values
 
 #endif // ifndef DEFINITIONS_H

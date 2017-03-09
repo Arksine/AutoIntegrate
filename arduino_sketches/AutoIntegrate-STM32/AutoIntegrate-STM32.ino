@@ -10,6 +10,9 @@
 #include <Button.h>
 #include "definitions.h"
 
+// Set your own unique ID, it should be 8 alphanumeric digits
+const char *mcuId = "TEST1234";
+
 enum AudioInput { HD_RADIO, AUX };
 
 Average<unsigned int> ave(SMOOTH);
@@ -180,6 +183,10 @@ void executeCommand() {
     processStopCommand();
     break;
 
+  case MCU_REQUEST_ID:
+    sendPacketToPc(CMD_IDENT, TYPE_STRING, (byte *)mcuId, strlen(mcuId));
+    break;
+
   case MCU_SET_DIMMER_ANALOG:
     setDimmerAnalog();
     break;
@@ -256,8 +263,9 @@ void processStartCommand() {
   }
   #endif // if defined(HDRadioSerial)
 
-  const char *str = "SUCCESS";
-  sendPacketToPc(CMD_CONNECTED, TYPE_STRING, (byte *)str, strlen(str));
+  // TODO: I could send back some status here instead of ID, since I have
+  // a metho for requesting ID.
+  sendPacketToPc(CMD_STARTED, TYPE_STRING, (byte *)mcuId, strlen(mcuId));
   isStarted = true;
 
   #ifdef LED_PIN

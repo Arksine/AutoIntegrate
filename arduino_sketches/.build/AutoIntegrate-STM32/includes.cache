@@ -1,0 +1,32 @@
+[
+  {
+    "Sourcefile": "",
+    "Include": "",
+    "Includepath": "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\cores\\arduino"
+  },
+  {
+    "Sourcefile": "",
+    "Include": "",
+    "Includepath": "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\variants\\standard"
+  },
+  {
+    "Sourcefile": "d:\\Development\\android_projects\\AutoIntegrate\\arduino_sketches\\.build\\AutoIntegrate-STM32\\sketch\\AutoIntegrate-STM32.ino.cpp",
+    "Include": "Average.h",
+    "Includepath": "C:\\Users\\Eric\\Documents\\Arduino\\libraries\\Average"
+  },
+  {
+    "Sourcefile": "d:\\Development\\android_projects\\AutoIntegrate\\arduino_sketches\\.build\\AutoIntegrate-STM32\\sketch\\AutoIntegrate-STM32.ino.cpp",
+    "Include": "Button.h",
+    "Includepath": "C:\\Users\\Eric\\Documents\\Arduino\\libraries\\Button"
+  },
+  {
+    "Sourcefile": "d:\\Development\\android_projects\\AutoIntegrate\\arduino_sketches\\.build\\AutoIntegrate-STM32\\sketch\\AutoIntegrate-STM32.ino.cpp",
+    "Include": "",
+    "Includepath": ""
+  },
+  {
+    "Sourcefile": "C:\\Users\\Eric\\Documents\\Arduino\\libraries\\Button\\Button.cpp",
+    "Include": "",
+    "Includepath": ""
+  }
+]
