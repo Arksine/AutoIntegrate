@@ -23,7 +23,6 @@ import com.arksine.autointegrate.radio.RemoteRadioEvents;
 import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.hdradiolib.RadioController;
 
-//TODO:  Rename App/Service/Package to Road Mage
 
 public class MainService extends Service {
 

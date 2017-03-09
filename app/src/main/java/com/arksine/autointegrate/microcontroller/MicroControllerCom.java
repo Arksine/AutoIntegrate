@@ -7,7 +7,6 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.HandlerThread;
-import android.os.Looper;
 import android.os.Message;
 import android.os.Process;
 import android.preference.PreferenceManager;
@@ -23,19 +22,10 @@ import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.autointegrate.utilities.SerialCom;
 import com.arksine.autointegrate.utilities.UsbHelper;
 import com.arksine.autointegrate.utilities.UsbSerialSettings;
+import com.arksine.autointegrate.microcontroller.MCUDefs.*;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-
-/* TODO: I have decided that in an effort to reduce the number of USB devices connected to the
-* Android tablet it would be a good idea to have the option to use the MCU and one of its UARTs
-* to interface with the HD Radio.  This means that I can't use the control characters (<, >, :) that
-* I have been using, because its possible they could be included in the HDRadio data.  This is going
-* to make parsing much more complex
-*
-* I have decided to use non-printable ASCII values as control characters, hopefully it will work.
-* /
-
 
 /**
  * Class MicroControllerCom
@@ -46,13 +36,30 @@ import java.nio.ByteOrder;
 public class MicroControllerCom extends SerialCom {
     private static final String TAG = MicroControllerCom.class.getSimpleName();
 
+    interface McuEvents {
+        void OnStarted(String idStarted);
+        void OnIdReceived(String id);
+    }
+
+    private final McuEvents mMcuEvents = new McuEvents() {
+        @Override
+        public void OnStarted(String Id) {
+            // TODO: set the mcu id if it exists.
+            // TODO: Notify the connection thread
+        }
+
+        @Override
+        public void OnIdReceived(String id) {
+            // TODO: set the mcu id if it exists.
+        }
+    };
+
     private ControllerInputHandler mInputHandler;
     private Handler mWriteHandler;
     private final Handler.Callback mWriteCallback = new Handler.Callback() {
         @Override
         public boolean handleMessage(Message msg) {
-            MCUDefs.McuOutputCommand command = MCUDefs.McuOutputCommand
-                    .getCommandFromOrdinal(msg.what);
+            McuOutputCommand command = McuOutputCommand.getCommandFromOrdinal(msg.what);
 
             if (mSerialHelper != null) {
                 ByteBuffer outPacket = ByteBuffer.allocate(50);
@@ -69,6 +76,7 @@ public class MicroControllerCom extends SerialCom {
                     case SET_DIMMER_DIGITAL:
                     case AUDIO_SOURCE_HD:
                     case AUDIO_SOURCE_AUX:
+                    case REQUEST_ID:
                         length = 1;
                         outPacket.put(length);
                         outPacket.put(command.getByte());
@@ -161,7 +169,7 @@ public class MicroControllerCom extends SerialCom {
 
     private final MCUControlInterface mControlInterface = new MCUControlInterface() {
         @Override
-        public void sendMcuCommand(MCUDefs.McuOutputCommand command, Object data) {
+        public void sendMcuCommand(McuOutputCommand command, Object data) {
 
             Message msg = mInputHandler.obtainMessage(command.ordinal(), data);
             mWriteHandler.sendMessage(msg);
@@ -176,6 +184,7 @@ public class MicroControllerCom extends SerialCom {
         public boolean isConnected() {
             return mConnected;
         }
+
     };
 
     // Broadcast reciever to listen for write commands.
@@ -190,13 +199,13 @@ public class MicroControllerCom extends SerialCom {
 
                 // stops all queued services
                 byte command = intent.getByteExtra(mService.getString(R.string.EXTRA_COMMAND), (byte)0x00);
-                MCUDefs.McuOutputCommand cmd = MCUDefs.McuOutputCommand.getCommand(command);
+                McuOutputCommand cmd = McuOutputCommand.getCommand(command);
 
                 Message msg = mInputHandler.obtainMessage();
                 switch (cmd) {
                     case NONE:
                         // The command was not found, in the enumeration, so it will be sent as custom
-                        msg.what = MCUDefs.McuOutputCommand.CUSTOM.ordinal();
+                        msg.what = McuOutputCommand.CUSTOM.ordinal();
                         msg.arg1 = command;
                         msg.obj = intent.getByteArrayExtra(mService.getString(R.string.EXTRA_DATA));
                         break;
@@ -306,13 +315,16 @@ public class MicroControllerCom extends SerialCom {
         DLog.v(TAG, "Attempting connection to device:\n" + devId);
         if (mSerialHelper.connectDevice(devId, mCallbacks)) {
 
-            // wait until the connection is finished.  Only wait if the
+            // wait until the connection is finished with a timeout of 10 seconds
             synchronized (this) {
                 try {
                     mIsWaiting = true;
-                    wait(30000);
+                    wait(10000);
                 } catch (InterruptedException e) {
                     Log.w(TAG, e.getMessage());
+                } finally {
+                    // TODO: compare and set waiting to true, if it timed out then this was an
+                    // error
                 }
             }
         } else {
@@ -323,8 +335,8 @@ public class MicroControllerCom extends SerialCom {
             mDeviceError = false;
 
             // Tell the Arudino that it is time to start
-            mControlInterface.sendMcuCommand(MCUDefs.McuOutputCommand.START, null);
-            // TODO: Should I wait for a response?
+            mControlInterface.sendMcuCommand(McuOutputCommand.START, null);
+            // TODO:  wait for a response
 
             //Register write data receiver
             IntentFilter sendDataFilter = new IntentFilter(mService.getString(R.string.ACTION_SEND_DATA));
@@ -350,7 +362,7 @@ public class MicroControllerCom extends SerialCom {
             mInputHandler.close();
             // If there was a device error then we cannot write to it
             if (!mDeviceError) {
-                mControlInterface.sendMcuCommand(MCUDefs.McuOutputCommand.STOP, null);
+                mControlInterface.sendMcuCommand(McuOutputCommand.STOP, null);
 
                 // If we disconnect too soon after writing "stop", an exception will be thrown
                 try {
@@ -373,4 +385,5 @@ public class MicroControllerCom extends SerialCom {
     public MCUControlInterface getControlInterface() {
         return mControlInterface;
     }
+
 }

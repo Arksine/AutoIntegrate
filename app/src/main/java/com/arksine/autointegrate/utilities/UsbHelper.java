@@ -190,6 +190,12 @@ public class UsbHelper extends SerialHelper {
     @Override
     public boolean connectDevice(String id, SerialHelper.Callbacks cbs) {
 
+        // TODO: I can still get the serial number on devices older than lollipop by opening
+        // a usb connection, however many devices do not have a serial number.  The better
+        // way of doing this would be to use the id retrieved from the MCU, and let the
+        // MicroControllerCom class loop through all devices, connecting to them and checking the id
+        // until it finds the ID its looking for
+
         if (serialPortConnected) {
             disconnect();
         }

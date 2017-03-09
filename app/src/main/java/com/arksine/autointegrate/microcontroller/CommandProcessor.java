@@ -19,12 +19,14 @@ import com.arksine.autointegrate.interfaces.MCUControlInterface;
 import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.autointegrate.utilities.TaskerIntent;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
+import com.arksine.autointegrate.microcontroller.MCUDefs.*;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import eu.chainfire.libsuperuser.Shell;
 
@@ -34,45 +36,7 @@ import eu.chainfire.libsuperuser.Shell;
  */
 
 public class CommandProcessor {
-    private static String TAG = "CommandProcessor";
-
-    // TODO: In the future, if we want to capture audio focus we will need a TABLET audio source
-    public enum AudioSource {HD_RADIO, AUX}
-    private AudioSource mCurrentSource = AudioSource.HD_RADIO;
-
-    // TODO: might want to make this a preference
-    // Delay between repetitive media keys when holding
-    private final static int MEDIA_KEY_DELAY = 2000;
-
-    private Context mContext;
-    private MCUControlInterface mMcuControlInterface;
-    private List<ResistiveButton> mMappedButtons;
-    private boolean mBroadcastCustomCommands = false;
-
-    private ArrayMap<String, ActionRunnable> mActions;
-
-    private volatile boolean mIsHoldingBtn = false;
-
-    private boolean mCameraIsOn = false;
-    private Intent mCameraIntent = null;
-
-    private AudioManager mAudioManger;
-    private int mPrevVolume;
-
-    private int mInitialBrightness = 1;
-    private boolean mDimmerOn = false;
-    private interface BrightnessControl {
-        void DimmerOff();
-        void DimmerOn();
-        void DimmerChange(int reading);
-    }
-    private BrightnessControl mBrightnessControl;
-
-    private interface ReverseExitListener {
-        void OnReverseOff();
-    }
-    private ReverseExitListener mReverseExitListener = null;
-
+    private static final String TAG = CommandProcessor.class.getSimpleName();
 
     public static class DimmerMode {
         private DimmerMode(){}
@@ -81,6 +45,16 @@ public class CommandProcessor {
         public final static int AUTOBRIGHT = 1;
         public final static int DIGITAL = 2;
         public final static int ANALOG = 3;
+    }
+
+    private interface BrightnessControl {
+        void DimmerOff();
+        void DimmerOn();
+        void DimmerChange(int reading);
+    }
+
+    private interface ReverseExitListener {
+        void OnReverseOff();
     }
 
     // The class below extends runnable so we can pass data to our command runnables
@@ -99,6 +73,28 @@ public class CommandProcessor {
         abstract public void run();
     }
 
+    // TODO: In the future, if we want to capture audio focus we will need a TABLET audio source
+    public enum AudioSource {HD_RADIO, AUX}
+    private AudioSource mCurrentSource = AudioSource.HD_RADIO;
+
+    // TODO: might want to make this a preference
+    // Delay between repetitive media keys when holding
+    private final static int MEDIA_KEY_DELAY = 2000;
+
+    private Context mContext;
+    private MCUControlInterface mMcuControlInterface;
+    private List<ResistiveButton> mMappedButtons;
+    private boolean mBroadcastCustomCommands = false;
+    private ArrayMap<String, ActionRunnable> mActions;
+    private AtomicBoolean mIsHoldingBtn = new AtomicBoolean(false);
+    private boolean mCameraIsOn = false;
+    private Intent mCameraIntent = null;
+    private AudioManager mAudioManger;
+    private int mPrevVolume;
+    private int mInitialBrightness = 1;
+    private boolean mDimmerOn = false;
+    private BrightnessControl mBrightnessControl;
+    private ReverseExitListener mReverseExitListener = null;
 
     CommandProcessor(Context context, MCUControlInterface controlInterface) {
         mContext = context;
@@ -397,7 +393,7 @@ public class CommandProcessor {
                         Log.w(TAG, e.getMessage());
                     }
 
-                } while (mIsHoldingBtn);
+                } while (mIsHoldingBtn.get());
             }
         });
         mActions.put("Volume Down", new ActionRunnable() {
@@ -412,7 +408,7 @@ public class CommandProcessor {
                     } catch (InterruptedException e) {
                         Log.w(TAG, e.getMessage());
                     }
-                } while (mIsHoldingBtn);
+                } while (mIsHoldingBtn.get());
             }
         });
         mActions.put("Mute", new ActionRunnable() {
@@ -563,13 +559,13 @@ public class CommandProcessor {
                 switch (mCurrentSource) {
                     case HD_RADIO:
                         mCurrentSource = AudioSource.AUX;
-                        mMcuControlInterface.sendMcuCommand(MCUDefs.
-                                McuOutputCommand.AUDIO_SOURCE_AUX, null);
+                        mMcuControlInterface.sendMcuCommand(McuOutputCommand.AUDIO_SOURCE_AUX,
+                                null);
                         break;
                     case AUX:
                         mCurrentSource = AudioSource.HD_RADIO;
-                        mMcuControlInterface.sendMcuCommand(MCUDefs.
-                                McuOutputCommand.AUDIO_SOURCE_HD, null);
+                        mMcuControlInterface.sendMcuCommand(McuOutputCommand.AUDIO_SOURCE_HD,
+                                null);
                         break;
                 }
             }
@@ -582,12 +578,12 @@ public class CommandProcessor {
                     switch ((String)data) {
                         case "HD_RADIO":
                             mCurrentSource = AudioSource.HD_RADIO;
-                            mMcuControlInterface.sendMcuCommand(MCUDefs.
-                                    McuOutputCommand.AUDIO_SOURCE_AUX, null);
+                            mMcuControlInterface.sendMcuCommand(McuOutputCommand.AUDIO_SOURCE_AUX,
+                                    null);
                         case "AUX":
                             mCurrentSource = AudioSource.AUX;
-                            mMcuControlInterface.sendMcuCommand(MCUDefs.
-                                    McuOutputCommand.AUDIO_SOURCE_HD, null);
+                            mMcuControlInterface.sendMcuCommand(McuOutputCommand.AUDIO_SOURCE_HD,
+                                    null);
                             break;
                         default:
                             Log.i(TAG, "Unknown Audio Source: " + data);
@@ -625,7 +621,7 @@ public class CommandProcessor {
                             new KeyEvent(KeyEvent.ACTION_UP, keycode));
                     mContext.sendBroadcast(mediaIntent);
 
-                    if (mIsHoldingBtn) {
+                    if (mIsHoldingBtn.get()) {
                         try {
                             Thread.sleep(MEDIA_KEY_DELAY);
 
@@ -634,7 +630,7 @@ public class CommandProcessor {
                         }
                     }
 
-                } while (mIsHoldingBtn);
+                } while (mIsHoldingBtn.get());
             }
         };
     }
@@ -659,7 +655,7 @@ public class CommandProcessor {
                         Log.w(TAG, e.getMessage());
                     }
 
-                } while (mIsHoldingBtn);
+                } while (mIsHoldingBtn.get());
 
                 // send key up event
                 mediaIntent = new Intent(Intent.ACTION_MEDIA_BUTTON);
@@ -709,39 +705,40 @@ public class CommandProcessor {
 
         ActionRunnable action = null;
         switch (message.command) {
-            case CONNECTED:
+            case STARTED:
                 // connection established, initialize
-                Log.i(TAG, "MCU Connected");
+                Log.i(TAG, "MCU Started successfully");
                 int dMode = PreferenceManager.getDefaultSharedPreferences(mContext)
                         .getInt("dimmer_pref_key_mode", 0);
 
                 if (dMode == DimmerMode.ANALOG) {
-                    mMcuControlInterface.sendMcuCommand(MCUDefs.
-                            McuOutputCommand.SET_DIMMER_ANALOG, null);
+                    mMcuControlInterface.sendMcuCommand(McuOutputCommand.SET_DIMMER_ANALOG, null);
                 } else {
-                    mMcuControlInterface.sendMcuCommand(MCUDefs.
-                            McuOutputCommand.SET_DIMMER_DIGITAL, null);
+                    mMcuControlInterface.sendMcuCommand( McuOutputCommand.SET_DIMMER_DIGITAL, null);
                 }
 
                 // set the current audio source for external devices
                 if (mCurrentSource == AudioSource.AUX) {
-                    mMcuControlInterface.sendMcuCommand(MCUDefs.
-                            McuOutputCommand.AUDIO_SOURCE_AUX, null);
+                    mMcuControlInterface.sendMcuCommand(McuOutputCommand.AUDIO_SOURCE_AUX, null);
                 } else {
-                    mMcuControlInterface.sendMcuCommand(MCUDefs.
-                            McuOutputCommand.AUDIO_SOURCE_HD, null);
+                    mMcuControlInterface.sendMcuCommand(McuOutputCommand.AUDIO_SOURCE_HD, null);
                 }
+
+                // TODO: execute connected callback with message.data (MCU ID string)
+                break;
+            case IDENT:
+                // TODO: do something with the ID (send back via callback?)
                 break;
             case CLICK:
-                mIsHoldingBtn = false;
+                mIsHoldingBtn.set(false);
                 action = getButtonAction(message.data, true);
                 break;
             case HOLD:
-                mIsHoldingBtn = true;
+                mIsHoldingBtn.set(true);
                 action = getButtonAction(message.data, false);
                 break;
             case RELEASE:
-                mIsHoldingBtn = false;
+                mIsHoldingBtn.set(false);
                 break;
             case DIMMER:
                 action = mActions.get("Dimmer");

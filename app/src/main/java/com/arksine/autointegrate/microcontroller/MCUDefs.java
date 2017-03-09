@@ -17,14 +17,15 @@ public class MCUDefs {
 
     public enum McuInputCommand {
         NONE((byte)0x00),
-        CONNECTED(((byte)0x01)),
-        CLICK((byte)0x02),
-        HOLD(((byte)0x03)),
-        RELEASE(((byte)0x04)),
-        DIMMER(((byte)0x05)),
-        REVERSE(((byte)0x06)),
-        LOG(((byte)0x07)),
-        CUSTOM(((byte)0x08));
+        STARTED(((byte)0x01)),
+        IDENT((byte)0x02),
+        CLICK((byte)0x03),
+        HOLD(((byte)0x04)),
+        RELEASE(((byte)0x05)),
+        DIMMER(((byte)0x06)),
+        REVERSE(((byte)0x07)),
+        LOG(((byte)0x08)),
+        CUSTOM(((byte)0x09));
 
         private final byte id;
 
@@ -51,14 +52,15 @@ public class MCUDefs {
         NONE((byte)0x00),
         START((byte)0x01),
         STOP((byte)0x02),
-        SET_DIMMER_ANALOG((byte)0x03),
-        SET_DIMMER_DIGITAL((byte)0x04),
-        AUDIO_SOURCE_HD((byte)0x05),
-        AUDIO_SOURCE_AUX((byte)0x06),
-        RADIO_SEND_PACKET((byte)0x07),
-        RADIO_SET_DTR((byte)0x08),
-        RADIO_SET_RTS((byte)0x09),
-        CUSTOM((byte)0x0A);
+        REQUEST_ID((byte)0x03),
+        SET_DIMMER_ANALOG((byte)0x04),
+        SET_DIMMER_DIGITAL((byte)0x05),
+        AUDIO_SOURCE_HD((byte)0x06),
+        AUDIO_SOURCE_AUX((byte)0x07),
+        RADIO_SEND_PACKET((byte)0x08),
+        RADIO_SET_DTR((byte)0x09),
+        RADIO_SET_RTS((byte)0x0A),
+        CUSTOM((byte)0x0B);
 
         private final byte id;
 
