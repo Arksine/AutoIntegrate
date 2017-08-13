@@ -1,14 +1,10 @@
 package com.arksine.autointegrate.activities;
 
-import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
-import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -17,9 +13,12 @@ import android.support.v7.widget.helper.ItemTouchHelper;
 import android.view.View;
 import android.widget.Button;
 
+import com.arksine.autointegrate.AutoIntegrate;
 import com.arksine.autointegrate.adapters.LearnedButtonAdapter;
 import com.arksine.autointegrate.dialogs.ButtonMapDialog;
 import com.arksine.autointegrate.dialogs.DimmerCalibrationDialog;
+import com.arksine.autointegrate.interfaces.McuLearnCallbacks;
+import com.arksine.autointegrate.interfaces.ServiceControlInterface;
 import com.arksine.autointegrate.microcontroller.ResistiveButton;
 import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.utilities.DLog;
@@ -40,42 +39,45 @@ public class ButtonLearningActivity extends AppCompatActivity {
     ButtonMapDialog mButtonMapDialog;
     DimmerCalibrationDialog mDimmerCalDialog;
 
-    // broadcast reciever to receive button press values
-    private BroadcastReceiver mButtonReciever = new BroadcastReceiver() {
+    private final McuLearnCallbacks mcuEvents = new McuLearnCallbacks() {
         @Override
-        public void onReceive(Context context, Intent intent) {
-            String action = intent.getAction();
-            if (action.equals(getString(R.string.ACTION_CONTROLLER_LEARN_DATA))) {
-                String command = intent.getStringExtra("Command");
-                if (command.equals("CLICK")) {
-                    String data = intent.getStringExtra("Data");
-                    if (mButtonMapDialog.isDialogShowing()) {
-                        // Format the data and set the controller reading in the dialog
-                        data = UtilityFunctions.addLeadingZeroes(data, 5);
-                        data = "[" + data + "]";
-                        mButtonMapDialog.setControllerReading(data);
-                    } else {
-                        Snackbar.make(findViewById(android.R.id.content),
-                                "Click: " + data, Snackbar.LENGTH_LONG)
-                                .setAction("Action", null).show();
-                    }
-                } else if (command.equals("DIMMER")) {
-                    String data = intent.getStringExtra("Data");
+        public void onButtonClicked(int btnId) {
+            String data = String.valueOf(btnId);
+            if (mButtonMapDialog.isDialogShowing()) {
+                // Format the data and set the controller reading in the dialog
+                data = UtilityFunctions.addLeadingZeroes(data, 5);
+                data = "[" + data + "]";
+                mButtonMapDialog.setControllerReading(data);
+            } else {
+                Snackbar.make(findViewById(android.R.id.content),
+                        "Click: " + data, Snackbar.LENGTH_LONG)
+                        .setAction("Action", null).show();
+            }
+        }
 
-                    if (data.equals("On") || data.equals("Off")) {
-                        Snackbar.make(findViewById(android.R.id.content),
-                                "Dimmer: " + data, Snackbar.LENGTH_LONG)
-                                .setAction("Action", null).show();
+        @Override
+        public void onDimmerToggled(boolean dimmerStatus) {
+            String data = dimmerStatus ? "On" : "Off";
 
-                    }
+            Snackbar.make(findViewById(android.R.id.content),
+                    "Dimmer: " + data, Snackbar.LENGTH_LONG)
+                    .setAction("Action", null).show();
 
-                    if (mDimmerCalDialog.isDialogShowing()) {
-                        mDimmerCalDialog.setReading(data);
-                    }
-                }
+            if (mDimmerCalDialog.isDialogShowing()) {
+                // Todo: instead of set reading, create a function to toggle on/off
+                mDimmerCalDialog.setReading(data);
+            }
+        }
+
+        @Override
+        public void onDimmerLevelChanged(int dimmerLevel) {
+            String data = String.valueOf(dimmerLevel);
+            if (mDimmerCalDialog.isDialogShowing()) {
+                mDimmerCalDialog.setReading(data);
             }
         }
     };
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -142,15 +144,9 @@ public class ButtonLearningActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
 
-        // Register data learning receiver
-        IntentFilter filter = new IntentFilter(getString(R.string.ACTION_CONTROLLER_LEARN_DATA));
-        LocalBroadcastManager.getInstance(this).registerReceiver(mButtonReciever, filter);
-
         // Refresh the arduino connection in Learning mode
-        Intent refreshControllerIntent =
-                new Intent(getString(R.string.ACTION_REFRESH_CONTROLLER_CONNECTION));
-        refreshControllerIntent.putExtra("LearningMode", true);
-        LocalBroadcastManager.getInstance(this).sendBroadcast(refreshControllerIntent);
+        ServiceControlInterface serviceControl = AutoIntegrate.getServiceControlInterface();
+        serviceControl.refreshMcuConnection(true, mcuEvents);
     }
 
     @Override
@@ -178,12 +174,9 @@ public class ButtonLearningActivity extends AppCompatActivity {
 
         // send broadcast to toggle learning mode off
         // Refresh the arduino connection in Learning mode
-        Intent refreshControllerIntent =
-                new Intent(getString(R.string.ACTION_REFRESH_CONTROLLER_CONNECTION));
-        refreshControllerIntent.putExtra("LearningMode", false);
-        LocalBroadcastManager.getInstance(this).sendBroadcast(refreshControllerIntent);
+        ServiceControlInterface serviceControl = AutoIntegrate.getServiceControlInterface();
+        serviceControl.refreshMcuConnection(false, null);
 
-        LocalBroadcastManager.getInstance(this).unregisterReceiver(mButtonReciever);
     }
 
 }

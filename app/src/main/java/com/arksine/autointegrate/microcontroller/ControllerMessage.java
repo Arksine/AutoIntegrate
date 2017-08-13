@@ -6,8 +6,6 @@ package com.arksine.autointegrate.microcontroller;
  * command received and its associated data
  */
 public class ControllerMessage {
-
-    public MCUDefs.DataType msgType;
     public MCUDefs.McuInputCommand command;
     public Object data;
 }

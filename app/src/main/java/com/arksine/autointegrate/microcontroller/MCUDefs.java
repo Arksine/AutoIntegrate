@@ -15,22 +15,28 @@ public class MCUDefs {
 
     private MCUDefs(){}
 
+    // TODO: Need InputCommand to receive HD Radio Packet?
     public enum McuInputCommand {
-        NONE((byte)0x00),
-        STARTED(((byte)0x01)),
-        IDENT((byte)0x02),
-        CLICK((byte)0x03),
-        HOLD(((byte)0x04)),
-        RELEASE(((byte)0x05)),
-        DIMMER(((byte)0x06)),
-        REVERSE(((byte)0x07)),
-        LOG(((byte)0x08)),
-        CUSTOM(((byte)0x09));
+        NONE((byte)0x00, DataType.NONE),
+        STARTED(((byte)0x01), DataType.STRING),     // MCU Start notification (includes MCU ID)
+        IDENT((byte)0x02, DataType.STRING),         // Unique MCU ID
+        CLICK((byte)0x03, DataType.SHORT),          // Steering Wheel Resistive Button Click
+        HOLD(((byte)0x04), DataType.SHORT),         // Steering Wheel Resistive Button Hold
+        RELEASE(((byte)0x05), DataType.SHORT),      // Steering Wheel Resistive Button Release
+        DIMMER(((byte)0x06), DataType.BOOLEAN),     // Dimmer On/Off notification
+        DIMMER_LEVEL((byte)0x07, DataType.SHORT),   // Dimmer Level (when Analog Mode is enabled)
+        REVERSE(((byte)0x08), DataType.BOOLEAN),    // Reverse On/Off Notification
+        RADIO_STATUS((byte)0x09, DataType.BOOLEAN), // Radio Connected Status
+        RADIO_DATA((byte)0x0A, DataType.BYTE_ARRAY),  // Data from HD Radio Received
+        LOG(((byte)0x0B), DataType.STRING),           // MCU Logging Info
+        CUSTOM(((byte)0x0C), DataType.BYTE_ARRAY);    // Custom MCU Command (Could do radio here?)
 
         private final byte id;
+        private final DataType dType;
 
-        McuInputCommand(byte _id) {
+        McuInputCommand(byte _id, DataType type) {
             this.id = (byte)_id;
+            this.dType = type;
         }
 
         private static final McuInputCommand[] COMMAND_ARRAY = McuInputCommand.values();
@@ -45,22 +51,27 @@ public class MCUDefs {
             DLog.i(TAG, "Invalid id number: " + id);
             return McuInputCommand.NONE;
         }
+
+        public DataType getDataType() {
+            return this.dType;
+        }
     }
 
 
     public enum McuOutputCommand {
         NONE((byte)0x00),
-        START((byte)0x01),
-        STOP((byte)0x02),
-        REQUEST_ID((byte)0x03),
-        SET_DIMMER_ANALOG((byte)0x04),
-        SET_DIMMER_DIGITAL((byte)0x05),
-        AUDIO_SOURCE_HD((byte)0x06),
-        AUDIO_SOURCE_AUX((byte)0x07),
-        RADIO_SEND_PACKET((byte)0x08),
-        RADIO_SET_DTR((byte)0x09),
-        RADIO_SET_RTS((byte)0x0A),
-        CUSTOM((byte)0x0B);
+        START((byte)0x01),                  // Start MCU Main Loop
+        STOP((byte)0x02),                   // Stop MCU Main Loop
+        REQUEST_ID((byte)0x03),             // Request MCU ID
+        SET_DIMMER_ANALOG((byte)0x04),      // Set MCU to measure Dimmer Voltage (Analog Mode)
+        SET_DIMMER_DIGITAL((byte)0x05),     // Set MCU to only notify when Dimmer is On or Off
+        AUDIO_SOURCE_HD((byte)0x06),        // Set MCU to toggle Audio Relay to HD Radio
+        AUDIO_SOURCE_AUX((byte)0x07),       // Set MCU to toggle Audio Relay to Aux
+        RADIO_REQUEST_STATUS((byte)0x08),   // Request Radio connected status from MCU
+        RADIO_SEND_PACKET((byte)0x09),      // Send HD Radio Command through the MCU
+        RADIO_SET_DTR((byte)0x0A),          // Toggle HD Radio DTR (Turns Radio On/Off)
+        RADIO_SET_RTS((byte)0x0B),          // Toggle HD Radio RTS (HD Radio Hardware Mute)
+        CUSTOM((byte)0x0C);                 // Send MCU a Custom Command
 
         private final byte id;
 

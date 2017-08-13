@@ -6,11 +6,15 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.hardware.usb.UsbDevice;
 import android.os.RemoteException;
-import android.support.v4.content.LocalBroadcastManager;
+import android.preference.PreferenceManager;
 import android.util.Log;
 
+import com.arksine.autointegrate.AutoIntegrate;
 import com.arksine.autointegrate.MainService;
 import com.arksine.autointegrate.R;
+import com.arksine.autointegrate.interfaces.MCUControlInterface;
+import com.arksine.autointegrate.interfaces.ServiceControlInterface;
+import com.arksine.autointegrate.microcontroller.McuRadioDriver;
 import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.autointegrate.utilities.HardwareReceiver;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
@@ -19,7 +23,6 @@ import com.arksine.hdradiolib.HDRadioEvents;
 import com.arksine.hdradiolib.HDSongInfo;
 import com.arksine.hdradiolib.RadioController;
 import com.arksine.hdradiolib.TuneInfo;
-import com.arksine.hdradiolib.enums.RadioCommand;
 import com.arksine.hdradiolib.enums.RadioError;
 
 import java.util.ArrayList;
@@ -39,6 +42,7 @@ public class RadioCom {
     private AtomicBoolean mIsWaiting = new AtomicBoolean(false);
 
     private HDRadio mHdRadio;
+    private HDRadioEvents mRadioEvents;
     private RadioController mRadioController;
 
     // Broadcast reciever to listen for write commands.
@@ -58,7 +62,7 @@ public class RadioCom {
     public RadioCom(MainService svc) {
         this.mService = svc;
 
-        HDRadioEvents events = new HDRadioEvents() {
+        mRadioEvents = new HDRadioEvents() {
             @Override
             public void onOpened(boolean b, RadioController radioController) {
                 DLog.v(TAG, "onOpened Callback triggered");
@@ -116,9 +120,8 @@ public class RadioCom {
                 mService.mRadioCallbacks.finishBroadcast();
 
                 // Close and attempt to reopen connection
-                Intent refreshConnection = new Intent(mService
-                        .getString(R.string.ACTION_REFRESH_RADIO_CONNECTION));
-                LocalBroadcastManager.getInstance(mService).sendBroadcast(refreshConnection);
+                ServiceControlInterface serviceControl = AutoIntegrate.getServiceControlInterface();
+                serviceControl.refreshRadioConnection();
             }
 
             @Override
@@ -423,31 +426,65 @@ public class RadioCom {
             }
         };
 
+    }
 
-
+    private boolean initRadioInstance() {
         DLog.i(TAG, "Creating HD Radio instance");
-        // TODO: defaults to mjs driver, get device type from settings and set it here
-        mHdRadio = new HDRadio(mService, events);
+
+        // Find the correct driver
+        int driverVal = Integer.parseInt(PreferenceManager
+                .getDefaultSharedPreferences(mService).getString("radio_pref_key_select_driver", "0"));
 
 
+        switch (driverVal) {
+            case 0:     // MJS Driver Selected
+                mHdRadio = new HDRadio(mService, mRadioEvents, HDRadio.DriverType.MJS_DRIVER);
+                break;
+            case 1:     // Stand alone Arduino Driver Selected
+                mHdRadio = new HDRadio(mService, mRadioEvents, HDRadio.DriverType.ARDUINO_DRIVER);
+                break;
+            case 2:     // Integrated MCU Driver Selected
+                MCUControlInterface controlInterface =  AutoIntegrate.getmMcuControlInterface();
+                if (controlInterface != null) {
+                    McuRadioDriver mCustomDriver = new McuRadioDriver(controlInterface);
+                    mHdRadio = new HDRadio(mService, mRadioEvents, mCustomDriver);
+                    return true;
+                } else {
+                    Log.e(TAG, "Cannot use Integrated MCU Driver, MCU not connected");
+                    return false;
+                }
+            default:
+                Log.e(TAG, "Unknown Radio Driver Selection");
+                return false;
+        }
 
-        // TODO: this depends on the type of device.  If we arent dealing with usb devices we dont need to do this
-        // If the array isn't empty and the Application has signature level permissions,
-        // grant them to every HD Radio device in the array
+        // Attempt to use signature permissions to grant automatic permission for connected
+        // Radio devices
         if (UtilityFunctions.hasSignaturePermission(mService)) {
 
             ArrayList<UsbDevice> hdCableArray = mHdRadio.getDeviceList(UsbDevice.class);
-            if (!hdCableArray.isEmpty()) {
+            if (hdCableArray != null && !hdCableArray.isEmpty()) {
                 for (UsbDevice uDev : hdCableArray) {
                     HardwareReceiver.grantAutomaticUsbPermission(uDev, mService);
                 }
             }
         }
-
+        return true;
     }
 
+
     public boolean connect() {
-        DLog.i(TAG, "Attempting to open connection to MJS Gadgets Cable");
+        // If already connected, attempt to disconnect
+        if (mConnected.get()) {
+            disconnect();
+        }
+
+        if (!initRadioInstance())
+        {
+            return false;
+        }
+
+        DLog.i(TAG, "Attempting to open connection to Directed HD Radio");
         mHdRadio.open();
 
         // Wait with a 10 second timeout for the onConnected Callback
@@ -469,26 +506,30 @@ public class RadioCom {
 
 
     public void disconnect() {
-        mConnected.set(false);
+        if (mConnected.compareAndSet(true, false)) {
 
-        if (isRadioCommandReceiverRegistered) {
-            mService.unregisterReceiver(radioCommandReceiver);
-            isRadioCommandReceiverRegistered = false;
-        }
+            if (isRadioCommandReceiverRegistered) {
+                mService.unregisterReceiver(radioCommandReceiver);
+                isRadioCommandReceiverRegistered = false;
+            }
 
-        mHdRadio.close();
+            if (mHdRadio != null) {
+                mHdRadio.close();
 
-        // Wait for onClose callback with a timeout of 10 seconds
-        synchronized (this) {
-            try {
-                mIsWaiting.set(true);
-                wait(10000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            } finally {
-                if (mIsWaiting.compareAndSet(true, false)) {
-                    Log.i(TAG, "Connection attempt timed out");
+                // Wait for onClose callback with a timeout of 10 seconds
+                synchronized (this) {
+                    try {
+                        mIsWaiting.set(true);
+                        wait(10000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    } finally {
+                        if (mIsWaiting.compareAndSet(true, false)) {
+                            Log.i(TAG, "Connection attempt timed out");
+                        }
+                    }
                 }
+                mHdRadio = null;
             }
         }
     }

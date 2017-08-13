@@ -163,6 +163,17 @@
     <string name="radio_pref_request_audio_focus_summary">Stops media playback when radio is on</string>
     <string name="radio_pref_use_media_buttons">Use Media Buttons</string>
     <string name="radio_pref_use_media_buttons_summary">Control Seek and Volume with media buttons</string>
+    <string name="radio_pref_select_driver">Select Radio Driver</string>
+    <string-array name="radio_driver_entries">
+        <item>MJS Cable Driver</item>
+        <item>Stand Alone Arduino Driver</item>
+        <item>Integrated MCU Driver</item>
+    </string-array>
+    <string-array name="radio_driver_entry_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
 
     <string name="title_activity_button_learning">Map Resistive Buttons</string>
     <string name="title_activity_camera">Backup Camera</string>

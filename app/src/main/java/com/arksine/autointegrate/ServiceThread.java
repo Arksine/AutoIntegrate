@@ -1,14 +1,13 @@
 package com.arksine.autointegrate;
 
-import android.content.BroadcastReceiver;
-import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
+import com.arksine.autointegrate.interfaces.McuLearnCallbacks;
+import com.arksine.autointegrate.interfaces.ServiceControlInterface;
 import com.arksine.autointegrate.microcontroller.MicroControllerCom;
 import com.arksine.autointegrate.power.IntegratedPowerManager;
 import com.arksine.autointegrate.preferences.MainSettings;
@@ -39,6 +38,7 @@ public class ServiceThread implements Runnable {
 
     private IntegratedPowerManager mPowerManager = null;
     private AtomicReference<MicroControllerCom> mMicroController = new AtomicReference<>(null);
+    private AtomicReference<McuLearnCallbacks> mMcuLearnCallbacks = new AtomicReference<>(null);
     private AtomicReference<RadioCom> mHdRadio = new AtomicReference<>(null);
 
     private AtomicBoolean mLearningMode = new AtomicBoolean(false);
@@ -48,20 +48,42 @@ public class ServiceThread implements Runnable {
 
     private LocalBroadcastManager mLocalBM;
 
+    private final ServiceControlInterface mServiceInterface = new ServiceControlInterface() {
+        @Override
+        public void wakeUpDevice() {
+            if (mServiceSuspended.get()) {
+                EXECUTOR.execute(wakeUpDevice);
+                Log.i(TAG, "Service resumed.");
+            }
+        }
+
+        @Override
+        public void suspendDevice() {
+            // Stop the main thread, but do not destroy the the ExecutorService so the thread
+            // can be restarted
+            EXECUTOR.execute(suspendDevice);
+        }
+
+        @Override
+        public void refreshMcuConnection(boolean learningMode, McuLearnCallbacks cbs) {
+            DLog.v(TAG, "Refresh MicroController Connection");
+            mLearningMode.set(learningMode);
+            mMcuLearnCallbacks.set(cbs);
+            EXECUTOR.execute(stopMicroControllerConnection);
+        }
+
+        @Override
+        public void refreshRadioConnection() {
+            DLog.v(TAG, "Refresh Radio Thread");
+            EXECUTOR.execute(stopHdRadioConnection);
+        }
+    };
+
     ServiceThread(MainService svc) {
         mService = svc;
+        AutoIntegrate.setServiceControlInterface(this.mServiceInterface);
         mLocalBM = LocalBroadcastManager.getInstance(mService);
 
-        if (!isReceiverRegistered) {
-            // Register the receiver for local broadcasts
-            IntentFilter filter = new IntentFilter(mService.getString(R.string.ACTION_WAKE_DEVICE));
-            filter.addAction(mService.getString(R.string.ACTION_REFRESH_CONTROLLER_CONNECTION));
-            filter.addAction(mService.getString(R.string.ACTION_REFRESH_RADIO_CONNECTION));
-            filter.addAction(mService.getString(R.string.ACTION_SUSPEND_DEVICE));
-
-            mLocalBM.registerReceiver(mServiceThreadReceiver, filter);
-            isReceiverRegistered = true;
-        }
 
         UtilityFunctions.RootCallback callback = new UtilityFunctions.RootCallback() {
             @Override
@@ -73,34 +95,6 @@ public class ServiceThread implements Runnable {
         UtilityFunctions.initRoot(callback);
     }
 
-    // Broadcast Receiver that responds to events sent to alter the service thread
-    private boolean isReceiverRegistered = false;
-    private BroadcastReceiver mServiceThreadReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            String action = intent.getAction();
-
-            if (mService.getString(R.string.ACTION_WAKE_DEVICE).equals(action)) {
-                if (mServiceSuspended.get()) {
-                    EXECUTOR.execute(wakeUpDevice);
-                    Log.i(TAG, "Service resumed.");
-                }
-            } else if (mService.getString(R.string.ACTION_SUSPEND_DEVICE).equals(action)) {
-                // Stop the main thread, but do not destroy the the ExecutorService so the thread
-                // can be restarted
-                EXECUTOR.execute(suspendDevice);
-
-            } else if (mService.getString(R.string.ACTION_REFRESH_CONTROLLER_CONNECTION).equals(action)) {
-                DLog.v(TAG, "Refresh MicroController Connection");
-                mLearningMode.set(intent.getBooleanExtra("LearningMode", false));
-                EXECUTOR.execute(stopMicroControllerConnection);
-
-            } else if (mService.getString(R.string.ACTION_REFRESH_RADIO_CONNECTION).equals(action)) {
-                DLog.v(TAG, "Refresh Radio Thread");
-                EXECUTOR.execute(stopHdRadioConnection);
-            }
-        }
-    };
 
     @Override
     public void run() {
@@ -129,7 +123,8 @@ public class ServiceThread implements Runnable {
 
                 // If the MicroController connection hasn't been established, do so.
                 if (mMicroController.get() == null || !mMicroController.get().isConnected()) {
-                    mMicroController.set(new MicroControllerCom(mService, mLearningMode.get()));
+                    mMicroController.set(new MicroControllerCom(mService, mLearningMode.get(),
+                            mMcuLearnCallbacks.get()));
                     if (mMicroController.get().connect()) {
                         DLog.v(TAG, "Micro Controller connection established");
                     } else {
@@ -140,8 +135,6 @@ public class ServiceThread implements Runnable {
                 Log.i(TAG, "Micro Controller Integration Disabled");
             }
 
-            // TODO: need to also check for a preference on whether to use the HDRadio Libary
-            // to communicate with the radio via usb OR use the Microcontroller to do it
 
             // Check for HD Radio Integration
             if (sharedPrefs.getBoolean("main_pref_key_toggle_radio", false)) {
@@ -279,12 +272,6 @@ public class ServiceThread implements Runnable {
         }
 
         mMainThreadFuture = null;
-
-        // unregister receiver since the service will stop
-        if (isReceiverRegistered) {
-            mLocalBM.unregisterReceiver(mServiceThreadReceiver);
-            isReceiverRegistered = false;
-        }
 
         // stop the power manager
         mPowerManager.destroy();

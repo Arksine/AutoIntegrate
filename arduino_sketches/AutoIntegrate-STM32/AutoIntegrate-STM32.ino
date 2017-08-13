@@ -21,7 +21,6 @@ ButtonCB button(BUTTON_DIGITAL_PIN, Button::PULL_UP, BUTTON_DEBOUNCE_DELAY);
 
 AudioInput audio_input_selection = HD_RADIO;
 
-// TODO: change shorts to ints, should be able to handle the different sizes
 unsigned short btn_analog_value      = 0;
 unsigned short analog_dimmer_reading = 0;
 unsigned long  reverse_start_time    = 0;
@@ -31,6 +30,7 @@ bool isHolding           = false;
 bool inReverse           = false;
 bool isDimmerOn          = false;
 bool analogDimmerEnabled = false;
+bool radioConnected      = false;
 bool radioDtrOn          = false;
 bool radioRtsOn          = false;
 
@@ -51,20 +51,20 @@ void onResistivePress(const Button& b) {
 }
 
 void onResistiveClick(const Button& b) {
-  sendPacketToPc(CMD_CLICK, TYPE_SHORT, (byte *)&btn_analog_value,
+  sendPacketToPc(CMD_CLICK, (byte *)&btn_analog_value,
                  sizeof(btn_analog_value));
 }
 
 void onResistiveHold(const Button& b) {
   isHolding = true;
-  sendPacketToPc(CMD_HOLD, TYPE_SHORT, (byte *)&btn_analog_value,
+  sendPacketToPc(CMD_HOLD, (byte *)&btn_analog_value,
                  sizeof(btn_analog_value));
 }
 
 void onResistiveRelease(const Button& b) {
   if (isHolding) {
     isHolding = false;
-    sendPacketToPc(CMD_RELEASE, TYPE_SHORT, (byte *)&btn_analog_value,
+    sendPacketToPc(CMD_RELEASE, (byte *)&btn_analog_value,
                    sizeof(btn_analog_value));
   }
 }
@@ -184,7 +184,7 @@ void executeCommand() {
     break;
 
   case MCU_REQUEST_ID:
-    sendPacketToPc(CMD_IDENT, TYPE_STRING, (byte *)mcuId, strlen(mcuId));
+    sendPacketToPc(CMD_IDENT, (byte *)mcuId, strlen(mcuId));
     break;
 
   case MCU_SET_DIMMER_ANALOG:
@@ -201,6 +201,10 @@ void executeCommand() {
 
   case MCU_AUDIO_SOURCE_AUX:
     setSourceAux();
+    break;
+
+  case MCU_RADIO_REQUEST_STATUS:
+    sendPacketToPc(CMD_RADIO_STATUS, (byte *)&radioConnected, sizeof(radioConnected))
     break;
 
   case MCU_RADIO_SEND_PACKET:
@@ -229,7 +233,7 @@ void executeCommand() {
     // Unknown command, send it back to the device log
     // TODO: convert the hex buffer to string and send via log
     const char str[] = "Unknown Command Received";
-    sendPacketToPc(CMD_LOG, TYPE_STRING, (byte *)str, strlen(str));
+    sendPacketToPc(CMD_LOG, (byte *)str, strlen(str));
   }
   }
 }
@@ -260,12 +264,11 @@ void processStartCommand() {
 
     while (!HDRadioSerial);
     HDRadioSerial.flush();
+    radioConnected = true;
   }
   #endif // if defined(HDRadioSerial)
 
-  // TODO: I could send back some status here instead of ID, since I have
-  // a metho for requesting ID.
-  sendPacketToPc(CMD_STARTED, TYPE_STRING, (byte *)mcuId, strlen(mcuId));
+  sendPacketToPc(CMD_STARTED, (byte *)mcuId, strlen(mcuId));
   isStarted = true;
 
   #ifdef LED_PIN
@@ -292,6 +295,7 @@ void processStopCommand() {
     digitalWrite(RADIO_RTS_PIN, LOW);
   }
   HDRadioSerial.end();
+  radioConnected = false;
   #endif // if defined(HDRadioSerial)
 
   #ifdef LED_PIN
@@ -314,7 +318,7 @@ void setSourceHd() {
     audio_input_selection = HD_RADIO;
 
     const char str[] = "HD_RADIO_INPUT_SET";
-    sendPacketToPc(CMD_LOG, TYPE_STRING, (byte *)str, strlen(str));
+    sendPacketToPc(CMD_LOG, (byte *)str, strlen(str));
   }
 }
 
@@ -324,16 +328,26 @@ void setSourceAux() {
     audio_input_selection = AUX;
 
     const char str[] = "AUX_INPUT_SET";
-    sendPacketToPc(CMD_LOG, TYPE_STRING, (byte *)str, strlen(str));
+    sendPacketToPc(CMD_LOG, (byte *)str, strlen(str));
   }
 }
 
 #if defined(HDRadioSerial)
 void processRadioIncoming() {
+  int index = 0;
+  uint8_t radioBuf[256];
+  
   while (HDRadioSerial.available() > 0) {
-    byte b = HDRadioSerial.read();
-    writeRadioByte(b);
+    radioBuf[index] = HDRadioSerial.read();
+    index++;
+    delay(2);  // Delay 2ms to wait for more incoming
   }
+
+  if (index > 0) {
+    // TODO: Instead of calling sendPacketToPc, send it directly without a data type
+    sendPacketToPc(CMD_RADIO_DATA, radioBuf, index);
+  }
+
 }
 
 void sendRadioPacket() {
@@ -384,13 +398,13 @@ void processReverse() {
         reverse_start_time = millis();
       } else if (millis() >= reverse_start_time + REVERSE_DELAY) {
         inReverse = true;
-        sendPacketToPc(CMD_REVERSE, TYPE_BOOLEAN, (byte *)&inReverse,
+        sendPacketToPc(CMD_REVERSE, (byte *)&inReverse,
                        sizeof(inReverse));
       }
     } else {
       inReverse          = false;
       reverse_start_time = 0;
-      sendPacketToPc(CMD_REVERSE, TYPE_BOOLEAN, (byte *)&inReverse,
+      sendPacketToPc(CMD_REVERSE, (byte *)&inReverse,
                      sizeof(inReverse));
     }
   }
@@ -400,7 +414,7 @@ void processDimmer() {
   if (digitalRead(DIMMER_DIGITAL_PIN) == HIGH) {
     if (!isDimmerOn) {
       isDimmerOn = true;
-      sendPacketToPc(CMD_DIMMER, TYPE_BOOLEAN, (byte *)&isDimmerOn,
+      sendPacketToPc(CMD_DIMMER, (byte *)&isDimmerOn,
                      sizeof(isDimmerOn));
     } else {
       // Analog read here, but only if analog is enabled
@@ -410,7 +424,7 @@ void processDimmer() {
         if ((reading > analog_dimmer_reading + ANALOG_DIMMER_VARIANCE) ||
             (reading < analog_dimmer_reading - ANALOG_DIMMER_VARIANCE)) {
           analog_dimmer_reading = reading;
-          sendPacketToPc(CMD_DIMMER, TYPE_SHORT, (byte *)&analog_dimmer_reading,
+          sendPacketToPc(CMD_DIMMER, (byte *)&analog_dimmer_reading,
                          sizeof(analog_dimmer_reading));
         }
       }
@@ -418,33 +432,29 @@ void processDimmer() {
   } else {
     if (isDimmerOn) {
       isDimmerOn = false;
-      sendPacketToPc(CMD_DIMMER, TYPE_BOOLEAN, (byte *)&isDimmerOn,
+      sendPacketToPc(CMD_DIMMER, (byte *)&isDimmerOn,
                      sizeof(isDimmerOn));
     }
   }
 }
 
 void sendPacketToPc(byte        cmd,
-                    byte        data_type,
                     const byte *data,
                     short       data_length) {
   if (data_length > 253) {
     // TODO: packet is too big
   }
 
-  byte length = data_length + 2;
+  byte length = data_length + 1;  // Add length of command
 
   short checksum = 0xF1 + length;
 
-  writeMcuByte(0xF1);          // Start header
+  Serial.write(0xF1);          // Start header
   writeEscapedByte(length);    // Length of command (not including escape bytes
-                               // and
-  // header)
+                               // and header)
   writeEscapedByte(cmd);       // command
   checksum += cmd;
 
-  writeEscapedByte(data_type); // data type
-  checksum += data_type;
 
   for (size_t i = 0; i < data_length; i++) {
     writeEscapedByte(data[i]);
@@ -457,30 +467,18 @@ void sendPacketToPc(byte        cmd,
 
 // writes a byte to serial, checking to see if it should be escaped.  This uses
 // 0x1A (ascii substitute) instead of 0x1B (Esc) for escaping, so as not to
-// confuse
-// with radio packets
+// confuse with radio packets
 void writeEscapedByte(byte b) {
   if (b == 0x1A) {
     // escape 0x1A as 0x1A
-    writeMcuByte(0x1A);
-    writeMcuByte(0x1A);
+    Serial.write(0x1A);
+    Serial.write(0x1A);
   } else if (b == 0xF1) {
     // escape 0xF1 as 0x20
-    writeMcuByte(0x1A);
-    writeMcuByte(0x20);
+    Serial.write(0x1A);
+    Serial.write(0x20);
   } else {
-    writeMcuByte(b);
+    Serial.write(b);
   }
 }
 
-void writeMcuByte(byte data) {
-  byte out[] = { MCU_BYTE_ENCODING, data };
-
-  Serial.write(out, 2);
-}
-
-void writeRadioByte(byte data) {
-  byte out[] = { RADIO_BYTE_ENCODING, data };
-
-  Serial.write(out, 2);
-}

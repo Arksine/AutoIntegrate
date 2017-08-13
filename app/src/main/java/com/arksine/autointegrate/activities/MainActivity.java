@@ -23,6 +23,8 @@ import android.widget.ListView;
 import android.widget.Toast;
 
 import com.arksine.autointegrate.MainService;
+import com.arksine.autointegrate.interfaces.MCUControlInterface;
+import com.arksine.autointegrate.interfaces.ServiceControlInterface;
 import com.arksine.autointegrate.preferences.MainSettings;
 import com.arksine.autointegrate.preferences.MicroControllerSettings;
 import com.arksine.autointegrate.preferences.CameraSettings;

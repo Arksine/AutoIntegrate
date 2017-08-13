@@ -385,7 +385,7 @@ public class RadioActivity extends AppCompatActivity {
         public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
             final MainService.LocalBinder binder = (MainService.LocalBinder) iBinder;
 
-            binder.registerCallback(mRadioEvents);
+            binder.registerRadioCallback(mRadioEvents);
             mRadioController = binder.getRadioInterface();
 
             if (mRadioController == null) {

@@ -1,15 +1,12 @@
 package com.arksine.autointegrate.microcontroller;
 
 import android.content.Context;
-import android.content.Intent;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
-import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
-import com.arksine.autointegrate.R;
-import com.arksine.autointegrate.interfaces.MCUControlInterface;
+import com.arksine.autointegrate.interfaces.McuLearnCallbacks;
 import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.autointegrate.microcontroller.MCUDefs.*;
 
@@ -23,11 +20,10 @@ import java.nio.ByteOrder;
 public class ControllerInputHandler extends Handler {
 
     private static final String TAG = "ControllerInputHandler";
-    private static final byte MCU_COMMAND_ENCODING = 0x00;
-    private static final byte RADIO_COMMAND_ENCODING = 0x01;
 
     private Context mContext = null;
     private CommandProcessor mCommandProcessor;
+    private McuLearnCallbacks mMcuLearnCallbacks = null;
 
     private interface InputMode {
         void ProcessInput(ControllerMessage ctrlMsg);
@@ -35,24 +31,24 @@ public class ControllerInputHandler extends Handler {
     private final InputMode mLearningMode = new InputMode() {
         @Override
         public void ProcessInput(ControllerMessage ctrlMsg) {
-            // TODO: Instead of broadcasting an intent I can use a RemoteCallback to send data back to bound activity
-            // Local broadcast to learning activity, we only learn click and dimmer events
-            if(ctrlMsg.command == McuInputCommand.CLICK || ctrlMsg.command == McuInputCommand.DIMMER) {
-                Intent msgIntent = new Intent(mContext.getString(R.string.ACTION_CONTROLLER_LEARN_DATA));
-                msgIntent.putExtra("Command", ctrlMsg.command.toString());
-                if (ctrlMsg.msgType == DataType.INT) {
-                    msgIntent.putExtra("Data", String.valueOf((int)ctrlMsg.data));
-                } else if (ctrlMsg.msgType == DataType.BOOLEAN){
-                    String bData =(boolean) ctrlMsg.data ? "On" : "Off";
-                    msgIntent.putExtra("Data", bData);
-                } else {
-                    // incorrect data type
-                    Log.i(TAG, "Incorrect data type for calibration received");
-                    return;
+            if (mMcuLearnCallbacks != null) {
+                switch (ctrlMsg.command) {
+                    case CLICK:
+                        mMcuLearnCallbacks.onButtonClicked((int)ctrlMsg.data);
+                        break;
+                    case DIMMER:
+                        mMcuLearnCallbacks.onDimmerToggled((boolean)ctrlMsg.data);
+                        break;
+                    case DIMMER_LEVEL:
+                        mMcuLearnCallbacks.onDimmerLevelChanged((int)ctrlMsg.data);
+                        break;
+                    default:
+                        Log.i(TAG, "Incorrect data type for calibration received");
                 }
-
-                LocalBroadcastManager.getInstance(mContext).sendBroadcast(msgIntent);
+            } else {
+                Log.w(TAG, "Error, device in learning mode but no callbacks are set");
             }
+
         }
     };
 
@@ -65,9 +61,6 @@ public class ControllerInputHandler extends Handler {
 
     private InputMode mInputMode;
 
-    private boolean isEncodeByte  = true;  // The first byte of the pair is always the encoding
-    private byte encoding = 0;
-
     private ByteBuffer mReceivedBuffer = ByteBuffer.allocate(512);
     private boolean mIsLengthByte = false;
     private boolean mIsEscapedByte = false;
@@ -76,102 +69,76 @@ public class ControllerInputHandler extends Handler {
     private int mChecksum = 0;
 
     // TODO: rename "learning mode" to direct access mode if using a remote callback
-    ControllerInputHandler(Looper looper, Context context, MCUControlInterface controlInterface,
-                           boolean isLearningMode) {
+    ControllerInputHandler(Looper looper, Context context, MicroControllerCom.McuEvents mcuEvents,
+                           boolean isLearningMode, McuLearnCallbacks cbs) {
         super(looper);
         mContext = context;
         mReceivedBuffer.order(ByteOrder.LITTLE_ENDIAN);
-        mCommandProcessor = new CommandProcessor(mContext, controlInterface);
+        mCommandProcessor = new CommandProcessor(mContext, mcuEvents);
+        this.mMcuLearnCallbacks = cbs;
         this.setMode(isLearningMode);
     }
 
     @Override
     public void handleMessage(Message msg) {
-        decodeBytes((byte[])msg.obj);
+        parseBytes((byte[])msg.obj);
     }
 
-    private void decodeBytes(byte[] data) {
+    private void parseBytes(byte[] data) {
         for (byte b : data) {
-            if (isEncodeByte) {
-                isEncodeByte = false;
-                encoding = b;
-            } else {
-                isEncodeByte = true;
-                switch (encoding) {
-                    case MCU_COMMAND_ENCODING:
-                        parseCommandByte(b);
-                        break;
-                    case RADIO_COMMAND_ENCODING:
-
-                        // TODO: send to Custom radio driver for parsing
-                        break;
-                    default:
-                        Log.i(TAG, "Invalid encoding byte: " + String.format("%02X", b));
-                        break;
-                }
-            }
-        }
-    }
-
-    private void parseCommandByte(byte cmdByte) {
-
-        if (cmdByte == (byte) 0xF1) {
-            mIsValidPacket = true;
-            mIsEscapedByte = false;
-            mIsLengthByte = true;
-
-            mReceivedBuffer.clear();
-            mPacketLength = 0;
-            mChecksum = 0xF1;
-        } else if (!mIsValidPacket) {
-            DLog.i(TAG, "Invalid byte received: " + cmdByte);
-        } else if (cmdByte == (byte)0x1A && !mIsEscapedByte) {
-            mIsEscapedByte = true;
-        } else {
-            if (mIsEscapedByte) {
+            if (b == (byte) 0xF1) {
+                mIsValidPacket = true;
                 mIsEscapedByte = false;
-                if (cmdByte == (byte)0x20) {
-                    // 0xF1 is escaped as 0x20
-                    cmdByte = (byte) 0xF1;
-                }
-                // Note: 0x1A is escaped as 0x1A, so we don't need to reset the current byte
-            }
+                mIsLengthByte = true;
 
-            if (mIsLengthByte) {
-                mIsLengthByte = false;
-                mPacketLength = cmdByte & (0xFF);
-                mChecksum += mPacketLength;
-            } else if (mReceivedBuffer.position() == mPacketLength) {
-                // This is the checksum byte
-
-                // Checksum is all bytes added up (not counting header and escape bytes) mod 256
-                if ((mChecksum % 256) == (cmdByte & 0xFF)) {
-                    mReceivedBuffer.flip();
-                    parsePacket();
-
-                } else {
-                    Log.i(TAG, "Invalid checksum, discarding packet");
-                }
-
-                // The next byte received must be 0xF1, regardless of what happened here
-                mIsValidPacket = false;
+                mReceivedBuffer.clear();
+                mPacketLength = 0;
+                mChecksum = 0xF1;
+            } else if (!mIsValidPacket) {
+                DLog.i(TAG, "Invalid byte received: " + b);
+            } else if (b == (byte) 0x1A && !mIsEscapedByte) {
+                mIsEscapedByte = true;
             } else {
-                // Add byte to packet buffer
-                mReceivedBuffer.put(cmdByte);
-                mChecksum += (cmdByte & 0xFF);
+                if (mIsEscapedByte) {
+                    mIsEscapedByte = false;
+                    if (b == (byte) 0x20) {
+                        // 0xF1 is escaped as 0x20
+                        b = (byte) 0xF1;
+                    }
+                    // Note: 0x1A is escaped as 0x1A, so we don't need to reset the current byte
+                }
+
+                if (mIsLengthByte) {
+                    mIsLengthByte = false;
+                    mPacketLength = b & (0xFF);
+                    mChecksum += mPacketLength;
+                } else if (mReceivedBuffer.position() == mPacketLength) {
+                    // This is the checksum byte
+
+                    // Checksum is all bytes added up (not counting header and escape bytes) mod 256
+                    if ((mChecksum % 256) == (b & 0xFF)) {
+                        mReceivedBuffer.flip();
+                        parsePacket();
+
+                    } else {
+                        Log.i(TAG, "Invalid checksum, discarding packet");
+                    }
+
+                    // The next byte received must be 0xF1, regardless of what happened here
+                    mIsValidPacket = false;
+                } else {
+                    // Add byte to packet buffer
+                    mReceivedBuffer.put(b);
+                    mChecksum += (b & 0xFF);
+                }
             }
         }
-
     }
 
     // Reads a message from the Micro Controller and parses it
     private boolean parsePacket() {
 
         DLog.i(TAG, "MCU Packet Length: " + mReceivedBuffer.limit());
-
-        // TODO: May want type NONE to be possible, and just receive a command without accompanying data.
-        // In that case, only 2 bytes in the packet is possible, data type of none is possible.
-
 
         if(mReceivedBuffer.limit() < 3) {
             Log.e(TAG, "Invalid data packet, must at least be three bytes long");
@@ -187,24 +154,14 @@ public class ControllerInputHandler extends Handler {
             return false;
         }
 
-        ctrlMsg.msgType = DataType.getDataType(mReceivedBuffer.get());
-        DLog.v(TAG, "Data Type Recd: " + ctrlMsg.msgType.toString());
-        if (ctrlMsg.msgType == DataType.NONE) {
-            Log.e(TAG, "Invalid Data Type Received");
-            return false;
-        }
-
-
         if (!mReceivedBuffer.hasRemaining()) {
             Log.i(TAG, "Invalid Packet, end of buffer reached before data received");
+            //  TODO: In the future it may be possible to receive a command that has no payload.
+            //  In that case, we would need to send it here and not return false
             return false;
         }
 
-
-
-        // TODO: Since the dimmer type can be string or Int, it might be best to just receive
-        //       integers in string format and parse them later
-        switch (ctrlMsg.msgType) {
+        switch (ctrlMsg.command.getDataType()) {
             case SHORT:
                 if (mReceivedBuffer.remaining() < 2) {
                     Log.i(TAG, "Invalid Short data size: " + mReceivedBuffer.remaining());
@@ -266,7 +223,7 @@ public class ControllerInputHandler extends Handler {
         return true;
     }
 
-    public void setMode(boolean isLearningMode) {
+    void setMode(boolean isLearningMode) {
         if (isLearningMode) {
             DLog.v(TAG, "Controller is in Learning Mode.");
             mInputMode = mLearningMode;

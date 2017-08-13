@@ -19,9 +19,11 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Toast;
 
+import com.arksine.autointegrate.AutoIntegrate;
 import com.arksine.autointegrate.activities.ButtonLearningActivity;
 import com.arksine.autointegrate.adapters.AppListAdapter;
 import com.arksine.autointegrate.dialogs.ListPreferenceEx;
+import com.arksine.autointegrate.interfaces.ServiceControlInterface;
 import com.arksine.autointegrate.utilities.SerialHelper;
 import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.utilities.AppItem;
@@ -207,20 +209,13 @@ public class MicroControllerSettings extends PreferenceFragment {
         DLog.v(TAG, "Paused");
 
         if (mSettingChanged) {
-            refreshConnection();
+            // refresh the MCU Connection if settings have changed
+            ServiceControlInterface serviceControl = AutoIntegrate.getServiceControlInterface();
+            serviceControl.refreshMcuConnection(false, null);
         }
 
         LocalBroadcastManager.getInstance(getActivity()).unregisterReceiver(deviceListReciever);
     }
-
-    private void refreshConnection() {
-        LocalBroadcastManager localBM = LocalBroadcastManager.getInstance(getActivity());
-        Intent refreshControllerIntent =
-                new Intent(getString(R.string.ACTION_REFRESH_CONTROLLER_CONNECTION));
-        refreshControllerIntent.putExtra("LearningMode", false);
-        localBM.sendBroadcast(refreshControllerIntent);
-    }
-
 
     private void toggleBaudSelection() {
         PreferenceScreen root = this.getPreferenceScreen();

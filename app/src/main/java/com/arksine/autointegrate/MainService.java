@@ -19,6 +19,8 @@ import android.util.Log;
 import android.widget.Toast;
 
 import com.arksine.autointegrate.activities.MainActivity;
+import com.arksine.autointegrate.interfaces.MCUControlInterface;
+import com.arksine.autointegrate.interfaces.ServiceControlInterface;
 import com.arksine.autointegrate.radio.RemoteRadioEvents;
 import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.hdradiolib.RadioController;
@@ -168,24 +170,28 @@ public class MainService extends Service {
                 (int)(icon.getHeight() * scaleMultiplier), false);
     }
 
+    // This class provides a Binder so multiple activities can bind to the serivce to control
+    // the HD Radio functionality.  It is the only functionality that needs such a binder, everything
+    // can only be accessed package wide, through static functions in the Application class
+
     public class LocalBinder extends Binder {
         public RadioController getRadioInterface() {
             return mServiceThread.getRadioInterface();
         }
 
-        public void registerCallback(RemoteRadioEvents cb) {
+
+
+
+        public void registerRadioCallback(RemoteRadioEvents cb) {
             if (cb != null) {
                 mRadioCallbacks.register(cb);
             }
         }
 
-        public void unRegisterCallback(RemoteRadioEvents cb) {
+        public void unregisterRadioCallback(RemoteRadioEvents cb) {
             if (cb != null) {
                 mRadioCallbacks.unregister(cb);
             }
         }
-
-        // TODO: I can also expose an interface for microcontroller that bound activities can retreive
-        // TODO: I can also expose an interface for the Hardware receiver to get with peekService, so I don't have to send intents
-    }
+  }
 }

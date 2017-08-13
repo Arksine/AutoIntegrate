@@ -5,11 +5,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Handler;
 import android.preference.PreferenceManager;
-import android.support.v4.content.LocalBroadcastManager;
 
+import com.arksine.autointegrate.AutoIntegrate;
 import com.arksine.autointegrate.MainService;
-import com.arksine.autointegrate.R;
-import com.arksine.autointegrate.ServiceThread;
+import com.arksine.autointegrate.interfaces.ServiceControlInterface;
 import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
 
@@ -49,22 +48,21 @@ public class PowerEventReceiver extends BroadcastReceiver {
                 DLog.v(TAG, "Power Reconnected, wake device");
 
                 // Wake service thread
-                Intent wakeSvcThrdIntent = new Intent(context.getString(R.string.ACTION_WAKE_DEVICE));
-                wakeSvcThrdIntent.setClass(context, ServiceThread.class);
-                LocalBroadcastManager.getInstance(context).sendBroadcast(wakeSvcThrdIntent);
-
+                ServiceControlInterface serviceControl = AutoIntegrate.getServiceControlInterface();
+                if (serviceControl != null) {
+                    serviceControl.wakeUpDevice();
+                }
 
 
             } else if (action.equals(Intent.ACTION_POWER_DISCONNECTED)) {
                 DLog.v(TAG, "Power Disconnected, attempt sleep");
 
                 // Wake service thread
-                Intent suspendSvcThrdIntent = new Intent(context.getString(R.string.ACTION_SUSPEND_DEVICE));
-                suspendSvcThrdIntent.setClass(context, ServiceThread.class);
-                LocalBroadcastManager.getInstance(context).sendBroadcast(suspendSvcThrdIntent);
-
+                ServiceControlInterface serviceControl = AutoIntegrate.getServiceControlInterface();
+                if (serviceControl != null) {
+                    serviceControl.suspendDevice();
+                }
             }
-
         }
     }
 }

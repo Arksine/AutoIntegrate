@@ -10,11 +10,13 @@ import android.os.HandlerThread;
 import android.os.Message;
 import android.os.Process;
 import android.preference.PreferenceManager;
-import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
+import com.arksine.autointegrate.AutoIntegrate;
 import com.arksine.autointegrate.MainService;
 import com.arksine.autointegrate.interfaces.MCUControlInterface;
+import com.arksine.autointegrate.interfaces.McuLearnCallbacks;
+import com.arksine.autointegrate.interfaces.ServiceControlInterface;
 import com.arksine.autointegrate.utilities.SerialHelper;
 import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.utilities.BluetoothHelper;
@@ -26,6 +28,7 @@ import com.arksine.autointegrate.microcontroller.MCUDefs.*;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Class MicroControllerCom
@@ -36,21 +39,40 @@ import java.nio.ByteOrder;
 public class MicroControllerCom extends SerialCom {
     private static final String TAG = MicroControllerCom.class.getSimpleName();
 
+    private String mMcuId = "NOT SET";
+    private McuRadioDriver mMcuRadioDriver = null;  // TODO: make this an atomic reverence
+    private volatile boolean mRadioStatus = false;
+
     interface McuEvents {
         void OnStarted(String idStarted);
         void OnIdReceived(String id);
+        void OnRadioStatusReceived(boolean status);
+        void OnRadioDataReceived(byte[] radioData);
     }
 
     private final McuEvents mMcuEvents = new McuEvents() {
         @Override
-        public void OnStarted(String Id) {
-            // TODO: set the mcu id if it exists.
-            // TODO: Notify the connection thread
+        public void OnStarted(String id) {
+            mMcuId = id;
+            resumeThread();
         }
 
         @Override
         public void OnIdReceived(String id) {
-            // TODO: set the mcu id if it exists.
+            mMcuId = id;
+        }
+
+        @Override
+        public void OnRadioStatusReceived(boolean status) {
+            mRadioStatus = status;
+            mControlInterface.resumeFromWait();
+        }
+
+        @Override
+        public void OnRadioDataReceived(byte[] radioData) {
+            if (mMcuRadioDriver != null) {
+                mMcuRadioDriver.readBytes(radioData);
+            }
         }
     };
 
@@ -77,6 +99,7 @@ public class MicroControllerCom extends SerialCom {
                     case AUDIO_SOURCE_HD:
                     case AUDIO_SOURCE_AUX:
                     case REQUEST_ID:
+                    case RADIO_REQUEST_STATUS:
                         length = 1;
                         outPacket.put(length);
                         outPacket.put(command.getByte());
@@ -168,6 +191,8 @@ public class MicroControllerCom extends SerialCom {
     };
 
     private final MCUControlInterface mControlInterface = new MCUControlInterface() {
+        AtomicBoolean mControlWait = new AtomicBoolean(false);
+
         @Override
         public void sendMcuCommand(McuOutputCommand command, Object data) {
 
@@ -181,14 +206,55 @@ public class MicroControllerCom extends SerialCom {
         }
 
         @Override
+        public synchronized void resumeFromWait() {
+            if (mControlWait.compareAndSet(true, false)) {
+                this.notify();
+            }
+        }
+
+        @Override
+        public boolean setRadioDriver(McuRadioDriver radioDriver) {
+            if (radioDriver != null) {
+                sendMcuCommand(McuOutputCommand.RADIO_REQUEST_STATUS, null);
+                synchronized (this) {
+                    try {
+                        mControlWait.set(true);
+                        this.wait(10000);
+                    } catch (InterruptedException e) {
+                        Log.w(TAG, e.getMessage());
+                    } finally {
+                        // Error, response from MCU Timed out
+                        if (mControlWait.compareAndSet(true, false)) {
+                            mRadioStatus = false;
+                            mMcuRadioDriver = null;
+                        }
+                    }
+
+                    if (mRadioStatus) {
+                        mMcuRadioDriver = radioDriver;
+                    }
+                }
+            } else {
+                // Radio Driver is disabled
+                mRadioStatus = false;
+                mMcuRadioDriver = null;
+            }
+            return mRadioStatus;
+        }
+
+        @Override
         public boolean isConnected() {
             return mConnected;
         }
 
+        @Override
+        public String getDeviceId() {
+            return mMcuId;
+        }
     };
 
-    // Broadcast reciever to listen for write commands.
-    public class WriteReciever extends BroadcastReceiver {
+    // Broadcast receiver to listen for write commands.
+    public class WriteReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
@@ -227,19 +293,18 @@ public class MicroControllerCom extends SerialCom {
             }
         }
     }
-    private final WriteReciever writeReciever = new WriteReciever();
+    private final WriteReceiver writeReceiver = new WriteReceiver();
     private boolean isWriteReceiverRegistered = false;
 
-
-
-    public MicroControllerCom(MainService svc, boolean learningMode) {
+    public MicroControllerCom(MainService svc, boolean learningMode, McuLearnCallbacks cbs) {
         super(svc);
+        AutoIntegrate.setMcuControlInterface(this.mControlInterface);
 
         HandlerThread inputThread = new HandlerThread("ControllerMessageHandler",
                 Process.THREAD_PRIORITY_BACKGROUND);
         inputThread.start();
         mInputHandler = new ControllerInputHandler(inputThread.getLooper(), mService,
-                mControlInterface, learningMode);
+                mMcuEvents, learningMode, cbs);
 
         HandlerThread writeThread = new HandlerThread("Write Handler Thread",
                 Process.THREAD_PRIORITY_BACKGROUND);
@@ -266,9 +331,8 @@ public class MicroControllerCom extends SerialCom {
             public void OnDeviceError() {
                 DLog.i(TAG, "Device Error, disconnecting");
                 mDeviceError = true;
-                Intent refreshConnection = new Intent(mService
-                        .getString(R.string.ACTION_REFRESH_CONTROLLER_CONNECTION));
-                LocalBroadcastManager.getInstance(mService).sendBroadcast(refreshConnection);
+                ServiceControlInterface serviceControl = AutoIntegrate.getServiceControlInterface();
+                serviceControl.refreshMcuConnection(false, null);
             }
         };
 
@@ -323,8 +387,11 @@ public class MicroControllerCom extends SerialCom {
                 } catch (InterruptedException e) {
                     Log.w(TAG, e.getMessage());
                 } finally {
-                    // TODO: compare and set waiting to true, if it timed out then this was an
-                    // error
+                    // Error, response from MCU Timed out
+                    if (mIsWaiting) {
+                        mIsWaiting = false;
+                        mConnected = false;
+                    }
                 }
             }
         } else {
@@ -336,14 +403,35 @@ public class MicroControllerCom extends SerialCom {
 
             // Tell the Arudino that it is time to start
             mControlInterface.sendMcuCommand(McuOutputCommand.START, null);
-            // TODO:  wait for a response
 
-            //Register write data receiver
-            IntentFilter sendDataFilter = new IntentFilter(mService.getString(R.string.ACTION_SEND_DATA));
-            mService.registerReceiver(writeReciever, sendDataFilter);
-            isWriteReceiverRegistered = true;
+            // wait until the MCU returns its ID from the attempt to start
+            synchronized (this) {
+                try {
+                    mIsWaiting = true;
+                    wait(10000);
+                } catch (InterruptedException e) {
+                    Log.w(TAG, e.getMessage());
+                } finally {
+                    // Error, response from MCU Timed out
+                    if (mIsWaiting) {
+                        mIsWaiting = false;
+                        mDeviceError = true;
+                    }
+                }
+            }
 
-            DLog.v(TAG, "Sucessfully connected to Micro Controller");
+            if (mDeviceError) {
+                // If the response timed out, disconnect from device
+                disconnect();
+
+            } else {
+                //Register write data receiver
+                IntentFilter sendDataFilter = new IntentFilter(mService.getString(R.string.ACTION_SEND_DATA));
+                mService.registerReceiver(writeReceiver, sendDataFilter);
+                isWriteReceiverRegistered = true;
+
+                DLog.v(TAG, "Sucessfully connected to Micro Controller");
+            }
 
 
         } else {
@@ -377,7 +465,7 @@ public class MicroControllerCom extends SerialCom {
         }
 
         if (isWriteReceiverRegistered) {
-            mService.unregisterReceiver(writeReciever);
+            mService.unregisterReceiver(writeReceiver);
             isWriteReceiverRegistered = false;
         }
     }

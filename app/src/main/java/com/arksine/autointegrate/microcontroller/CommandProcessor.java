@@ -12,6 +12,7 @@ import android.util.ArrayMap;
 import android.util.Log;
 import android.view.KeyEvent;
 
+import com.arksine.autointegrate.AutoIntegrate;
 import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.activities.BrightnessChangeActivity;
 import com.arksine.autointegrate.activities.CameraActivity;
@@ -82,6 +83,7 @@ public class CommandProcessor {
     private final static int MEDIA_KEY_DELAY = 2000;
 
     private Context mContext;
+    private MicroControllerCom.McuEvents mMcuEvents;
     private MCUControlInterface mMcuControlInterface;
     private List<ResistiveButton> mMappedButtons;
     private boolean mBroadcastCustomCommands = false;
@@ -96,9 +98,10 @@ public class CommandProcessor {
     private BrightnessControl mBrightnessControl;
     private ReverseExitListener mReverseExitListener = null;
 
-    CommandProcessor(Context context, MCUControlInterface controlInterface) {
+    CommandProcessor(Context context, MicroControllerCom.McuEvents mcuEvents) {
         mContext = context;
-        mMcuControlInterface = controlInterface;
+        mMcuEvents = mcuEvents;
+        mMcuControlInterface = AutoIntegrate.getmMcuControlInterface();
         mAudioManger = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
 
         mBroadcastCustomCommands = PreferenceManager.getDefaultSharedPreferences(mContext)
@@ -496,20 +499,22 @@ public class CommandProcessor {
         mActions.put("Dimmer", new ActionRunnable() {
             @Override
             public void run() {
-                if (data instanceof Boolean) {
-                    if ((boolean) data) {
-                        mBrightnessControl.DimmerOn();
-                    } else {
-                        mBrightnessControl.DimmerOff();
-                    }
-                } else if (data instanceof Integer) {
-                    mBrightnessControl.DimmerChange((int) data);
+                if ((boolean) data) {
+                    mBrightnessControl.DimmerOn();
                 } else {
-                    Log.i(TAG, "Dimmer data received is of the incorrect type");
+                    mBrightnessControl.DimmerOff();
                 }
-
             }
         });
+
+        mActions.put("Dimmer Level", new ActionRunnable() {
+            @Override
+            public void run() {
+                // TODO: Check to see if Analog mode is enabled?
+                mBrightnessControl.DimmerChange((int) data);
+            }
+        });
+
         mActions.put("Toggle Auto-Brightness", new ActionRunnable() {
             @Override
             public void run() {
@@ -724,10 +729,11 @@ public class CommandProcessor {
                     mMcuControlInterface.sendMcuCommand(McuOutputCommand.AUDIO_SOURCE_HD, null);
                 }
 
-                // TODO: execute connected callback with message.data (MCU ID string)
+                // invoke Mcu OnStarted Callback with Id
+                mMcuEvents.OnStarted((String)message.data);
                 break;
             case IDENT:
-                // TODO: do something with the ID (send back via callback?)
+                mMcuEvents.OnIdReceived((String)message.data);
                 break;
             case CLICK:
                 mIsHoldingBtn.set(false);
@@ -744,9 +750,19 @@ public class CommandProcessor {
                 action = mActions.get("Dimmer");
                 action.setData(message.data);
                 break;
+            case DIMMER_LEVEL:
+                action = mActions.get("Dimmer Level");
+                action.setData(message.data);
+                break;
             case REVERSE:
                 action = mActions.get("Reverse");
                 action.setData(message.data);
+                break;
+            case RADIO_STATUS:
+                mMcuEvents.OnRadioStatusReceived((boolean)message.data);
+                break;
+            case RADIO_DATA:
+                mMcuEvents.OnRadioDataReceived((byte[])message.data);
                 break;
             case CUSTOM:
                 if (mBroadcastCustomCommands) {
