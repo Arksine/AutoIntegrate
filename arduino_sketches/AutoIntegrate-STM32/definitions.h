@@ -1,10 +1,6 @@
 #ifndef DEFINITIONS_H
 #define DEFINITIONS_H
 
-// TODO: There should already be flags defined that I can use to easily
-// determine the architecture
-#define ARCH_32BIT
-
 #define SMOOTH 20
 #define REVERSE_DELAY 500
 #define BUTTON_HOLD_DELAY 800
@@ -27,8 +23,7 @@
 //
 
 // Set this to the serial port interfacing with the radio, or comment out if you
-// do
-// not want to use radio control
+// do not want to use radio control
 #define HDRadioSerial Serial3
 
 // Outgoing Command Definitions (sent to host)

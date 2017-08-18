@@ -15,7 +15,6 @@ public class MCUDefs {
 
     private MCUDefs(){}
 
-    // TODO: Need InputCommand to receive HD Radio Packet?
     public enum McuInputCommand {
         NONE((byte)0x00, DataType.NONE),
         STARTED(((byte)0x01), DataType.STRING),     // MCU Start notification (includes MCU ID)

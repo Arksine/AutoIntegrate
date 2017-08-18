@@ -4,10 +4,13 @@ import android.support.annotation.NonNull;
 import android.util.Log;
 
 import com.arksine.autointegrate.interfaces.MCUControlInterface;
+import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.hdradiolib.drivers.RadioDriver;
 
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
+// TODO: I need to be able to handle situations where the MCU disconnects.  mControlInterface
+// will no longer be valid in that situation.
 
 /**
  *  Driver to control a Directed HD Radio, connected through the MCU responsible for
@@ -15,6 +18,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 
 public class McuRadioDriver extends RadioDriver {
+    private static final String TAG = McuRadioDriver.class.getSimpleName();
 
     private MCUControlInterface mControlInterface;
     private boolean mIsOpen;
@@ -68,26 +72,33 @@ public class McuRadioDriver extends RadioDriver {
 
     @Override
     public void raiseRts() {
+        DLog.d(TAG, "Raise RTS");
         mControlInterface.sendMcuCommand(MCUDefs.McuOutputCommand.RADIO_SET_RTS, true);
     }
 
     @Override
     public void clearRts() {
+
+        DLog.d(TAG, "Clear RTS");
         mControlInterface.sendMcuCommand(MCUDefs.McuOutputCommand.RADIO_SET_RTS, false);
     }
 
     @Override
     public void raiseDtr() {
+        DLog.d(TAG, "Raise DTR");
         mControlInterface.sendMcuCommand(MCUDefs.McuOutputCommand.RADIO_SET_DTR, true);
     }
 
     @Override
     public void clearDtr() {
+        DLog.d(TAG, "Clear DTR");
         mControlInterface.sendMcuCommand(MCUDefs.McuOutputCommand.RADIO_SET_DTR, false);
     }
 
     @Override
     public void writeData(byte[] bytes) {
+
+        DLog.d(TAG, "Write Data to Radio");
         // write bytes to MCU using RADIO_SEND_PACKET command
         mControlInterface.sendMcuCommand(MCUDefs.McuOutputCommand.RADIO_SEND_PACKET, bytes);
     }

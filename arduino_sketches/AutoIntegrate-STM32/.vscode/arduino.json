@@ -1,4 +1,5 @@
 {
     "board": "Arduino_STM32:STM32F1:genericSTM32F103C",
-    "configuration": "device_variant=STM32F103C8,upload_method=DFUUploadMethod"
+    "configuration": "device_variant=STM32F103C8,upload_method=DFUUploadMethod",
+    "sketch": "AutoIntegrate-STM32.ino"
 }

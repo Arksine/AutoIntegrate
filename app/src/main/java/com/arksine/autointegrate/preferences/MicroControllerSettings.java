@@ -138,13 +138,14 @@ public class MicroControllerSettings extends PreferenceFragment {
         editButtons.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
             @Override
             public boolean onPreferenceClick(Preference preference) {
+                // Since the learning activity will reconnect the MicroController with new
+                // settings, so there is no need to reconnect again when the fragment is stopped
+                mSettingChanged = false;
+
                 Context mContext = getActivity();
                 Intent startIntent = new Intent(mContext, ButtonLearningActivity.class);
                 mContext.startActivity(startIntent);
 
-                // Since the learning activity will reconnect the MicroController with new
-                // settings, so there is no need to reconnect again unless settings are changed
-                mSettingChanged = false;
                 return true;
             }
         });
@@ -190,9 +191,9 @@ public class MicroControllerSettings extends PreferenceFragment {
     }
 
     @Override
-    public void onResume() {
-        super.onResume();
-
+    public void onStart() {
+        super.onStart();
+        mSettingChanged = false;
         IntentFilter filter = new IntentFilter(getActivity().getString(R.string.ACTION_DEVICE_CHANGED));
         LocalBroadcastManager.getInstance(getActivity()).registerReceiver(deviceListReciever, filter);
     }
@@ -204,14 +205,16 @@ public class MicroControllerSettings extends PreferenceFragment {
     }
 
     @Override
-    public void onPause() {
-        super.onPause();
-        DLog.v(TAG, "Paused");
+    public void onStop() {
+        super.onStop();
+        DLog.v(TAG, "Stopped");
 
         if (mSettingChanged) {
             // refresh the MCU Connection if settings have changed
             ServiceControlInterface serviceControl = AutoIntegrate.getServiceControlInterface();
-            serviceControl.refreshMcuConnection(false, null);
+            if (serviceControl != null) {
+                serviceControl.refreshMcuConnection(false, null);
+            }
         }
 
         LocalBroadcastManager.getInstance(getActivity()).unregisterReceiver(deviceListReciever);

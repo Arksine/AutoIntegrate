@@ -31,6 +31,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import eu.chainfire.libsuperuser.Shell;
 
+// TODO: Create a preference to show status toasts, then create an invisble activity that
+// shows them if enabled
+
 /**
  * Executes Android actions.  A class encapsulating a map is used rather than
  * as switch statement to allow the user to add custom commands
@@ -78,9 +81,11 @@ public class CommandProcessor {
     public enum AudioSource {HD_RADIO, AUX}
     private AudioSource mCurrentSource = AudioSource.HD_RADIO;
 
-    // TODO: might want to make this a preference
-    // Delay between repetitive media keys when holding
+    // TODO: might want to make these a preference
+    // Delay between repetitive media keys when holding (in ms)
     private final static int MEDIA_KEY_DELAY = 2000;
+    // Delay between volume adjustments when holding (in ms)
+    private final static int VOLUME_KEY_DELAY = 200;
 
     private Context mContext;
     private MicroControllerCom.McuEvents mMcuEvents;
@@ -294,7 +299,7 @@ public class CommandProcessor {
 
         switch (camSetting) {
             case "0":       // No App set
-
+                mCameraIntent = null;
                 break;
             case "1":       // Integrated Cam Activity
                 mCameraIntent = new Intent(mContext, CameraActivity.class);
@@ -391,7 +396,7 @@ public class CommandProcessor {
                     mAudioManger.adjustStreamVolume(AudioManager.STREAM_MUSIC,
                             AudioManager.ADJUST_RAISE, volumeUiFlag);
                     try {
-                        Thread.sleep(200);
+                        Thread.sleep(VOLUME_KEY_DELAY);
                     } catch (InterruptedException e) {
                         Log.w(TAG, e.getMessage());
                     }
@@ -407,7 +412,7 @@ public class CommandProcessor {
                     mAudioManger.adjustStreamVolume(AudioManager.STREAM_MUSIC,
                             AudioManager.ADJUST_LOWER, volumeUiFlag);
                     try {
-                        Thread.sleep(200);
+                        Thread.sleep(VOLUME_KEY_DELAY);
                     } catch (InterruptedException e) {
                         Log.w(TAG, e.getMessage());
                     }
@@ -486,10 +491,16 @@ public class CommandProcessor {
         mActions.put("Toggle Camera", new ActionRunnable() {
             @Override
             public void run() {
-                if (!mCameraIsOn && mCameraIntent != null) {
+                if (mCameraIntent == null) {
+                    // TODO: Show Invisible toast
+                    DLog.v(TAG, "Camera app not set");
+                    return;
+                }
+
+                if (!mCameraIsOn) {
                     mCameraIsOn = true;
                     mContext.startActivity(mCameraIntent);
-                } else if (mCameraIsOn && mReverseExitListener != null) {
+                } else if (mReverseExitListener != null) {
                     mCameraIsOn = false;
                     mReverseExitListener.OnReverseOff();
                 }
@@ -776,7 +787,7 @@ public class CommandProcessor {
                     DLog.v(TAG, "Broacasting custom command: " + message.command);
 
                     // First byte is the command
-                    Intent customIntent = new Intent(mContext.getString(R.string.ACTION_DATA_RECIEVED));
+                    Intent customIntent = new Intent(mContext.getString(R.string.ACTION_CUSTOM_DATA_RECIEVED));
                     customIntent.putExtra(mContext.getString(R.string.EXTRA_COMMAND), custom[0]);
 
                     // If there is extra data add that extra as well

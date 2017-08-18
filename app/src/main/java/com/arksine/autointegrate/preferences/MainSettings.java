@@ -81,7 +81,9 @@ public class MainSettings extends PreferenceFragment {
             public boolean onPreferenceChange(Preference preference, Object newValue) {
                 // Refresh the Micro Controller connection
                 ServiceControlInterface serviceControl = AutoIntegrate.getServiceControlInterface();
-                serviceControl.refreshMcuConnection(false, null);
+                if (serviceControl != null) {
+                    serviceControl.refreshMcuConnection(false, null);
+                }
                 return true;
             }
         });
@@ -91,7 +93,9 @@ public class MainSettings extends PreferenceFragment {
             public boolean onPreferenceChange(Preference preference, Object o) {
                 // Refresh the Radio connection
                 ServiceControlInterface serviceControl = AutoIntegrate.getServiceControlInterface();
-                serviceControl.refreshRadioConnection();
+                if (serviceControl != null) {
+                    serviceControl.refreshRadioConnection();
+                }
                 return true;
             }
         });

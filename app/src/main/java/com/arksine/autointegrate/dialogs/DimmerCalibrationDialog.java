@@ -49,6 +49,7 @@ public class DimmerCalibrationDialog {
 
     private class DimmerValues {
         int dimmerMode = DimmerMode.NONE;
+        boolean dimmerStatus = false;
         int highReading = -1;
         int highBrightness = -1;
         int lowReading = -1;
@@ -106,12 +107,12 @@ public class DimmerCalibrationDialog {
 
     private void updateDialogViews() {
         // Write values to textviews
-        if (mDimmerVals.dimmerMode == DimmerMode.DIGITAL) {
-            mTxtDimmerHighReading.setText(R.string.dimmer_dialog_label_on);
-        } else if (mDimmerVals.highReading != -1) {
-            mTxtDimmerHighReading.setText(String.valueOf(mDimmerVals.highReading));
-        } else {
+        if (mDimmerVals.highReading == -1) {
             mTxtDimmerHighReading.setText(mContext.getString(R.string.dimmer_dialog_text_not_set));
+        } else if (mDimmerVals.dimmerMode == DimmerMode.DIGITAL){
+            mTxtDimmerHighReading.setText(R.string.dimmer_dialog_label_on);
+        } else {
+            mTxtDimmerHighReading.setText(String.valueOf(mDimmerVals.highReading));
         }
 
         if (mDimmerVals.highBrightness != -1) {
@@ -293,9 +294,11 @@ public class DimmerCalibrationDialog {
             @Override
             public void onClick(View v) {
                 mCurrentPage = WizardPage.NONE;
+                mDimmerViewAnimator.setDisplayedChild(mCurrentPage);
                 getStoredPrefs();
                 mDimmerControlTypeSpinner.setSelection(mDimmerVals.dimmerMode);
                 updateDialogViews();
+
                 mDimmerDialog.dismiss();
             }
         });
@@ -388,15 +391,15 @@ public class DimmerCalibrationDialog {
     }
 
     private void setAnalogReadingTextView(String reading, int labelResource) {
-        TextView label = (TextView) mDimmerDialog.findViewById(labelResource);
+        TextView content = (TextView) mDimmerDialog.findViewById(labelResource);
         String txt = UtilityFunctions.addLeadingZeroes(reading, 5);
         txt = "[" + txt + "]";
-        label.setText(txt);
+        content.setText(txt);
     }
 
     private void setDigitalReadingTextView(String reading, int labelResource) {
-        TextView label = (TextView) mDimmerDialog.findViewById(labelResource);
-        label.setText(reading);
+        TextView content = (TextView) mDimmerDialog.findViewById(labelResource);
+        content.setText(reading);
     }
 
     public void showDialog() {
@@ -407,28 +410,34 @@ public class DimmerCalibrationDialog {
         return mDimmerDialog.isShowing();
     }
 
-    public void setReading(String reading) {
+    public void updateReading(int reading) {
 
         switch (mCurrentPage) {
             case WizardPage.PAGE_TWO_DIGITAL:
                 mDimmerVals.highReading = -1;
-                if (reading.equals("On") || reading.equals("Off")) {
-                    setDigitalReadingTextView(reading, R.id.txt_dimmer_reading_digital);
-                }
                 break;
             case WizardPage.PAGE_TWO_ANALOG:
-                if (!(reading.equals("On") || reading.equals("Off"))) {
-                    mDimmerVals.highReading = Integer.parseInt(reading);
-                    setAnalogReadingTextView(reading, R.id.txt_dimmer_reading_analog_high);
-                }
+                mDimmerVals.highReading = reading;
+                setAnalogReadingTextView(String.valueOf(reading),
+                        R.id.txt_dimmer_reading_analog_high);
+
                 break;
             case WizardPage.PAGE_THREE:
-                if (!(reading.equals("On") || reading.equals("Off"))) {
-                    mDimmerVals.lowReading = Integer.parseInt(reading);
-                    setAnalogReadingTextView(reading, R.id.txt_dimmer_reading_analog_low);
-                }
+                mDimmerVals.lowReading = reading;
+                setAnalogReadingTextView(String.valueOf(reading),
+                        R.id.txt_dimmer_reading_analog_low);
+
                 break;
             default:
+        }
+    }
+
+    public void updateStatus(boolean status) {
+        if (mCurrentPage == WizardPage.PAGE_TWO_DIGITAL) {
+            mDimmerVals.dimmerStatus = status;
+            mDimmerVals.highReading = -1;
+            String msg = status ? "On" : "Off";
+            setDigitalReadingTextView(msg, R.id.txt_dimmer_reading_digital);
         }
     }
 

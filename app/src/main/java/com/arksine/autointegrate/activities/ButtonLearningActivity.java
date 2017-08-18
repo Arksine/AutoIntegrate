@@ -41,40 +41,62 @@ public class ButtonLearningActivity extends AppCompatActivity {
 
     private final McuLearnCallbacks mcuEvents = new McuLearnCallbacks() {
         @Override
-        public void onButtonClicked(int btnId) {
-            String data = String.valueOf(btnId);
-            if (mButtonMapDialog.isDialogShowing()) {
-                // Format the data and set the controller reading in the dialog
-                data = UtilityFunctions.addLeadingZeroes(data, 5);
-                data = "[" + data + "]";
-                mButtonMapDialog.setControllerReading(data);
-            } else {
-                Snackbar.make(findViewById(android.R.id.content),
-                        "Click: " + data, Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
-            }
+        public void onButtonClicked(final int btnId) {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    String reading = String.valueOf(btnId);
+                    if (mButtonMapDialog.isDialogShowing()) {
+                        // Format the data and set the controller reading in the dialog
+                        reading = UtilityFunctions.addLeadingZeroes(reading, 5);
+                        reading = "[" + reading + "]";
+                        mButtonMapDialog.setControllerReading(reading);
+
+                    } else {
+                        Snackbar.make(findViewById(android.R.id.content),
+                                "Click: " + reading, Snackbar.LENGTH_LONG)
+                                .setAction("Action", null).show();
+                    }
+                }
+            });
+
         }
 
         @Override
-        public void onDimmerToggled(boolean dimmerStatus) {
-            String data = dimmerStatus ? "On" : "Off";
+        public void onDimmerToggled(final boolean dimmerStatus) {
 
-            Snackbar.make(findViewById(android.R.id.content),
-                    "Dimmer: " + data, Snackbar.LENGTH_LONG)
-                    .setAction("Action", null).show();
 
-            if (mDimmerCalDialog.isDialogShowing()) {
-                // Todo: instead of set reading, create a function to toggle on/off
-                mDimmerCalDialog.setReading(data);
-            }
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    if (mDimmerCalDialog.isDialogShowing()) {
+                        mDimmerCalDialog.updateStatus(dimmerStatus);
+                    } else {
+                        String msg = dimmerStatus ? "On" : "Off";
+                        Snackbar.make(findViewById(android.R.id.content),
+                                "Dimmer Status: " + msg, Snackbar.LENGTH_LONG)
+                                .setAction("Action", null).show();
+                    }
+                }
+            });
+
         }
 
         @Override
-        public void onDimmerLevelChanged(int dimmerLevel) {
-            String data = String.valueOf(dimmerLevel);
-            if (mDimmerCalDialog.isDialogShowing()) {
-                mDimmerCalDialog.setReading(data);
-            }
+        public void onDimmerLevelChanged(final int dimmerLevel) {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    if (mDimmerCalDialog.isDialogShowing()) {
+                        mDimmerCalDialog.updateReading(dimmerLevel);
+                    } else {
+                        String data = "Dimmer Level: " +  String.valueOf(dimmerLevel);
+                        Snackbar.make(findViewById(android.R.id.content),
+                                data, Snackbar.LENGTH_LONG)
+                                .setAction("Action", null).show();
+                    }
+                }
+            });
         }
     };
 
@@ -138,15 +160,8 @@ public class ButtonLearningActivity extends AppCompatActivity {
         ItemTouchHelper helper = new ItemTouchHelper(callback);
         helper.attachToRecyclerView(mButtonsRecyclerView);
 
-    }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
 
-        // Refresh the arduino connection in Learning mode
-        ServiceControlInterface serviceControl = AutoIntegrate.getServiceControlInterface();
-        serviceControl.refreshMcuConnection(true, mcuEvents);
     }
 
     @Override
@@ -156,13 +171,23 @@ public class ButtonLearningActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onPause() {
-        super.onPause();
-        DLog.v(TAG, "Paused");
-        startServiceExecutionMode();
+    protected void onStart() {
+        super.onStart();
+        // Refresh the arduino connection in Learning mode
+        ServiceControlInterface serviceControl = AutoIntegrate.getServiceControlInterface();
+        if (serviceControl != null) {
+            serviceControl.refreshMcuConnection(true, mcuEvents);
+        }
     }
 
-    private void startServiceExecutionMode() {
+    @Override
+    protected void onStop() {
+        super.onStop();
+        DLog.v(TAG, "Stopped");
+        startExecutionMode();
+    }
+
+    private void startExecutionMode() {
         // Save the current list of buttons to shared preferences
         SharedPreferences gsonFile = getSharedPreferences(getString(R.string.gson_button_list_file),
                 Context.MODE_PRIVATE);
@@ -175,7 +200,9 @@ public class ButtonLearningActivity extends AppCompatActivity {
         // send broadcast to toggle learning mode off
         // Refresh the arduino connection in Learning mode
         ServiceControlInterface serviceControl = AutoIntegrate.getServiceControlInterface();
-        serviceControl.refreshMcuConnection(false, null);
+        if (serviceControl != null) {
+            serviceControl.refreshMcuConnection(false, null);
+        }
 
     }
 

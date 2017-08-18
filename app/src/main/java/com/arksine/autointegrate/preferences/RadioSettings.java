@@ -27,7 +27,7 @@ public class RadioSettings extends PreferenceFragment {
 
         PreferenceScreen root = this.getPreferenceScreen();
         PreferenceScreen launchRadio = (PreferenceScreen) root.findPreference("radio_pref_key_launch_activity");
-        ListPreference driverPref = (ListPreference) root.findPreference("radio_pref_key_radio_pref_key_select_driver");
+        ListPreference driverPref = (ListPreference) root.findPreference("radio_pref_key_select_driver");
 
         launchRadio.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
             @Override

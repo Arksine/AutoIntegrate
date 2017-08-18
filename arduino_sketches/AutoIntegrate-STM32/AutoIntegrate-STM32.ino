@@ -21,9 +21,9 @@ ButtonCB button(BUTTON_DIGITAL_PIN, Button::PULL_UP, BUTTON_DEBOUNCE_DELAY);
 
 AudioInput audio_input_selection = HD_RADIO;
 
-unsigned short btn_analog_value      = 0;
-unsigned short analog_dimmer_reading = 0;
-unsigned long  reverse_start_time    = 0;
+uint16_t btn_analog_value      = 0;
+uint16_t analog_dimmer_reading = 0;
+uint32_t reverse_start_time    = 0;
 
 bool isStarted           = false;
 bool isHolding           = false;
@@ -37,13 +37,13 @@ bool radioRtsOn          = false;
 uint8_t inBuffer[256]; // Maximum buffer size of 40 is probably way too large
 uint8_t bufIndex      = 0;
 uint8_t packetLength  = 0;
-int     checksum      = 0;
+uint16_t checksum      = 0;
 bool    isLengthByte  = false;
 bool    isValidPacket = false;
 bool    isEscaped     = false;
 
 void onResistivePress(const Button& b) {
-  for (int i = 0; i < SMOOTH; i++) {
+  for (uint8_t i = 0; i < SMOOTH; i++) {
     ave.push(analogRead(BUTTON_ANALOG_PIN));
   }
   btn_analog_value = ave.mean();
@@ -204,7 +204,7 @@ void executeCommand() {
     break;
 
   case MCU_RADIO_REQUEST_STATUS:
-    sendPacketToPc(CMD_RADIO_STATUS, (byte *)&radioConnected, sizeof(radioConnected))
+    sendPacketToPc(CMD_RADIO_STATUS, (byte *)&radioConnected, sizeof(radioConnected));
     break;
 
   case MCU_RADIO_SEND_PACKET:
@@ -230,11 +230,11 @@ void executeCommand() {
     break;
 
   default: {
-    // Unknown command, send it back to the device log
-    // TODO: convert the hex buffer to string and send via log
-    const char str[] = "Unknown Command Received";
-    sendPacketToPc(CMD_LOG, (byte *)str, strlen(str));
-  }
+      // Unknown command, send it back to the device log
+      // TODO: convert the hex buffer to string and send via log
+      const char str[] = "Unknown Command Received";
+      sendPacketToPc(CMD_LOG, (byte *)str, strlen(str));
+    }
   }
 }
 
@@ -334,7 +334,7 @@ void setSourceAux() {
 
 #if defined(HDRadioSerial)
 void processRadioIncoming() {
-  int index = 0;
+  uint16_t index = 0;
   uint8_t radioBuf[256];
   
   while (HDRadioSerial.available() > 0) {
@@ -344,7 +344,6 @@ void processRadioIncoming() {
   }
 
   if (index > 0) {
-    // TODO: Instead of calling sendPacketToPc, send it directly without a data type
     sendPacketToPc(CMD_RADIO_DATA, radioBuf, index);
   }
 
@@ -352,7 +351,7 @@ void processRadioIncoming() {
 
 void sendRadioPacket() {
   uint8_t *radioBuf = inBuffer + 1;     // Radio packet starts after the command
-  int radioLength   = packetLength - 1; // buffer length minus command
+  uint16_t radioLength   = packetLength - 1; // buffer length minus command
 
   HDRadioSerial.write(radioBuf, radioLength);
 }
@@ -419,7 +418,7 @@ void processDimmer() {
     } else {
       // Analog read here, but only if analog is enabled
       if (analogDimmerEnabled) {
-        unsigned int reading = analogRead(DIMMER_ANALOG_PIN);
+        uint16_t reading = analogRead(DIMMER_ANALOG_PIN);
 
         if ((reading > analog_dimmer_reading + ANALOG_DIMMER_VARIANCE) ||
             (reading < analog_dimmer_reading - ANALOG_DIMMER_VARIANCE)) {

@@ -29,6 +29,7 @@ import com.arksine.autointegrate.microcontroller.MCUDefs.*;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Class MicroControllerCom
@@ -40,7 +41,7 @@ public class MicroControllerCom extends SerialCom {
     private static final String TAG = MicroControllerCom.class.getSimpleName();
 
     private String mMcuId = "NOT SET";
-    private McuRadioDriver mMcuRadioDriver = null;  // TODO: make this an atomic reverence
+    private AtomicReference<McuRadioDriver> mMcuRadioDriver = new AtomicReference<>(null);
     private volatile boolean mRadioStatus = false;
 
     interface McuEvents {
@@ -70,8 +71,8 @@ public class MicroControllerCom extends SerialCom {
 
         @Override
         public void OnRadioDataReceived(byte[] radioData) {
-            if (mMcuRadioDriver != null) {
-                mMcuRadioDriver.readBytes(radioData);
+            if (mMcuRadioDriver.get() != null) {
+                mMcuRadioDriver.get().readBytes(radioData);
             }
         }
     };
@@ -226,18 +227,18 @@ public class MicroControllerCom extends SerialCom {
                         // Error, response from MCU Timed out
                         if (mControlWait.compareAndSet(true, false)) {
                             mRadioStatus = false;
-                            mMcuRadioDriver = null;
+                            mMcuRadioDriver.set(null);
                         }
                     }
 
                     if (mRadioStatus) {
-                        mMcuRadioDriver = radioDriver;
+                        mMcuRadioDriver.set(radioDriver);
                     }
                 }
             } else {
                 // Radio Driver is disabled
                 mRadioStatus = false;
-                mMcuRadioDriver = null;
+                mMcuRadioDriver.set(null);
             }
             return mRadioStatus;
         }
@@ -258,35 +259,15 @@ public class MicroControllerCom extends SerialCom {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
-            if (mService.getString(R.string.ACTION_SEND_DATA).equals(action)) {
-                // TODO: should the write receiver allow app commands, and only accept custom
-                // commands?  App commands should only be sent by apps bound with the service
-                // or via localbroadcasts anyway
-
-                // stops all queued services
+            // TODO: need actions for toggling the audio source between HD_Radio and Aux
+            if (mService.getString(R.string.ACTION_CUSTOM_MCU_COMMAND).equals(action)) {
+                // Custom command received to be sent to the microcontroller
                 byte command = intent.getByteExtra(mService.getString(R.string.EXTRA_COMMAND), (byte)0x00);
-                McuOutputCommand cmd = McuOutputCommand.getCommand(command);
 
                 Message msg = mInputHandler.obtainMessage();
-                switch (cmd) {
-                    case NONE:
-                        // The command was not found, in the enumeration, so it will be sent as custom
-                        msg.what = McuOutputCommand.CUSTOM.ordinal();
-                        msg.arg1 = command;
-                        msg.obj = intent.getByteArrayExtra(mService.getString(R.string.EXTRA_DATA));
-                        break;
-                    case RADIO_SEND_PACKET:
-                        msg.what = cmd.ordinal();
-                        msg.obj = intent.getByteArrayExtra(mService.getString(R.string.EXTRA_DATA));
-                        break;
-                    case RADIO_SET_DTR:
-                    case RADIO_SET_RTS:
-                        msg.what = cmd.ordinal();
-                        msg.obj = intent.getBooleanArrayExtra(mService.getString(R.string.EXTRA_DATA));
-                        break;
-                    default:
-                        msg.what = cmd.ordinal();
-                }
+                msg.what = McuOutputCommand.CUSTOM.ordinal();
+                msg.arg1 = command;
+                msg.obj = intent.getByteArrayExtra(mService.getString(R.string.EXTRA_DATA));
 
                 mWriteHandler.sendMessage(msg);
 
@@ -298,6 +279,7 @@ public class MicroControllerCom extends SerialCom {
 
     public MicroControllerCom(MainService svc, boolean learningMode, McuLearnCallbacks cbs) {
         super(svc);
+
         AutoIntegrate.setMcuControlInterface(this.mControlInterface);
 
         HandlerThread inputThread = new HandlerThread("ControllerMessageHandler",
@@ -332,7 +314,9 @@ public class MicroControllerCom extends SerialCom {
                 DLog.i(TAG, "Device Error, disconnecting");
                 mDeviceError = true;
                 ServiceControlInterface serviceControl = AutoIntegrate.getServiceControlInterface();
-                serviceControl.refreshMcuConnection(false, null);
+                if (serviceControl != null) {
+                    serviceControl.refreshMcuConnection(false, null);
+                }
             }
         };
 
@@ -425,8 +409,10 @@ public class MicroControllerCom extends SerialCom {
                 disconnect();
 
             } else {
+
+
                 //Register write data receiver
-                IntentFilter sendDataFilter = new IntentFilter(mService.getString(R.string.ACTION_SEND_DATA));
+                IntentFilter sendDataFilter = new IntentFilter(mService.getString(R.string.ACTION_CUSTOM_MCU_COMMAND));
                 mService.registerReceiver(writeReceiver, sendDataFilter);
                 isWriteReceiverRegistered = true;
 

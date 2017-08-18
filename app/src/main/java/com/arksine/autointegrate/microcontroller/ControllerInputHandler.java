@@ -23,6 +23,7 @@ public class ControllerInputHandler extends Handler {
 
     private Context mContext = null;
     private CommandProcessor mCommandProcessor;
+    private MicroControllerCom.McuEvents mMcuEvents = null;
     private McuLearnCallbacks mMcuLearnCallbacks = null;
 
     private interface InputMode {
@@ -33,6 +34,11 @@ public class ControllerInputHandler extends Handler {
         public void ProcessInput(ControllerMessage ctrlMsg) {
             if (mMcuLearnCallbacks != null) {
                 switch (ctrlMsg.command) {
+                    case STARTED:
+                        // invoke Mcu OnStarted Callback with Id
+                        Log.i(TAG, "Successfully started in Learning mode");
+                        mMcuEvents.OnStarted((String)ctrlMsg.data);
+                        break;
                     case CLICK:
                         mMcuLearnCallbacks.onButtonClicked((int)ctrlMsg.data);
                         break;
@@ -73,6 +79,7 @@ public class ControllerInputHandler extends Handler {
                            boolean isLearningMode, McuLearnCallbacks cbs) {
         super(looper);
         mContext = context;
+        mMcuEvents = mcuEvents;
         mReceivedBuffer.order(ByteOrder.LITTLE_ENDIAN);
         mCommandProcessor = new CommandProcessor(mContext, mcuEvents);
         this.mMcuLearnCallbacks = cbs;
@@ -140,8 +147,8 @@ public class ControllerInputHandler extends Handler {
 
         DLog.i(TAG, "MCU Packet Length: " + mReceivedBuffer.limit());
 
-        if(mReceivedBuffer.limit() < 3) {
-            Log.e(TAG, "Invalid data packet, must at least be three bytes long");
+        if(mReceivedBuffer.limit() < 2) {
+            Log.e(TAG, "Invalid data packet, must at least be 2 bytes long");
             return false;
         }
 
@@ -152,6 +159,11 @@ public class ControllerInputHandler extends Handler {
         if (ctrlMsg.command == McuInputCommand.NONE) {
             Log.e(TAG, "Invalid Command Received");
             return false;
+        } else if (ctrlMsg.command == McuInputCommand.RADIO_DATA) {
+            byte[] radioBytes = new byte[mReceivedBuffer.remaining()];
+            mReceivedBuffer.get(radioBytes);
+            mMcuEvents.OnRadioDataReceived(radioBytes);
+            return true;
         }
 
         if (!mReceivedBuffer.hasRemaining()) {
@@ -200,13 +212,14 @@ public class ControllerInputHandler extends Handler {
                 byte[] arrayBytes = new byte[mReceivedBuffer.remaining()];
                 mReceivedBuffer.get(arrayBytes);
                 ctrlMsg.data = arrayBytes;
+                break;
             default:
-                Log.e(TAG, "Invalid Data Type Received");
+                Log.e(TAG, "Invalid Data Type Received: " + ctrlMsg.command.getDataType().toString());
                 return false;
         }
 
         if (mReceivedBuffer.hasRemaining()) {
-            Log.w(TAG, "There is data remaining in the buffer, despite structured parsing");
+            Log.w(TAG, "There is data remaining in the buffer after structured parsing");
 
         }
 

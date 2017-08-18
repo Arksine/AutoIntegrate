@@ -51,8 +51,42 @@ public class RadioCom {
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
             if (mService.getString(R.string.ACTION_SEND_RADIO_COMMAND).equals(action)) {
-                // TODO: Accept a limited number of commands(seek, tune up/down, maybe volume up down
-                // power on off.   OR listen for  media button pushes
+                // Accept a limited numbers of radio commands via broadcast
+
+                if (mRadioController != null) {
+                    String radioCmd = intent.getStringExtra(mService.getString(R.string.EXTRA_COMMAND));
+                    radioCmd = radioCmd.toUpperCase();
+                    switch (radioCmd) {
+                        case "TUNE UP":
+                            mRadioController.tuneUp();
+                            break;
+                        case "TUNE DOWN":
+                            mRadioController.tuneDown();
+                            break;
+                        case "SEEK UP":
+                            mRadioController.seekUp();
+                            break;
+                        case "SEEK DOWN":
+                            mRadioController.seekDown();
+                            break;
+                        case "VOLUME UP":
+                            mRadioController.setVolumeUp();
+                            break;
+                        case "VOLUME DOWN":
+                            mRadioController.setVolumeDown();
+                            break;
+                        case "MUTE":
+                            boolean mute = mRadioController.getMute();
+                            if (mute) {
+                                mRadioController.muteOff();
+                            } else {
+                                mRadioController.muteOn();
+                            }
+                            break;
+                        default:
+                            Log.i(TAG, "Unknown radio command: " + radioCmd);
+                    }
+                }
             }
         }
     }
@@ -68,20 +102,23 @@ public class RadioCom {
                 DLog.v(TAG, "onOpened Callback triggered");
                 RadioCom.this.mConnected.set(b);
 
+                // Radio successfully connected
                 if (RadioCom.this.mConnected.get()) {
                     mRadioController = radioController;
+
+                    // Register Receiver if not already registered
+                    if (!isRadioCommandReceiverRegistered) {
+                        IntentFilter sendDataFilter = new IntentFilter(mService
+                                .getString(R.string.ACTION_SEND_RADIO_COMMAND));
+                        mService.registerReceiver(radioCommandReceiver, sendDataFilter);
+                        isRadioCommandReceiverRegistered = true;
+                    }
 
                 } else {
                     Log.e(TAG, "Error connecting to device");
                 }
 
-                // Register Receiver if not already registered
-                if (!isRadioCommandReceiverRegistered) {
-                    IntentFilter sendDataFilter = new IntentFilter(mService
-                            .getString(R.string.ACTION_SEND_RADIO_COMMAND));
-                    mService.registerReceiver(radioCommandReceiver, sendDataFilter);
-                    isRadioCommandReceiverRegistered = true;
-                }
+
 
                 RadioCom.this.resumeThread();
             }
@@ -121,7 +158,9 @@ public class RadioCom {
 
                 // Close and attempt to reopen connection
                 ServiceControlInterface serviceControl = AutoIntegrate.getServiceControlInterface();
-                serviceControl.refreshRadioConnection();
+                if (serviceControl != null) {
+                    serviceControl.refreshRadioConnection();
+                }
             }
 
             @Override

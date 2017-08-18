@@ -91,6 +91,9 @@ public class RadioActivity extends AppCompatActivity {
 
             mRadioController = null;
 
+            // TODO: I should pop up a dialog allowing the activity to restart / reattempt
+            // to connect to radio controller.
+
         }
 
         @Override

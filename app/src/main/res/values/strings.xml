@@ -17,8 +17,8 @@
     <string name="ACTION_CONTROLLER_LEARN_DATA">com.arksine.autointegrate.ACTION_CONTROLLER_LEARN_DATA</string>
     <string name="ACTION_BT_ADAPTER_ON">com.arksine.autointegrate.ACTION_BT_ADAPTER_ON</string>
 
-    <string name="ACTION_SEND_DATA">com.arksine.autointegrate.ACTION_SEND_DATA</string>
-    <string name="ACTION_DATA_RECIEVED">com.arksine.autointegrate.ACTION_DATA_RECIEVED"</string>
+    <string name="ACTION_CUSTOM_MCU_COMMAND">com.arksine.autointegrate.ACTION_CUSTOM_MCU_COMMAND</string>
+    <string name="ACTION_CUSTOM_DATA_RECIEVED">com.arksine.autointegrate.ACTION_CUSTOM_DATA_RECIEVED"</string>
     <string name="EXTRA_COMMAND">com.arksine.autointegrate.EXTRA_COMMAND</string>
     <string name="EXTRA_DATA">com.arksine.autointegrate.EXTRA_DATA</string>
     <string name="EXTRA_OPERATION">com.arksine.autointegrate.EXTRA_OPERATION</string>
@@ -116,6 +116,8 @@
         <item>38400</item>
         <item>57600</item>
         <item>115200</item>
+        <item>230400</item>
+        <item>460800</item>
     </string-array>
 
     <string name="controller_pref_edit_buttons">Launch Calibration Activity</string>
@@ -282,9 +284,11 @@
     <string name="dimmer_dialog_text_not_set">Not Set</string>
     <string name="dimmer_dialog_button_start_cal">Start Calibration Wizard</string>
     <string name="dimmer_dialog_button_ok">OK</string>
+    <string name="dimmer_dialog_button_next">NEXT</string>
     <string name="dimmer_dialog_button_finish">Finish</string>
+    <string name="dimmer_dialog_wait">Waiting for reading…</string>
     <string name="dimmer_dialog_calibrate_page_one">
-        Make sure your headlights are off, then click OK to continue.
+        Turn your dimmer (headlights) OFF, then click NEXT to continue.
     </string>
     <string name="dimmer_dialog_calibrate_page_two_digital">
         Turn your headlights on.  Adjust the brightness slider
@@ -292,7 +296,7 @@
     </string>
     <string name="dimmer_dialog_calibrate_page_two_analog">
         Turn your headlights on, with dimmer on its Maximum setting. Adjust the brightness slider
-        to your maximum night time preference.  Click OK to continue.
+        to your maximum night time preference.  Click NEXT to continue.
     </string>
     <string name="dimmer_dialog_calibrate_page_three_analog">
         With your headlights still on, adjust the dimmer to its Minimum setting. Adjust the brightness slider

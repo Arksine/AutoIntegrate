@@ -1,0 +1,6 @@
+{
+    "board": "Arduino_STM32:STM32F1:mapleMini",
+    "port": "COM3",
+    "sketch": "autointegratetest.ino",
+    "configuration": "bootloader_version=bootloader20,cpu_speed=speed_72mhz"
+}

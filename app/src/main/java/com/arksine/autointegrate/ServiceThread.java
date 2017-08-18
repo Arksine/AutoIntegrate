@@ -118,6 +118,7 @@ public class ServiceThread implements Runnable {
         }
 
         while (mServiceThreadRunning.get()) {
+
             // Check to see if MicroController Integration is enabled
             if (sharedPrefs.getBoolean("main_pref_key_toggle_controller", false)) {
 
@@ -129,6 +130,8 @@ public class ServiceThread implements Runnable {
                         DLog.v(TAG, "Micro Controller connection established");
                     } else {
                         DLog.v(TAG, "Error connecting to Micro Controller: Connection Attempt " + connectionAttempts);
+                        AutoIntegrate.setMcuControlInterface(null);
+                        mMicroController.set(null);
                     }
                 }
             } else {
@@ -136,19 +139,20 @@ public class ServiceThread implements Runnable {
             }
 
 
-            // Check for HD Radio Integration
+            // Check for HD Radio Integration, we do this second because it is possible that
+            // the driver relies on the MCU
             if (sharedPrefs.getBoolean("main_pref_key_toggle_radio", false)) {
 
-                // Since the connection status determines if the radio is powered on or not,
-                // its possible for it to be disconnected.  We will only create a new mHdRadio object
-                // if its null or if the hdRadio wasn't able to successfully setup
-                if (mHdRadio.get() == null) {
+                // If the HD Radio Object is either not set or not connected to its driver,
+                // attempt connection
+                if (mHdRadio.get() == null || !mHdRadio.get().isConnected()) {
 
                     mHdRadio.set(new RadioCom(mService));
                     if (mHdRadio.get().connect()) {
                         DLog.v(TAG, "HD Radio Connection Set Up");
                     } else {
                         DLog.v(TAG, "Error Setting up HD Radio: Attempt " + connectionAttempts);
+                        mHdRadio.set(null);
                     }
                 }
             } else {
@@ -192,9 +196,11 @@ public class ServiceThread implements Runnable {
 
         }
 
-        // Clean up all spawned threads.
-        stopMicroControllerConnection.run();
+        // Clean up all spawned threads.  Stop the HD Radio first in the event that it uses
+        // the MCU for comms.
         stopHdRadioConnection.run();
+        stopMicroControllerConnection.run();
+
 
 
         mServiceThreadRunning.set(false);
@@ -326,6 +332,7 @@ public class ServiceThread implements Runnable {
                 }
 
                 mMainThreadFuture = null;
+                AutoIntegrate.setServiceControlInterface(null);
 
                 DLog.v(TAG, "Main Thead Stopped");
             }
@@ -339,10 +346,10 @@ public class ServiceThread implements Runnable {
             if (mMicroController.get() != null ) {
                 mMicroController.get().disconnect();
                 mMicroController.set(null);
+                AutoIntegrate.setMcuControlInterface(null);
             }
             // make sure the service thread isn't waiting
             notifyServiceThread();
-
             DLog.v(TAG, "Micro Controller Disconnected");
         }
     };
