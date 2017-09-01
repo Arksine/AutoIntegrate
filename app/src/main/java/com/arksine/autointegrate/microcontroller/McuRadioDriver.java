@@ -3,14 +3,13 @@ package com.arksine.autointegrate.microcontroller;
 import android.support.annotation.NonNull;
 import android.util.Log;
 
+import com.arksine.autointegrate.AutoIntegrate;
 import com.arksine.autointegrate.interfaces.MCUControlInterface;
 import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.hdradiolib.drivers.RadioDriver;
 
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
-// TODO: I need to be able to handle situations where the MCU disconnects.  mControlInterface
-// will no longer be valid in that situation.
 
 /**
  *  Driver to control a Directed HD Radio, connected through the MCU responsible for
@@ -28,6 +27,15 @@ public class McuRadioDriver extends RadioDriver {
         this.mIsOpen = false;
     }
 
+    public McuRadioDriver() {
+        this.mControlInterface = AutoIntegrate.getmMcuControlInterface();
+        this.mIsOpen = false;
+    }
+
+    public void updateMcuInterface() {
+        this.mControlInterface = AutoIntegrate.getmMcuControlInterface();
+    }
+
     @Override
     public <T> ArrayList<T> getDeviceList(Class<T> aClass) {
         // TODO: may not implement
@@ -36,7 +44,11 @@ public class McuRadioDriver extends RadioDriver {
 
     @Override
     public String getIdentifier() {
-        return mControlInterface.getDeviceId();
+        if (mControlInterface != null) {
+            return mControlInterface.getDeviceId();
+        } else {
+            return "No Control Interface";
+        }
     }
 
     @Override
@@ -46,7 +58,7 @@ public class McuRadioDriver extends RadioDriver {
 
     @Override
     public void open() {
-        if (!this.mIsOpen) {
+        if (!this.mIsOpen && this.mControlInterface != null) {
             // Request HD Radio Connected status from MCU
             this.mIsOpen = this.mControlInterface.setRadioDriver(this);
         }
@@ -65,7 +77,9 @@ public class McuRadioDriver extends RadioDriver {
 
     @Override
     public void close() {
-        this.mControlInterface.setRadioDriver(null);
+        if (this.mControlInterface != null) {
+            this.mControlInterface.setRadioDriver(null);
+        }
         this.mIsOpen = false;
         mDriverEvents.onClosed();
     }
@@ -73,34 +87,44 @@ public class McuRadioDriver extends RadioDriver {
     @Override
     public void raiseRts() {
         DLog.d(TAG, "Raise RTS");
-        mControlInterface.sendMcuCommand(MCUDefs.McuOutputCommand.RADIO_SET_RTS, true);
+        if (mControlInterface != null) {
+            mControlInterface.sendMcuCommand(MCUDefs.McuOutputCommand.RADIO_SET_RTS, true);
+        }
     }
 
     @Override
     public void clearRts() {
 
         DLog.d(TAG, "Clear RTS");
-        mControlInterface.sendMcuCommand(MCUDefs.McuOutputCommand.RADIO_SET_RTS, false);
+        if (mControlInterface != null) {
+            mControlInterface.sendMcuCommand(MCUDefs.McuOutputCommand.RADIO_SET_RTS, false);
+        }
     }
 
     @Override
     public void raiseDtr() {
         DLog.d(TAG, "Raise DTR");
-        mControlInterface.sendMcuCommand(MCUDefs.McuOutputCommand.RADIO_SET_DTR, true);
+        if (mControlInterface != null) {
+            mControlInterface.sendMcuCommand(MCUDefs.McuOutputCommand.RADIO_SET_DTR, true);
+        }
     }
 
     @Override
     public void clearDtr() {
         DLog.d(TAG, "Clear DTR");
-        mControlInterface.sendMcuCommand(MCUDefs.McuOutputCommand.RADIO_SET_DTR, false);
+        if (mControlInterface != null) {
+            mControlInterface.sendMcuCommand(MCUDefs.McuOutputCommand.RADIO_SET_DTR, false);
+        }
     }
 
     @Override
     public void writeData(byte[] bytes) {
 
         DLog.d(TAG, "Write Data to Radio");
-        // write bytes to MCU using RADIO_SEND_PACKET command
-        mControlInterface.sendMcuCommand(MCUDefs.McuOutputCommand.RADIO_SEND_PACKET, bytes);
+        if (mControlInterface != null) {
+            // write bytes to MCU using RADIO_SEND_PACKET command
+            mControlInterface.sendMcuCommand(MCUDefs.McuOutputCommand.RADIO_SEND_PACKET, bytes);
+        }
     }
 
     public void readBytes(byte[] bytes) {

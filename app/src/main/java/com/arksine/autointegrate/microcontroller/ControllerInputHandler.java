@@ -74,7 +74,6 @@ public class ControllerInputHandler extends Handler {
     private int mPacketLength = 0;
     private int mChecksum = 0;
 
-    // TODO: rename "learning mode" to direct access mode if using a remote callback
     ControllerInputHandler(Looper looper, Context context, MicroControllerCom.McuEvents mcuEvents,
                            boolean isLearningMode, McuLearnCallbacks cbs) {
         super(looper);
@@ -83,7 +82,7 @@ public class ControllerInputHandler extends Handler {
         mReceivedBuffer.order(ByteOrder.LITTLE_ENDIAN);
         mCommandProcessor = new CommandProcessor(mContext, mcuEvents);
         this.mMcuLearnCallbacks = cbs;
-        this.setMode(isLearningMode);
+        this.setMode(isLearningMode, cbs);
     }
 
     @Override
@@ -236,14 +235,27 @@ public class ControllerInputHandler extends Handler {
         return true;
     }
 
-    void setMode(boolean isLearningMode) {
+    void setMode(boolean isLearningMode, McuLearnCallbacks cbs) {
         if (isLearningMode) {
             DLog.v(TAG, "Controller is in Learning Mode.");
             mInputMode = mLearningMode;
+            mMcuLearnCallbacks = cbs;
         } else {
             DLog.v(TAG, "Controller is in Execution Mode.");
             mInputMode = mExecutionMode;
         }
+    }
+
+    public void updateButtonMap() {
+        mCommandProcessor.updateButtons();
+    }
+
+    public void updateDimmerMap() {
+        mCommandProcessor.updateDimmer();
+    }
+
+    public void updateReverseCameraMap() {
+        mCommandProcessor.updateReverseCommand();
     }
 
 

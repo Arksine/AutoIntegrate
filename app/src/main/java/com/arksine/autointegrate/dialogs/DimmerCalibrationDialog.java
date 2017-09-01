@@ -21,8 +21,11 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.ViewAnimator;
 
+import com.arksine.autointegrate.AutoIntegrate;
 import com.arksine.autointegrate.R;
+import com.arksine.autointegrate.interfaces.MCUControlInterface;
 import com.arksine.autointegrate.microcontroller.CommandProcessor.DimmerMode;
+import com.arksine.autointegrate.microcontroller.MCUDefs;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
 import com.orhanobut.dialogplus.DialogPlus;
 import com.orhanobut.dialogplus.ViewHolder;
@@ -153,6 +156,17 @@ public class DimmerCalibrationDialog {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 mDimmerVals.dimmerMode = position;
+
+                // Change the MCU setting so the correct information is sent
+                MCUControlInterface mcuControl = AutoIntegrate.getmMcuControlInterface();
+                if (mcuControl != null) {
+                    if (mDimmerVals.dimmerMode == DimmerMode.ANALOG) {
+                        mcuControl.sendMcuCommand(MCUDefs.McuOutputCommand.SET_DIMMER_ANALOG, null);
+                    } else {
+                        mcuControl.sendMcuCommand(MCUDefs.McuOutputCommand.SET_DIMMER_DIGITAL, null);
+                    }
+                }
+
                 setOverviewContent(position);
             }
 
@@ -285,6 +299,10 @@ public class DimmerCalibrationDialog {
             @Override
             public void onClick(View v) {
                 writePrefs();
+                MCUControlInterface mcuControl = AutoIntegrate.getmMcuControlInterface();
+                if (mcuControl != null) {
+                    mcuControl.updateDimmerMap();
+                }
                 mDimmerDialog.dismiss();
             }
         });

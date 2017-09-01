@@ -15,8 +15,8 @@
 #define ANALOG_DIMMER_VARIANCE 100
 
 #define LED_PIN             PB1             // LED Pin for Maple Mini
-#define RADIO_DTR_PIN       PB12
-#define RADIO_RTS_PIN       PB13
+#define RADIO_DTR_PIN       PB7
+#define RADIO_RTS_PIN       PB6
 
 // Set this to the serial port interfacing with the radio, or comment out if you
 // do

@@ -301,17 +301,26 @@ public class UsbHelper extends SerialHelper {
         return serialPortConnected;
     }
 
+    @Override
     public void toggleDTR(boolean state) {
         if (serialPortConnected) {
             mSerialPort.setDTR(state);
         }
     }
 
+    @Override
     public void toggleRTS(boolean state) {
         if (serialPortConnected) {
             mSerialPort.setRTS(state);
         }
     }
+
+    @Override
+    public void setBaud(int baud) {
+        if (serialPortConnected) {
+            mSerialPort.setBaudRate(baud);
+        }
+      }
 
 
     // This thread opens a usb serial connection on the specified device

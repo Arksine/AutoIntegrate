@@ -99,6 +99,7 @@ public class CommandProcessor {
     private AudioManager mAudioManger;
     private int mPrevVolume;
     private int mInitialBrightness = 1;
+    private int mDimmerMode;
     private boolean mDimmerOn = false;
     private BrightnessControl mBrightnessControl;
     private ReverseExitListener mReverseExitListener = null;
@@ -116,6 +117,17 @@ public class CommandProcessor {
                 .getDefaultSharedPreferences(mContext)
                 .getString("audio_pref_key_current_source", "HD_RADIO"));
 
+        updateButtons();
+
+        updateDimmer(); // initialize the dimmer interface
+
+        updateReverseCommand();  // initialize reverse command
+
+        mActions = new ArrayMap<>();
+        populateBuiltInActions();
+    }
+
+    public void updateButtons() {
         // Get mapped buttons from GSON
         Gson gson = new Gson();
         SharedPreferences gsonFile = mContext.getSharedPreferences(
@@ -124,19 +136,12 @@ public class CommandProcessor {
         String json = gsonFile.getString("ButtonList", "[]");
         Type collectionType = new TypeToken<List<ResistiveButton>>(){}.getType();
         mMappedButtons = gson.fromJson(json, collectionType);
-
-        initDimmer(); // initialize the dimmer interface
-
-        initReverseCommand();  // initialize reverse command
-
-        mActions = new ArrayMap<>();
-        populateBuiltInActions();
     }
 
-    private void initDimmer() {
+    public void updateDimmer() {
         final SharedPreferences defaultPrefs = PreferenceManager.getDefaultSharedPreferences(mContext);
 
-        int dMode = defaultPrefs.getInt("dimmer_pref_key_mode", 0);
+        mDimmerMode = defaultPrefs.getInt("dimmer_pref_key_mode", 0);
         mInitialBrightness = defaultPrefs.getInt("dimmer_pref_key_initial_brightness", 200);
 
         BrightnessControl emptyBC = new BrightnessControl() {
@@ -150,7 +155,7 @@ public class CommandProcessor {
             public void DimmerChange(int reading) {}
         };
 
-        switch (dMode) {
+        switch (mDimmerMode) {
             case DimmerMode.NONE:
                 // Dimmer is not used, so control functions are empty
                 mBrightnessControl = emptyBC;
@@ -293,7 +298,7 @@ public class CommandProcessor {
 
     }
 
-    private void initReverseCommand() {
+    public void updateReverseCommand() {
         SharedPreferences globalPrefs = PreferenceManager.getDefaultSharedPreferences(mContext);
         String camSetting = globalPrefs.getString("controller_pref_key_select_camera_app", "0");
 
@@ -521,8 +526,11 @@ public class CommandProcessor {
         mActions.put("Dimmer Level", new ActionRunnable() {
             @Override
             public void run() {
-                // TODO: Check to see if Analog mode is enabled?
-                mBrightnessControl.DimmerChange((int) data);
+                if (mDimmerMode == DimmerMode.ANALOG) {
+                    mBrightnessControl.DimmerChange((int) data);
+                } else {
+                    Log.w(TAG, "Dimmer is set to digital mode, not expecting analog data");
+                }
             }
         });
 
@@ -724,10 +732,8 @@ public class CommandProcessor {
             case STARTED:
                 // connection established, initialize
                 Log.i(TAG, "MCU Started successfully");
-                int dMode = PreferenceManager.getDefaultSharedPreferences(mContext)
-                        .getInt("dimmer_pref_key_mode", 0);
 
-                if (dMode == DimmerMode.ANALOG) {
+                if (mDimmerMode == DimmerMode.ANALOG) {
                     mMcuControlInterface.sendMcuCommand(McuOutputCommand.SET_DIMMER_ANALOG, null);
                 } else {
                     mMcuControlInterface.sendMcuCommand( McuOutputCommand.SET_DIMMER_DIGITAL, null);

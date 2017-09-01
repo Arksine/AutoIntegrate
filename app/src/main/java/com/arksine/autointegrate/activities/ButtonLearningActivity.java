@@ -17,6 +17,7 @@ import com.arksine.autointegrate.AutoIntegrate;
 import com.arksine.autointegrate.adapters.LearnedButtonAdapter;
 import com.arksine.autointegrate.dialogs.ButtonMapDialog;
 import com.arksine.autointegrate.dialogs.DimmerCalibrationDialog;
+import com.arksine.autointegrate.interfaces.MCUControlInterface;
 import com.arksine.autointegrate.interfaces.McuLearnCallbacks;
 import com.arksine.autointegrate.interfaces.ServiceControlInterface;
 import com.arksine.autointegrate.microcontroller.ResistiveButton;
@@ -173,10 +174,15 @@ public class ButtonLearningActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
-        // Refresh the arduino connection in Learning mode
-        ServiceControlInterface serviceControl = AutoIntegrate.getServiceControlInterface();
-        if (serviceControl != null) {
-            serviceControl.refreshMcuConnection(true, mcuEvents);
+        // Set the arduino connection to Learning mode
+        MCUControlInterface mcuControl = AutoIntegrate.getmMcuControlInterface();
+        if (mcuControl != null && mcuControl.isConnected()) {
+            mcuControl.setMode(true, mcuEvents);
+        } else {
+            ServiceControlInterface serviceControl = AutoIntegrate.getServiceControlInterface();
+            if (serviceControl != null) {
+                serviceControl.refreshMcuConnection(true, mcuEvents);
+            }
         }
     }
 
@@ -196,12 +202,17 @@ public class ButtonLearningActivity extends AppCompatActivity {
         String json = gson.toJson(btnList);
         gsonFile.edit().putString("ButtonList", json).apply();
 
-
-        // send broadcast to toggle learning mode off
-        // Refresh the arduino connection in Learning mode
-        ServiceControlInterface serviceControl = AutoIntegrate.getServiceControlInterface();
-        if (serviceControl != null) {
-            serviceControl.refreshMcuConnection(false, null);
+        // Set MCU to execution mode
+        MCUControlInterface mcuControl = AutoIntegrate.getmMcuControlInterface();
+        if (mcuControl != null && mcuControl.isConnected()) {
+            mcuControl.updateButtonMap();       // update CommandProcessor Button Map
+            mcuControl.setMode(false, null);
+        } else {
+            // Attempt to reconnect via refresh
+            ServiceControlInterface serviceControl = AutoIntegrate.getServiceControlInterface();
+            if (serviceControl != null) {
+                serviceControl.refreshMcuConnection(false, null);
+            }
         }
 
     }

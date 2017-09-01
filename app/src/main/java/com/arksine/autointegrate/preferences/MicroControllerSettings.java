@@ -23,6 +23,7 @@ import com.arksine.autointegrate.AutoIntegrate;
 import com.arksine.autointegrate.activities.ButtonLearningActivity;
 import com.arksine.autointegrate.adapters.AppListAdapter;
 import com.arksine.autointegrate.dialogs.ListPreferenceEx;
+import com.arksine.autointegrate.interfaces.MCUControlInterface;
 import com.arksine.autointegrate.interfaces.ServiceControlInterface;
 import com.arksine.autointegrate.utilities.SerialHelper;
 import com.arksine.autointegrate.R;
@@ -46,7 +47,6 @@ public class MicroControllerSettings extends PreferenceFragment {
 
     SerialHelper mSerialHelper;
     private String mDeviceType;
-    private boolean mSettingChanged;
 
     private DialogPlus mCameraAppDialog;
 
@@ -67,8 +67,6 @@ public class MicroControllerSettings extends PreferenceFragment {
 
         // Load the microcontroller_preferences from an XML resource
         addPreferencesFromResource(R.xml.microcontroller_preferences);
-
-        mSettingChanged = false;
 
         final SharedPreferences globalPrefs = PreferenceManager.getDefaultSharedPreferences(getActivity());
 
@@ -108,7 +106,6 @@ public class MicroControllerSettings extends PreferenceFragment {
                 mDeviceType = (String)newValue;
                 toggleBaudSelection();
                 populateDeviceListView();
-                mSettingChanged = true;
                 return true;
             }
         });
@@ -120,7 +117,12 @@ public class MicroControllerSettings extends PreferenceFragment {
                 CharSequence[] entries = list.getEntries();
                 int index = list.findIndexOfValue((String)newValue);
                 preference.setSummary(entries[index]);
-                mSettingChanged = true;
+
+                // Refresh the MCU connection whenever the device is changed
+                ServiceControlInterface serviceControl = AutoIntegrate.getServiceControlInterface();
+                if (serviceControl != null) {
+                    serviceControl.refreshMcuConnection(false, null);
+                }
                 return true;
             }
         });
@@ -129,7 +131,10 @@ public class MicroControllerSettings extends PreferenceFragment {
             @Override
             public boolean onPreferenceChange(Preference preference, Object newValue) {
                 preference.setSummary((String)newValue);
-                mSettingChanged = true;
+                MCUControlInterface controlInterface = AutoIntegrate.getmMcuControlInterface();
+                if (controlInterface != null) {
+                    controlInterface.updateBaud(Integer.parseInt((String)newValue));
+                }
                 return true;
             }
         });
@@ -140,7 +145,6 @@ public class MicroControllerSettings extends PreferenceFragment {
             public boolean onPreferenceClick(Preference preference) {
                 // Since the learning activity will reconnect the MicroController with new
                 // settings, so there is no need to reconnect again when the fragment is stopped
-                mSettingChanged = false;
 
                 Context mContext = getActivity();
                 Intent startIntent = new Intent(mContext, ButtonLearningActivity.class);
@@ -184,7 +188,12 @@ public class MicroControllerSettings extends PreferenceFragment {
                         break;
                 }
 
-                mSettingChanged = true;
+                // Update CommandProcessor settings
+                MCUControlInterface controlInterface = AutoIntegrate.getmMcuControlInterface();
+                if (controlInterface != null) {
+                    controlInterface.updateReverseMap();
+                }
+
                 return true;
             }
         });
@@ -193,7 +202,6 @@ public class MicroControllerSettings extends PreferenceFragment {
     @Override
     public void onStart() {
         super.onStart();
-        mSettingChanged = false;
         IntentFilter filter = new IntentFilter(getActivity().getString(R.string.ACTION_DEVICE_CHANGED));
         LocalBroadcastManager.getInstance(getActivity()).registerReceiver(deviceListReciever, filter);
     }
@@ -208,14 +216,6 @@ public class MicroControllerSettings extends PreferenceFragment {
     public void onStop() {
         super.onStop();
         DLog.v(TAG, "Stopped");
-
-        if (mSettingChanged) {
-            // refresh the MCU Connection if settings have changed
-            ServiceControlInterface serviceControl = AutoIntegrate.getServiceControlInterface();
-            if (serviceControl != null) {
-                serviceControl.refreshMcuConnection(false, null);
-            }
-        }
 
         LocalBroadcastManager.getInstance(getActivity()).unregisterReceiver(deviceListReciever);
     }
@@ -252,7 +252,12 @@ public class MicroControllerSettings extends PreferenceFragment {
                                 .putString("controller_pref_key_camera_ex_app", appItem.getPackageName())
                                 .putString("controller_pref_key_camera_ex_app_summary", summary)
                                 .apply();
-                        mSettingChanged = true;
+
+                        // Update MCU CommandProcessor
+                        MCUControlInterface controlInterface = AutoIntegrate.getmMcuControlInterface();
+                        if (controlInterface != null) {
+                            controlInterface.updateReverseMap();
+                        }
                         dialog.dismiss();
                     }
                 })

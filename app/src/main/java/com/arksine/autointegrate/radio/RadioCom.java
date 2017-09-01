@@ -43,6 +43,7 @@ public class RadioCom {
 
     private HDRadio mHdRadio;
     private HDRadioEvents mRadioEvents;
+    private McuRadioDriver mMcuRadioDriver = null;
     private RadioController mRadioController;
 
     // Broadcast reciever to listen for write commands.
@@ -485,8 +486,8 @@ public class RadioCom {
             case 2:     // Integrated MCU Driver Selected
                 MCUControlInterface controlInterface =  AutoIntegrate.getmMcuControlInterface();
                 if (controlInterface != null) {
-                    McuRadioDriver mCustomDriver = new McuRadioDriver(controlInterface);
-                    mHdRadio = new HDRadio(mService, mRadioEvents, mCustomDriver);
+                    mMcuRadioDriver = new McuRadioDriver(controlInterface);
+                    mHdRadio = new HDRadio(mService, mRadioEvents, mMcuRadioDriver);
                     return true;
                 } else {
                     Log.e(TAG, "Cannot use Integrated MCU Driver, MCU not connected");
@@ -569,7 +570,16 @@ public class RadioCom {
                     }
                 }
                 mHdRadio = null;
+                mMcuRadioDriver = null;
             }
+        }
+    }
+
+    public void updateDriver() {
+        // Called when the MCU connection has been refreshed
+        if (mMcuRadioDriver != null) {
+            mMcuRadioDriver.updateMcuInterface();
+            mMcuRadioDriver.open();
         }
     }
 

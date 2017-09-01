@@ -24,6 +24,9 @@ public abstract class SerialHelper {
     public abstract boolean isDeviceConnected();
     public abstract boolean writeBytes(final byte[] data);
     public abstract boolean writeString(final String data);
+    public abstract void toggleDTR(boolean state);
+    public abstract void toggleRTS(boolean state);
+    public abstract void setBaud(int baud);
 
 }
 

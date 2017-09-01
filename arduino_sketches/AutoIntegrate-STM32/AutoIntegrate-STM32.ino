@@ -17,7 +17,7 @@ enum AudioInput { HD_RADIO, AUX };
 
 Average<unsigned int> ave(SMOOTH);
 
-ButtonCB button(BUTTON_DIGITAL_PIN, Button::PULL_UP, BUTTON_DEBOUNCE_DELAY);
+ButtonCB button(BUTTON_DIGITAL_PIN, Button::PULL_DOWN, BUTTON_DEBOUNCE_DELAY);
 
 AudioInput audio_input_selection = HD_RADIO;
 
@@ -70,6 +70,8 @@ void onResistiveRelease(const Button& b) {
 }
 
 void setup() {
+  pinMode(REVERSE_PIN, INPUT_PULLUP);
+  pinMode(DIMMER_DIGITAL_PIN, INPUT_PULLUP);
   pinMode(BUTTON_ANALOG_PIN, INPUT_ANALOG);
   pinMode(DIMMER_ANALOG_PIN, INPUT_ANALOG);
   pinMode(AUDIO_SOURCE_PIN,  OUTPUT);
@@ -77,6 +79,9 @@ void setup() {
   #if defined(HDRadioSerial)
   pinMode(RADIO_DTR_PIN,     OUTPUT);
   pinMode(RADIO_RTS_PIN,     OUTPUT);
+  HDRadioSerial.begin(115200);
+  HDRadioSerial.flush();
+  radioConnected = true;
   #endif // if defined(HDRadioSerial)
 
   #ifdef LED_PIN
@@ -84,10 +89,10 @@ void setup() {
   #endif // ifdef LED_PIN
 
   button.setHoldThreshold(BUTTON_HOLD_DELAY);
-  button.pressHandler(onResistivePress);
-  button.clickHandler(onResistiveClick);
-  button.holdHandler(onResistiveHold);
-  button.releaseHandler(onResistiveRelease);
+  button.setPressHandler(onResistivePress);
+  button.setClickHandler(onResistiveClick);
+  button.setHoldHandler(onResistiveHold);
+  button.setReleaseHandler(onResistiveRelease);
 
   Serial.begin(230400);
 
@@ -258,15 +263,6 @@ void processStartCommand() {
     reverse_start_time    = 0;
     analog_dimmer_reading = 0;
   }
-  #if defined(HDRadioSerial)
-  else {
-    HDRadioSerial.begin(115200);
-
-    while (!HDRadioSerial);
-    HDRadioSerial.flush();
-    radioConnected = true;
-  }
-  #endif // if defined(HDRadioSerial)
 
   sendPacketToPc(CMD_STARTED, (byte *)mcuId, strlen(mcuId));
   isStarted = true;
@@ -284,18 +280,8 @@ void processStopCommand() {
   analog_dimmer_reading = 0;
 
   #if defined(HDRadioSerial)
-
-  if (radioDtrOn) {
-    radioDtrOn = false;
-    digitalWrite(RADIO_DTR_PIN, LOW);
-  }
-
-  if (radioRtsOn) {
-    radioRtsOn = false;
-    digitalWrite(RADIO_RTS_PIN, LOW);
-  }
-  HDRadioSerial.end();
-  radioConnected = false;
+  setDtr(false);
+  setRts(false);
   #endif // if defined(HDRadioSerial)
 
   #ifdef LED_PIN
@@ -391,7 +377,7 @@ void setRts(bool status) {
 #endif // if defined(HDRadioSerial)
 
 void processReverse() {
-  if (digitalRead(REVERSE_PIN) == HIGH) {
+  if (digitalRead(REVERSE_PIN) == LOW) {
     if (!inReverse) {
       if (reverse_start_time == 0) {
         reverse_start_time = millis();
@@ -400,40 +386,47 @@ void processReverse() {
         sendPacketToPc(CMD_REVERSE, (byte *)&inReverse,
                        sizeof(inReverse));
       }
-    } else {
+    } 
+  } else if (inReverse){
       inReverse          = false;
       reverse_start_time = 0;
       sendPacketToPc(CMD_REVERSE, (byte *)&inReverse,
                      sizeof(inReverse));
-    }
   }
 }
 
 void processDimmer() {
-  if (digitalRead(DIMMER_DIGITAL_PIN) == HIGH) {
+  if (digitalRead(DIMMER_DIGITAL_PIN) == LOW) {
     if (!isDimmerOn) {
       isDimmerOn = true;
       sendPacketToPc(CMD_DIMMER, (byte *)&isDimmerOn,
                      sizeof(isDimmerOn));
-    } else {
-      // Analog read here, but only if analog is enabled
-      if (analogDimmerEnabled) {
-        uint16_t reading = analogRead(DIMMER_ANALOG_PIN);
+    } else if (analogDimmerEnabled) {
+      delay(BUTTON_DEBOUNCE_DELAY);  // delay after digital pin reading to eliminate noise for analog read
 
-        if ((reading > analog_dimmer_reading + ANALOG_DIMMER_VARIANCE) ||
-            (reading < analog_dimmer_reading - ANALOG_DIMMER_VARIANCE)) {
-          analog_dimmer_reading = reading;
-          sendPacketToPc(CMD_DIMMER, (byte *)&analog_dimmer_reading,
-                         sizeof(analog_dimmer_reading));
-        }
+      // take the mean of 20 readings ( the same way done for buttons)
+      for (uint8_t i = 0; i < SMOOTH; i++) {
+        ave.push(analogRead(DIMMER_ANALOG_PIN));
+      }
+      uint16_t reading = ave.mean();
+      ave.clear();
+
+      // TODO: Add a 1-2 second delay between readings?
+
+      if ((reading > analog_dimmer_reading + ANALOG_DIMMER_VARIANCE) ||
+          (reading < analog_dimmer_reading - ANALOG_DIMMER_VARIANCE)) {
+        analog_dimmer_reading = reading;
+        sendPacketToPc(CMD_DIMMER_LEVEL, (byte *)&analog_dimmer_reading,
+                       sizeof(analog_dimmer_reading));
       }
     }
-  } else {
-    if (isDimmerOn) {
+  } else if (isDimmerOn) {
+    
       isDimmerOn = false;
+      analog_dimmer_reading = 0;
       sendPacketToPc(CMD_DIMMER, (byte *)&isDimmerOn,
                      sizeof(isDimmerOn));
-    }
+    
   }
 }
 

@@ -271,6 +271,21 @@ public class BluetoothHelper extends SerialHelper {
         return writeBytes(data.getBytes());
     }
 
+    @Override
+    public void toggleDTR(boolean state) {
+        // Stub, DTR cannot be toggled for BT devices
+    }
+
+    @Override
+    public void toggleRTS(boolean state) {
+        // Stub, RTS cannot be toggled for BT devices
+    }
+
+    @Override
+    public void setBaud(int baud) {
+        // Stub, baud cannot be set for BT devices
+    }
+
     /**
      * Thread for connecting a device and creating its input and output streams.
      */

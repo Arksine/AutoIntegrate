@@ -10,15 +10,16 @@
 // a new reading it should be much lower for 10-bit ADCs.
 #define ANALOG_DIMMER_VARIANCE 100
 
+// Maple Mini Pin Assignments
 #define LED_PIN             PB1
-#define BUTTON_ANALOG_PIN   PA0
-#define BUTTON_DIGITAL_PIN  PA11
-#define DIMMER_ANALOG_PIN   PA1
-#define DIMMER_DIGITAL_PIN  PA12
-#define REVERSE_PIN         PA15
-#define AUDIO_SOURCE_PIN    PB6
-#define RADIO_DTR_PIN       PB12
-#define RADIO_RTS_PIN       PB13
+#define BUTTON_ANALOG_PIN   PB0
+#define BUTTON_DIGITAL_PIN  PB13
+#define DIMMER_ANALOG_PIN   PA6
+#define DIMMER_DIGITAL_PIN  PB14
+#define REVERSE_PIN         PB15
+#define AUDIO_SOURCE_PIN    PA15
+#define RADIO_DTR_PIN       PB7
+#define RADIO_RTS_PIN       PB6
 
 //
 

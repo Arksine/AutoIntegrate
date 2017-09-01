@@ -7,6 +7,12 @@ keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 
 android {
     signingConfigs {
+        andisa {
+            keyAlias 'andisa'
+            keyPassword keystoreProperties['keyPassword']
+            storeFile file(keystoreProperties['andisaStoreFile'])
+            storePassword keystoreProperties['storePassword']
+        }
         omnirom {
             keyAlias 'omnirom'
             keyPassword keystoreProperties['keyPassword']
@@ -21,7 +27,7 @@ android {
         }
     }
     compileSdkVersion 25
-    buildToolsVersion '25.0.3'
+    buildToolsVersion '26.0.1'
     defaultConfig {
         applicationId "com.arksine.autointegrate"
         minSdkVersion 19
@@ -42,14 +48,14 @@ android {
             versionName "0.1-alpha-normal"
             minSdkVersion 19
             signingConfig signingConfigs.standard
-            targetSdkVersion 24
+            targetSdkVersion 25
         }
         signature {
             applicationId "com.arksine.autointegrate"
             versionName "0.1-alpha-signature"
             minSdkVersion 19
-            signingConfig signingConfigs.omnirom
-            targetSdkVersion 24
+            signingConfig signingConfigs.andisa
+            targetSdkVersion 25
         }
     }
 }

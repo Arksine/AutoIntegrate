@@ -128,6 +128,11 @@ public class ServiceThread implements Runnable {
                             mMcuLearnCallbacks.get()));
                     if (mMicroController.get().connect()) {
                         DLog.v(TAG, "Micro Controller connection established");
+
+                        // update Radio Driver if Radio is Connected
+                        if (mHdRadio.get() != null && mHdRadio.get().isConnected()) {
+                            mHdRadio.get().updateDriver();
+                        }
                     } else {
                         DLog.v(TAG, "Error connecting to Micro Controller: Connection Attempt " + connectionAttempts);
                         AutoIntegrate.setMcuControlInterface(null);

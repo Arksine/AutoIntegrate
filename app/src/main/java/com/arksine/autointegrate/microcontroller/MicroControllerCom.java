@@ -202,8 +202,13 @@ public class MicroControllerCom extends SerialCom {
         }
 
         @Override
-        public void setMode(boolean isLearningMode) {
-            mInputHandler.setMode(isLearningMode);
+        public void setMode(boolean isLearningMode, McuLearnCallbacks cbs) {
+            mInputHandler.setMode(isLearningMode, cbs);
+        }
+
+        @Override
+        public void updateBaud(int baud) {
+            mSerialHelper.setBaud(baud);
         }
 
         @Override
@@ -251,6 +256,21 @@ public class MicroControllerCom extends SerialCom {
         @Override
         public String getDeviceId() {
             return mMcuId;
+        }
+
+        @Override
+        public void updateButtonMap() {
+            mInputHandler.updateButtonMap();
+        }
+
+        @Override
+        public void updateDimmerMap() {
+            mInputHandler.updateDimmerMap();
+        }
+
+        @Override
+        public void updateReverseMap() {
+            mInputHandler.updateReverseCameraMap();
         }
     };
 
@@ -409,8 +429,6 @@ public class MicroControllerCom extends SerialCom {
                 disconnect();
 
             } else {
-
-
                 //Register write data receiver
                 IntentFilter sendDataFilter = new IntentFilter(mService.getString(R.string.ACTION_CUSTOM_MCU_COMMAND));
                 mService.registerReceiver(writeReceiver, sendDataFilter);
@@ -431,6 +449,11 @@ public class MicroControllerCom extends SerialCom {
     @Override
     public void disconnect() {
         mConnected = false;
+
+        // if the Radio Driver is enabled, close it.
+        if (mMcuRadioDriver.get() != null) {
+            mMcuRadioDriver.get().close();
+        }
 
         if (mSerialHelper!= null) {
             mInputHandler.close();
