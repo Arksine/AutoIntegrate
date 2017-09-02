@@ -8,12 +8,12 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
-import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import eu.chainfire.libsuperuser.Shell;
+import timber.log.Timber;
 
 /**
  * Static class for various helper functions used throughout service / application
@@ -21,7 +21,6 @@ import eu.chainfire.libsuperuser.Shell;
 
 public class UtilityFunctions {
 
-    private final static String TAG = "UtilityFunctions";
     private final static Object ROOTLOCK = new Object();
 
     private final static String DEVICE_POWER_PERMISSION =
@@ -122,7 +121,7 @@ public class UtilityFunctions {
             public void run() {
                 synchronized (ROOTLOCK) {
                     mIsRootAvailable = Shell.SU.available();
-                    Log.i(TAG, "Root availability status: " + mIsRootAvailable);
+                    Timber.i("Root availability status: %b", mIsRootAvailable);
                     cb.OnRootInitialized(mIsRootAvailable);
                 }
             }
@@ -154,6 +153,11 @@ public class UtilityFunctions {
             }
         }
         return new String(hexChars);
+    }
+
+    public static String byteToHex(byte b) {
+        int i = b & 0xFF;
+        return Integer.toHexString(i);
     }
 
 }

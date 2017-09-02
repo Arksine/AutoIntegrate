@@ -83,5 +83,6 @@ dependencies {
     compile 'com.github.felHR85:UsbSerial:4.5'
     compile 'com.orhanobut:dialogplus:1.11@aar'
     compile 'eu.chainfire:libsuperuser:1.0.0+'
+    compile 'com.jakewharton.timber:timber:4.5.1'
     testCompile 'junit:junit:4.12'
 }

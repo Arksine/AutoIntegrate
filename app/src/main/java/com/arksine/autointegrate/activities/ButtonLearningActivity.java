@@ -22,7 +22,6 @@ import com.arksine.autointegrate.interfaces.McuLearnCallbacks;
 import com.arksine.autointegrate.interfaces.ServiceControlInterface;
 import com.arksine.autointegrate.microcontroller.ResistiveButton;
 import com.arksine.autointegrate.R;
-import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.autointegrate.utilities.LearnedButtonTouchHelper;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
 import com.google.gson.Gson;
@@ -31,8 +30,9 @@ import com.google.gson.reflect.TypeToken;
 import java.lang.reflect.Type;
 import java.util.List;
 
+import timber.log.Timber;
+
 public class ButtonLearningActivity extends AppCompatActivity {
-    private static String TAG = "ButtonLearningActivity";
 
     private RecyclerView mButtonsRecyclerView;
     private LearnedButtonAdapter mAdapter;
@@ -189,7 +189,7 @@ public class ButtonLearningActivity extends AppCompatActivity {
     @Override
     protected void onStop() {
         super.onStop();
-        DLog.v(TAG, "Stopped");
+        Timber.v("Button Learning Activity Stopped");
         startExecutionMode();
     }
 

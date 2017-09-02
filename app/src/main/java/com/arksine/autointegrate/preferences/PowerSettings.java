@@ -18,8 +18,6 @@ import com.arksine.autointegrate.utilities.UtilityFunctions;
 
 public class PowerSettings extends PreferenceFragment {
 
-    private static String TAG = "PowerSettings";
-
     CheckBoxPreference mApMode;
     SwitchPreference mFixedInstallMode;
     SwitchPreference mFastChargeMode;

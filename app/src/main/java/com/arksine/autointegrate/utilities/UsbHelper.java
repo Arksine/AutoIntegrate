@@ -9,7 +9,6 @@ import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
 import android.os.Build;
 import android.support.v4.content.LocalBroadcastManager;
-import android.util.Log;
 import android.widget.Toast;
 
 import com.arksine.autointegrate.R;
@@ -25,6 +24,8 @@ import com.felhr.usbserial.UsbSerialInterface;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import timber.log.Timber;
+
 //TODO: The USBSerial library doesnt seem to have any way to handle errors.  Temporarily handle disconnections
 //      with a broadcast receiver.Will have to research
 //      mik3y's library, or just settle for handling disconnect event's via android intents
@@ -33,8 +34,6 @@ import java.util.HashMap;
  *  Helper class to enumerate usb devices and establish a connection
  */
 public class UsbHelper extends SerialHelper {
-
-    private static final String TAG = "UsbHelper";
 
     private Context mContext;
     private UsbManager mUsbManager;
@@ -110,17 +109,17 @@ public class UsbHelper extends SerialHelper {
         for (UsbDevice uDevice : usbDeviceList.values()) {
 
 
-            DLog.v(TAG, "Device ID: " + uDevice.getDeviceId());
-            DLog.v(TAG, "Device Name: " + uDevice.getDeviceName());
-            DLog.v(TAG, "Vendor: ID " + uDevice.getVendorId());
-            DLog.v(TAG, "Product ID: " + uDevice.getProductId());
-            DLog.v(TAG, "Class: " + uDevice.getDeviceClass());
-            DLog.v(TAG, "SubClass: " + uDevice.getDeviceSubclass());
-            DLog.v(TAG, "Protocol: " + uDevice.getDeviceProtocol());
+            Timber.d("Device ID: %d", uDevice.getDeviceId());
+            Timber.d("Device Name: %s", uDevice.getDeviceName());
+            Timber.d("Vendor: ID %#x", uDevice.getVendorId());
+            Timber.d("Product ID: %#x", uDevice.getProductId());
+            Timber.d("Class: %#x", uDevice.getDeviceClass());
+            Timber.d("SubClass: %#x", uDevice.getDeviceSubclass());
+            Timber.d("Protocol: %#x", uDevice.getDeviceProtocol());
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                DLog.v(TAG, "Manufacturer: " + uDevice.getManufacturerName());
-                DLog.v(TAG, "Serial Number: " + uDevice.getSerialNumber());
+                Timber.d("Manufacturer: %s", uDevice.getManufacturerName());
+                Timber.d("Serial Number: %s", uDevice.getSerialNumber());
             }
 
             String name;
@@ -143,7 +142,7 @@ public class UsbHelper extends SerialHelper {
                 break;
             }
 
-            DLog.v(TAG, "USB comm device found: " + name);
+            Timber.v("USB comm device found: %s", name);
 
             // replace the name with the device driver name if on API 21 or above
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -159,7 +158,7 @@ public class UsbHelper extends SerialHelper {
              *  TODO: I bet the 3rd ID (sub pid ) is 937C
               */
             if ((uDevice.getVendorId() == 1027) && (uDevice.getProductId() ==  37752)) {
-                DLog.v(TAG, "MJS Cable found, skipping from list");
+                Timber.v("MJS Cable found, skipping from list");
                 break;
             }
 
@@ -212,7 +211,7 @@ public class UsbHelper extends SerialHelper {
             correctFormat = ids.length == 2;
         }
         if (!correctFormat) {
-            Log.i(TAG, "Invalid USB entry: " + id);
+            Timber.i("Invalid USB entry: %s", id);
             return false;
         }
 
@@ -236,7 +235,7 @@ public class UsbHelper extends SerialHelper {
             }
 
             if (found) {
-                DLog.i(TAG, "USB Device Found");
+                Timber.v("USB Device Found");
                 mUsbDevice = dev;
                 break;
             }
@@ -251,7 +250,7 @@ public class UsbHelper extends SerialHelper {
 
         } else {
 
-            Log.i(TAG, "Invalid usb device: " + id);
+            Timber.i("Invalid usb device: %s", id);
             return false;
         }
     }
@@ -356,7 +355,7 @@ public class UsbHelper extends SerialHelper {
                         try {
                             wait();
                         } catch (InterruptedException e) {
-                            Log.w(TAG, e.getMessage());
+                            Timber.w(e);
                         }
                     }
 
@@ -391,7 +390,7 @@ public class UsbHelper extends SerialHelper {
                         try {
                             Thread.sleep(2000);
                         } catch (InterruptedException e) {
-                            Log.w(TAG, e.getMessage());
+                            Timber.w(e);
                         }
                     }
 
@@ -401,16 +400,16 @@ public class UsbHelper extends SerialHelper {
                  } else {
                     // Serial port could not be opened
                     if (mSerialPort instanceof CDCSerialDevice) {
-                        Log.i(TAG, "Unable to open CDC Serial device");
+                        Timber.i("Unable to open CDC Serial device");
                         mSerialHelperCallbacks.OnDeviceReady(false);
                     } else {
-                        Log.i(TAG, "Unable to open serial device");
+                        Timber.i("Unable to open serial device");
                         mSerialHelperCallbacks.OnDeviceReady(false);
                     }
                 }
             } else {
                 // No driver for given device, even generic CDC driver could not be loaded
-                Log.i(TAG, "Serial Device not supported");
+                Timber.i("Serial Device not supported");
                 mSerialHelperCallbacks.OnDeviceReady(false);
             }
         }

@@ -15,16 +15,15 @@ import com.arksine.autointegrate.AutoIntegrate;
 import com.arksine.autointegrate.MainService;
 import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.interfaces.ServiceControlInterface;
-import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
+
+import timber.log.Timber;
 
 /**
  * Handles Main Settings Fragment
  */
 
 public class MainSettings extends PreferenceFragment {
-
-    private static String TAG = "MainSettings";
 
     private final BroadcastReceiver serverStatusReceiver = new BroadcastReceiver() {
         @Override
@@ -68,10 +67,10 @@ public class MainSettings extends PreferenceFragment {
 
         if (UtilityFunctions.isServiceRunning(MainService.class, getActivity())) {
             toggleService.setChecked(true);
-            DLog.v(TAG, "Service is running");
+            Timber.v("Service is running");
         } else {
             toggleService.setChecked(false);
-            DLog.v(TAG, "Service is not running");
+            Timber.v("Service is not running");
         }
 
         toggleService.setOnPreferenceChangeListener(mServiceToggleListener);
@@ -137,7 +136,7 @@ public class MainSettings extends PreferenceFragment {
                     toggleService.setOnPreferenceChangeListener(null);
                     toggleService.setChecked(true);
                     toggleService.setOnPreferenceChangeListener(mServiceToggleListener);
-                    DLog.v(TAG, "Service is running");
+                    Timber.v("Service is running");
                 }
                 break;
             case "Off":
@@ -145,7 +144,7 @@ public class MainSettings extends PreferenceFragment {
                     toggleService.setOnPreferenceChangeListener(null);
                     toggleService.setChecked(false);
                     toggleService.setOnPreferenceChangeListener(mServiceToggleListener);
-                    DLog.v(TAG, "Service is not running");
+                    Timber.v("Service is not running");
                 }
                 break;
             case "Suspended":

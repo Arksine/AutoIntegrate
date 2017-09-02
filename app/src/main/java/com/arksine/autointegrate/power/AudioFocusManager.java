@@ -2,16 +2,14 @@ package com.arksine.autointegrate.power;
 
 import android.content.Context;
 import android.media.AudioManager;
-import android.util.Log;
 
-import com.arksine.autointegrate.utilities.DLog;
+import timber.log.Timber;
 
 /**
  * Manages retrieval and abandonment of audio focus.
  */
 
 public class AudioFocusManager {
-    private static final String TAG = "AudioFocusManager";
 
     private AudioFocusManager(){}
 
@@ -21,17 +19,17 @@ public class AudioFocusManager {
         public void onAudioFocusChange(int i) {
             switch (i) {
                 case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
-                    DLog.v(TAG, "Audio Focus Lost, Transient Can Duck");
+                    Timber.v("Audio Focus Lost, Transient Can Duck");
                     break;
                 case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
-                    DLog.v(TAG, "Audio Focus Lost, Transient");
+                    Timber.v("Audio Focus Lost, Transient");
                     break;
                 case AudioManager.AUDIOFOCUS_LOSS:
-                    DLog.v(TAG, "Audio Focus Lost");
+                    Timber.v("Audio Focus Lost");
                     break;
 
                 case AudioManager.AUDIOFOCUS_GAIN:
-                    DLog.v(TAG, "Audio Focus Gained");
+                    Timber.v("Audio Focus Gained");
                     break;
                 default: break;
             }
@@ -49,7 +47,7 @@ public class AudioFocusManager {
         if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
             return true;
         } else {
-            Log.w(TAG, "Error retrieving audio focus");
+            Timber.w("Error retrieving audio focus");
             return false;
         }
     }
@@ -60,7 +58,7 @@ public class AudioFocusManager {
         int result = am.abandonAudioFocus(audioFocusChangeListener);
 
         if (result != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-            Log.w(TAG, "Error abandoning audio focus");
+            Timber.w("Error abandoning audio focus");
         }
 
     }

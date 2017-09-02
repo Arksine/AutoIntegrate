@@ -12,11 +12,12 @@ import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 import android.support.annotation.NonNull;
 import android.support.v4.content.LocalBroadcastManager;
-import android.util.Log;
 
 import com.arksine.autointegrate.R;
 
 import java.lang.reflect.Method;
+
+import timber.log.Timber;
 
 /**
  * This class manages USB and Bluetooth Hardware related broadcasts.  We want to make sure
@@ -24,8 +25,6 @@ import java.lang.reflect.Method;
  */
 
 public class HardwareReceiver extends BroadcastReceiver {
-
-    private static String TAG = "HardwareReceiver";
 
     private static final String ACTION_DEVICE_CHANGED = "com.arksine.autointegrate.ACTION_DEVICE_CHANGED";
     private static final String ACTION_USB_PERMISSION = "com.arksine.autointegrate.USB_PERMISSION";
@@ -57,7 +56,7 @@ public class HardwareReceiver extends BroadcastReceiver {
                         if (accessGranted) {
                             usbCallback.onUsbPermissionRequestComplete(true);
                         } else {
-                            DLog.w(TAG, "permission denied for device " + uDev);
+                            Timber.w("Permission denied for device %s", uDev);
                             usbCallback.onUsbPermissionRequestComplete(false);
                         }
                     }
@@ -71,7 +70,7 @@ public class HardwareReceiver extends BroadcastReceiver {
 
                     Intent devChanged = new Intent(ACTION_DEVICE_CHANGED);
                     LocalBroadcastManager.getInstance(context).sendBroadcast(devChanged);
-                    DLog.v(TAG, "Usb device attached");
+                    Timber.v("Usb device attached");
 
                 }
                 break;
@@ -81,7 +80,7 @@ public class HardwareReceiver extends BroadcastReceiver {
                     // usb device list if a device is connected or disconnected
                     Intent devChanged = new Intent(ACTION_DEVICE_CHANGED);
                     LocalBroadcastManager.getInstance(context).sendBroadcast(devChanged);
-                    DLog.v(TAG, "Usb device removed");
+                    Timber.v("Usb device removed");
 
                     /*TODO: The broadcast below is temporary until I can implement error handling
                       directly into the UsbHelper class.  I believe I am limited by the UsbSerial
@@ -115,7 +114,7 @@ public class HardwareReceiver extends BroadcastReceiver {
                 break;
             case BluetoothDevice.ACTION_ACL_DISCONNECTED:
                 synchronized (this) {
-                    DLog.v(TAG, "Bluetooth device disconnected");
+                    Timber.v("Bluetooth device disconnected");
                     // Errors are handled by the Bluetooth helper class
                 }
                 break;
@@ -163,14 +162,14 @@ public class HardwareReceiver extends BroadcastReceiver {
             grantDevicePermissionMethod.invoke(iUsbManager, usbDevice,appInfo.uid);
 
 
-            DLog.i(TAG, "Method OK : " + binder + "  " + iUsbManager);
+            Timber.i("Method OK : %s %s", binder.toString(), iUsbManager.toString());
             return true;
         }
         catch(Exception e)
         {
-            DLog.i(TAG, "SignatureOrSystem permission not available, " +
+            Timber.i("SignatureOrSystem permission not available, " +
                     "cannot assign automatic usb permission : " + usbDevice.getDeviceName());
-            e.printStackTrace();
+            Timber.w(e);
             return false;
         }
     }

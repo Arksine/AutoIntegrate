@@ -10,7 +10,6 @@ import android.os.HandlerThread;
 import android.os.Message;
 import android.os.Process;
 import android.preference.PreferenceManager;
-import android.util.Log;
 
 import com.arksine.autointegrate.AutoIntegrate;
 import com.arksine.autointegrate.MainService;
@@ -20,7 +19,6 @@ import com.arksine.autointegrate.interfaces.ServiceControlInterface;
 import com.arksine.autointegrate.utilities.SerialHelper;
 import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.utilities.BluetoothHelper;
-import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.autointegrate.utilities.SerialCom;
 import com.arksine.autointegrate.utilities.UsbHelper;
 import com.arksine.autointegrate.utilities.UsbSerialSettings;
@@ -31,6 +29,8 @@ import java.nio.ByteOrder;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import timber.log.Timber;
+
 /**
  * Class MicroControllerCom
  *
@@ -38,7 +38,6 @@ import java.util.concurrent.atomic.AtomicReference;
  * a serial connection and confirms that the micro controller is connected.
  */
 public class MicroControllerCom extends SerialCom {
-    private static final String TAG = MicroControllerCom.class.getSimpleName();
 
     private String mMcuId = "NOT SET";
     private AtomicReference<McuRadioDriver> mMcuRadioDriver = new AtomicReference<>(null);
@@ -109,7 +108,7 @@ public class MicroControllerCom extends SerialCom {
                     case RADIO_SET_DTR:
                     case RADIO_SET_RTS:
                         if (msg.obj != null && !(msg.obj instanceof Boolean)) {
-                            Log.d(TAG, "Cannot send command, data is not a byte array");
+                            Timber.w("Cannot send command, data is not a byte array");
                             return true;
                         }
                         byte boolByte = ((boolean)msg.obj) ? (byte)0x01 : (byte)0x00;
@@ -122,7 +121,7 @@ public class MicroControllerCom extends SerialCom {
                         break;
                     case  RADIO_SEND_PACKET:
                         if (msg.obj == null || !(msg.obj instanceof byte[])) {
-                            Log.d(TAG, "Cannot send command, data is not a byte array");
+                            Timber.w("Cannot send command, data is not a byte array");
                             return true;
                         }
                         byte[] out = (byte[])msg.obj;
@@ -162,7 +161,7 @@ public class MicroControllerCom extends SerialCom {
 
                         break;
                     default:
-                        Log.d(TAG, "Unknown Command, cannot send");
+                        Timber.i("Unknown Command, cannot send");
                         return true;
                 }
 
@@ -227,7 +226,7 @@ public class MicroControllerCom extends SerialCom {
                         mControlWait.set(true);
                         this.wait(10000);
                     } catch (InterruptedException e) {
-                        Log.w(TAG, e.getMessage());
+                        Timber.w(e);
                     } finally {
                         // Error, response from MCU Timed out
                         if (mControlWait.compareAndSet(true, false)) {
@@ -331,7 +330,7 @@ public class MicroControllerCom extends SerialCom {
 
             @Override
             public void OnDeviceError() {
-                DLog.i(TAG, "Device Error, disconnecting");
+                Timber.i("Device Error, disconnecting");
                 mDeviceError = true;
                 ServiceControlInterface serviceControl = AutoIntegrate.getServiceControlInterface();
                 if (serviceControl != null) {
@@ -357,7 +356,7 @@ public class MicroControllerCom extends SerialCom {
         // No device selected, exit
         final String devId = sharedPrefs.getString("controller_pref_key_select_device", "NO_DEVICE");
         if (devId.equals("NO_DEVICE")){
-            DLog.v(TAG, "No device selected");
+            Timber.i("Cannot open, No device selected");
             return false;
         }
 
@@ -380,7 +379,7 @@ public class MicroControllerCom extends SerialCom {
          * Attept to connect to the device.  If we the prerequisites are met to attempt connection,
          * we'll wait until the connection thread notifies it is done.
           */
-        DLog.v(TAG, "Attempting connection to device:\n" + devId);
+        Timber.d("Attempting connection to device:\n%s", devId);
         if (mSerialHelper.connectDevice(devId, mCallbacks)) {
 
             // wait until the connection is finished with a timeout of 10 seconds
@@ -389,7 +388,7 @@ public class MicroControllerCom extends SerialCom {
                     mIsWaiting = true;
                     wait(10000);
                 } catch (InterruptedException e) {
-                    Log.w(TAG, e.getMessage());
+                    Timber.w(e);
                 } finally {
                     // Error, response from MCU Timed out
                     if (mIsWaiting) {
@@ -414,7 +413,7 @@ public class MicroControllerCom extends SerialCom {
                     mIsWaiting = true;
                     wait(10000);
                 } catch (InterruptedException e) {
-                    Log.w(TAG, e.getMessage());
+                    Timber.w(e);
                 } finally {
                     // Error, response from MCU Timed out
                     if (mIsWaiting) {
@@ -434,7 +433,7 @@ public class MicroControllerCom extends SerialCom {
                 mService.registerReceiver(writeReceiver, sendDataFilter);
                 isWriteReceiverRegistered = true;
 
-                DLog.v(TAG, "Sucessfully connected to Micro Controller");
+                Timber.v("Sucessfully connected to Micro Controller");
             }
 
 
@@ -465,7 +464,7 @@ public class MicroControllerCom extends SerialCom {
                 try {
                     Thread.sleep(500);
                 } catch (InterruptedException e) {
-                    Log.w(TAG, e.getMessage());
+                    Timber.w(e);
                 }
 
                 mSerialHelper.disconnect();

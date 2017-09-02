@@ -1,17 +1,14 @@
 package com.arksine.autointegrate.microcontroller;
 
+import com.arksine.autointegrate.utilities.UtilityFunctions;
 
-import com.arksine.autointegrate.utilities.DLog;
-
-import java.util.EnumSet;
+import timber.log.Timber;
 
 /**
  * Class containing definitions used by the mcu
  */
 
 public class MCUDefs {
-
-    private static final String TAG = MCUDefs.class.getSimpleName();
 
     private MCUDefs(){}
 
@@ -47,7 +44,7 @@ public class MCUDefs {
                 }
             }
 
-            DLog.i(TAG, "Invalid id number: " + id);
+            Timber.i("Invalid Input Command ID: %#x", id);
             return McuInputCommand.NONE;
         }
 
@@ -91,7 +88,7 @@ public class MCUDefs {
                 }
             }
 
-            DLog.i(TAG, "Invalid id number: " + id);
+            Timber.i("Invalid Output Command ID: %#x", id);
             return McuOutputCommand.NONE;
         }
 
@@ -127,7 +124,7 @@ public class MCUDefs {
                 }
             }
 
-            DLog.i(TAG, "Invalid id number: " + id);
+            Timber.i("Invalid DataType ID: %#x", id);
             return DataType.NONE;
         }
     }

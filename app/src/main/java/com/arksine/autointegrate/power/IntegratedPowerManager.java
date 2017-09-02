@@ -12,10 +12,8 @@ import android.os.Process;
 import android.os.SystemClock;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
-import android.util.Log;
 import android.view.KeyEvent;
 
-import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
 
 import java.io.BufferedReader;
@@ -27,6 +25,7 @@ import java.lang.reflect.Method;
 import java.util.List;
 
 import eu.chainfire.libsuperuser.Shell;
+import timber.log.Timber;
 
 
 /**
@@ -40,8 +39,6 @@ public class IntegratedPowerManager {
         void turnOffScreen();
         void toggleAirplaneMode(boolean status);
     }
-
-    private final static String TAG = "IntegratedPowerManager";
 
     private final static String USB_HOST_STATUS_FILE =
             "/sys/kernel/usbhost/usbhost_hostmode";
@@ -66,7 +63,7 @@ public class IntegratedPowerManager {
                         | PowerManager.ACQUIRE_CAUSES_WAKEUP,
                 "Screen On Wakelock");
         mScreenWakeLock.acquire();
-        DLog.v(TAG, "Wakelock Aquired");
+        Timber.v("Wakelock Aquired");
 
         HandlerThread hThread = new HandlerThread("PowerHandlerThread");
         hThread.setPriority(Process.THREAD_PRIORITY_BACKGROUND);
@@ -86,7 +83,7 @@ public class IntegratedPowerManager {
     public void destroy() {
         if (mScreenWakeLock != null && mScreenWakeLock.isHeld()) {
             mScreenWakeLock.release();
-            DLog.v(TAG, "Wakelock Released");
+            Timber.v("Wakelock Released");
         }
 
         mScreenWakeLock = null;
@@ -97,7 +94,7 @@ public class IntegratedPowerManager {
         boolean hasSignaturePermission = UtilityFunctions.hasSignaturePermission(mContext);
 
         if (hasSignaturePermission) {
-            Log.i(TAG, "Device has signature level permissions");
+            Timber.i("Autointegrate has signature level permissions");
             // Signature level system functions
             mSystemFunctions = new SystemFunctions() {
                 @Override
@@ -152,7 +149,7 @@ public class IntegratedPowerManager {
 
                     List<String> output = Shell.SU.run(commands);
                     for (String o: output) {
-                        DLog.v(TAG, o + "\n");
+                        Timber.d("%s \n", o);
                     }
                 }
             };
@@ -188,12 +185,12 @@ public class IntegratedPowerManager {
             @Override
             public void run() {
                 if (fixedInstall && !isFixedInstallEnabled()) {
-                    DLog.i(TAG, "Setting fixed install active on startup");
+                    Timber.d("Fixed install active on startup");
                     setFixedInstallMode(true);
                 }
 
                 if (fastCharge && !isFastChargeEnabled()) {
-                    DLog.i(TAG, "Setting fast charge active on startup");
+                    Timber.d("Fast charge active on startup");
                     setFastchargeMode(true);
                 }
             }
@@ -205,14 +202,14 @@ public class IntegratedPowerManager {
     // This is blocking, do not call from UI thread
     public void goToSleep() {
         if (mSystemFunctions == null) {
-            Log.w(TAG, "System Functions not set.");
+            Timber.w("Power System Functions not set.");
             return;
         }
 
         // release wakelocked keeping screen on
         if (mScreenWakeLock.isHeld()) {
             mScreenWakeLock.release();
-            DLog.v(TAG, "Wakelock Released");
+            Timber.v("Wakelock Released");
         }
 
         long audioDelay = mDefaultPrefs.getLong("power_pref_key_audio_focus_timeout", 0);
@@ -236,14 +233,14 @@ public class IntegratedPowerManager {
     // This is blocking, do not call from UI thread
     public void wakeUp() {
         if (mSystemFunctions == null) {
-            Log.w(TAG, "System Functions not set.");
+            Timber.w("Power System Functions not set.");
             return;
         }
 
         // release wakelocked keeping screen on
         if (!mScreenWakeLock.isHeld()) {
             mScreenWakeLock.acquire();
-            DLog.v(TAG, "Wakelock Aquired");
+            Timber.v("Wakelock Aquired");
         }
 
         AudioFocusManager.releaseAudioFocus(mContext);
@@ -263,7 +260,7 @@ public class IntegratedPowerManager {
             currentScreenTimeout = Settings.System.getInt(mContext.getContentResolver(),
                     Settings.System.SCREEN_OFF_TIMEOUT);
         } catch (Settings.SettingNotFoundException e) {
-            e.printStackTrace();
+            Timber.w(e);
         }
 
         // Only store the timeout if it hasn't been previously stored.  This keeps us from
@@ -277,7 +274,7 @@ public class IntegratedPowerManager {
                     .putBoolean("power_pref_store_screen_timeout_flag", true)
                     .apply();
 
-            DLog.v(TAG, "Current Screen Timeout: " + currentScreenTimeout);
+            Timber.v("Current Screen Timeout: %d", currentScreenTimeout);
         }
 
         // Set Timeout to a minimal number.  The effect varies, because the timeout only occurs
@@ -300,7 +297,7 @@ public class IntegratedPowerManager {
             Settings.System.putInt(mContext.getContentResolver(),
                     Settings.System.SCREEN_OFF_TIMEOUT, timeout);
 
-            DLog.v(TAG, "Screen timeout restored");
+            Timber.v("Screen sleep timeout restored");
         }
     }
 
@@ -331,10 +328,10 @@ public class IntegratedPowerManager {
                 goToSleep.invoke(iPowerManager, SystemClock.uptimeMillis(), 0);
             }
 
-            DLog.v(TAG, "Successfully put device to sleep using reflection");
+            Timber.v("Successfully put device to sleep using reflection");
         } catch (Exception e) {
-            Log.w(TAG, "Unable to put device to sleep using reflection");
-            e.printStackTrace();
+            Timber.i("Unable to put device to sleep using reflection");
+            Timber.w(e);
         }
 
     }
@@ -361,7 +358,7 @@ public class IntegratedPowerManager {
 
             return true;
         } else {
-            Log.w(TAG, "Error setting fixed install mode, Root not available");
+            Timber.w("Error setting fixed install mode, Root not available");
             return false;
         }
     }
@@ -381,7 +378,7 @@ public class IntegratedPowerManager {
             rootThread.start();
             return true;
         } else {
-            Log.w(TAG, "Error setting fast charge, Root not available");
+            Timber.w("Error setting fast charge, Root not available");
             return false;
         }
     }
@@ -409,7 +406,7 @@ public class IntegratedPowerManager {
             try {
                 reader = new BufferedReader(new FileReader(settingsFile));
             } catch (FileNotFoundException e) {
-                Log.w(TAG, "File not found: " + filePath);
+                Timber.w("File not found: " + filePath);
                 return "0";
             }
 
@@ -417,20 +414,20 @@ public class IntegratedPowerManager {
             try {
                 fileValue = reader.readLine().trim();
             } catch (IOException e) {
-                Log.w(TAG, "Error reading file: " + filePath);
+                Timber.w("Error reading file: " + filePath);
                 fileValue = "0";
             }
 
             try {
                 reader.close();
             } catch (IOException e) {
-                e.printStackTrace();
+                Timber.e(e);
             }
 
             return fileValue;
 
         } else {
-            Log.w(TAG, "File does not exist: " + filePath);
+            Timber.w("File does not exist: " + filePath);
             return "0";
         }
     }

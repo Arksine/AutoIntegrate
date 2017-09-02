@@ -10,10 +10,10 @@ import android.preference.PreferenceFragment;
 import android.preference.PreferenceManager;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v4.view.GravityCompat;
+import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.DisplayMetrics;
-import android.util.Log;
 import android.view.Display;
 import android.view.MenuItem;
 import android.view.View;
@@ -23,21 +23,19 @@ import android.widget.ListView;
 import android.widget.Toast;
 
 import com.arksine.autointegrate.MainService;
-import com.arksine.autointegrate.interfaces.MCUControlInterface;
-import com.arksine.autointegrate.interfaces.ServiceControlInterface;
 import com.arksine.autointegrate.preferences.MainSettings;
 import com.arksine.autointegrate.preferences.MicroControllerSettings;
 import com.arksine.autointegrate.preferences.CameraSettings;
 import com.arksine.autointegrate.preferences.PowerSettings;
 import com.arksine.autointegrate.preferences.RadioSettings;
 import com.arksine.autointegrate.R;
-import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
+
+import timber.log.Timber;
 
 
 public class MainActivity extends AppCompatActivity {
 
-    private static String TAG = "MainActivity";
     private String[] mSettingTitles;
     private DrawerLayout mDrawerLayout;
     private ListView mDrawerList;
@@ -174,7 +172,7 @@ public class MainActivity extends AppCompatActivity {
         double x = Math.pow(widthPixels/dm.xdpi,2);
         double y = Math.pow(heightPixels/dm.ydpi,2);
         double screenInches = Math.sqrt(x+y);
-        DLog.i(TAG, "Display size inches: " + screenInches);
+        Timber.v("Display size inches: " + screenInches);
 
         if (orientation == Configuration.ORIENTATION_LANDSCAPE &&
                 screenInches >= 6.5) {
@@ -216,7 +214,7 @@ public class MainActivity extends AppCompatActivity {
                 if (sharedPrefs.getBoolean("main_pref_key_toggle_controller", false)) {
                     fragment = new MicroControllerSettings();
                     title = "Controller Settings";
-                    DLog.v(TAG, "Controller Settings Selected");
+                    Timber.v("Controller Settings Selected");
                 } else {
                     Toast.makeText(this, "Main Integration Disabled",
                             Toast.LENGTH_SHORT).show();
@@ -245,7 +243,7 @@ public class MainActivity extends AppCompatActivity {
                 break;
             default:
                 // not supported, log and send toast
-                Log.w(TAG, "Unsupported navigation selection: " + position);
+                Timber.w("Unsupported navigation selection: %d", position);
                 Toast.makeText(this, "Selection not supported",
                         Toast.LENGTH_SHORT).show();
                 return;
@@ -269,7 +267,13 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void setTitle(CharSequence title) {
         mTitle = title;
-        getSupportActionBar().setTitle(mTitle);
+
+        ActionBar actionBar = getSupportActionBar();
+        if (actionBar != null) {
+            getSupportActionBar().setTitle(mTitle);
+        } else {
+            Timber.w("Error retrieving Action Bar");
+        }
     }
 
 }

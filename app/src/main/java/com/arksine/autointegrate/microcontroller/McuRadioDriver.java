@@ -1,15 +1,14 @@
 package com.arksine.autointegrate.microcontroller;
 
 import android.support.annotation.NonNull;
-import android.util.Log;
 
 import com.arksine.autointegrate.AutoIntegrate;
 import com.arksine.autointegrate.interfaces.MCUControlInterface;
-import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.hdradiolib.drivers.RadioDriver;
 
 import java.util.ArrayList;
-import java.util.concurrent.atomic.AtomicBoolean;
+
+import timber.log.Timber;
 
 /**
  *  Driver to control a Directed HD Radio, connected through the MCU responsible for
@@ -17,7 +16,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 
 public class McuRadioDriver extends RadioDriver {
-    private static final String TAG = McuRadioDriver.class.getSimpleName();
 
     private MCUControlInterface mControlInterface;
     private boolean mIsOpen;
@@ -86,7 +84,7 @@ public class McuRadioDriver extends RadioDriver {
 
     @Override
     public void raiseRts() {
-        DLog.d(TAG, "Raise RTS");
+        Timber.v("Raise RTS");
         if (mControlInterface != null) {
             mControlInterface.sendMcuCommand(MCUDefs.McuOutputCommand.RADIO_SET_RTS, true);
         }
@@ -95,7 +93,7 @@ public class McuRadioDriver extends RadioDriver {
     @Override
     public void clearRts() {
 
-        DLog.d(TAG, "Clear RTS");
+        Timber.v("Clear RTS");
         if (mControlInterface != null) {
             mControlInterface.sendMcuCommand(MCUDefs.McuOutputCommand.RADIO_SET_RTS, false);
         }
@@ -103,7 +101,7 @@ public class McuRadioDriver extends RadioDriver {
 
     @Override
     public void raiseDtr() {
-        DLog.d(TAG, "Raise DTR");
+        Timber.v("Raise DTR");
         if (mControlInterface != null) {
             mControlInterface.sendMcuCommand(MCUDefs.McuOutputCommand.RADIO_SET_DTR, true);
         }
@@ -111,7 +109,7 @@ public class McuRadioDriver extends RadioDriver {
 
     @Override
     public void clearDtr() {
-        DLog.d(TAG, "Clear DTR");
+        Timber.v("Clear DTR");
         if (mControlInterface != null) {
             mControlInterface.sendMcuCommand(MCUDefs.McuOutputCommand.RADIO_SET_DTR, false);
         }
@@ -119,8 +117,7 @@ public class McuRadioDriver extends RadioDriver {
 
     @Override
     public void writeData(byte[] bytes) {
-
-        DLog.d(TAG, "Write Data to Radio");
+        Timber.v("Write Data to Radio");
         if (mControlInterface != null) {
             // write bytes to MCU using RADIO_SEND_PACKET command
             mControlInterface.sendMcuCommand(MCUDefs.McuOutputCommand.RADIO_SEND_PACKET, bytes);

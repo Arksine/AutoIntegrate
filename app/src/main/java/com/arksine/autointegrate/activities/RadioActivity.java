@@ -13,7 +13,6 @@ import android.os.RemoteException;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.DisplayMetrics;
-import android.util.Log;
 import android.view.View;
 import android.view.ViewTreeObserver;
 import android.widget.Button;
@@ -30,7 +29,6 @@ import com.arksine.autointegrate.radio.RemoteRadioEvents;
 import com.arksine.autointegrate.radio.TextStreamAnimator;
 import com.arksine.autointegrate.utilities.BackgroundThreadFactory;
 import com.arksine.autointegrate.radio.TextSwapAnimator;
-import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.hdradiolib.HDSongInfo;
 import com.arksine.hdradiolib.RadioController;
 import com.arksine.hdradiolib.TuneInfo;
@@ -42,10 +40,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import timber.log.Timber;
+
 // TODO: is signal strength 0-3000?
 public class RadioActivity extends AppCompatActivity {
-    private static final String TAG = RadioActivity.class.getSimpleName();
-
     private SharedPreferences mRadioActivityPrefs;
     private ExecutorService EXECUTOR = Executors.newCachedThreadPool(new BackgroundThreadFactory());
     private Handler mUiHandler;
@@ -392,7 +390,7 @@ public class RadioActivity extends AppCompatActivity {
             mRadioController = binder.getRadioInterface();
 
             if (mRadioController == null) {
-                Log.i(TAG, "Radio Interface not available");
+                Timber.i("Radio Interface not available");
                 mUiHandler.post(new Runnable() {
                     @Override
                     public void run() {
@@ -538,17 +536,18 @@ public class RadioActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 //TODO: Disable power button for two seconds, then post delay a re-enable
-                DLog.v(TAG, "Power Clicked, interface is: " + (mRadioController != null));
+                Timber.v("Power Clicked");
                 if (mRadioController != null) {
                     final boolean status = ((ToggleButton)view).isChecked();
 
-                    DLog.v(TAG, "Set power: " + status);
+                    Timber.v("Set power: %b", status);
                     if (status) {
                         mRadioController.powerOn();
                     } else {
                         mRadioController.powerOff();
                     }
-
+                } else {
+                    Timber.d("Radio Control Interface Not Available");
                 }
             }
         });
@@ -559,7 +558,7 @@ public class RadioActivity extends AppCompatActivity {
                 if (mRadioController != null) {
                     final boolean status = ((ToggleButton)view).isChecked();
 
-                    DLog.v(TAG, "Set mute: " + status);
+                    Timber.v("Set mute: %b", status);
                     if (status) {
                         mRadioController.muteOn();
                     } else {
@@ -585,8 +584,8 @@ public class RadioActivity extends AppCompatActivity {
             public void onClick(View view) {
                 if (mRadioController != null) {
                     final boolean band = ((ToggleButton) view).isChecked();
-                    DLog.v(TAG, "Switch Band to FM: " + band);
                     if (band) {
+                        Timber.v("Switch Band to FM");
                         // fm
                         final int frequency = mRadioActivityPrefs.getInt("pref_key_stored_fm_freq", 879);
                         final int subChannel = mRadioActivityPrefs.getInt("pref_key_stored_fm_subch", 0);
@@ -602,6 +601,7 @@ public class RadioActivity extends AppCompatActivity {
 
                         mRadioController.tune(tuneInfo);
                     } else {
+                        Timber.v("Switch Band to AM");
                         // am
                         final int frequency = mRadioActivityPrefs.getInt("pref_key_stored_am_freq", 900);
                         final int subChannel = mRadioActivityPrefs.getInt("pref_key_stored_am_subch", 0);
@@ -740,7 +740,7 @@ public class RadioActivity extends AppCompatActivity {
                         }
                         break;
                     default:
-                        DLog.v(TAG, "Invalid command, cannot set apply setting");
+                        Timber.v("Invalid seekbar command, cannot set apply setting");
                 }
             }
         };
@@ -764,7 +764,7 @@ public class RadioActivity extends AppCompatActivity {
                     infoScrollView.getViewTreeObserver().removeOnGlobalLayoutListener(this);
                     mTextSwapAnimator.setScrollViewWidth(infoScrollView.getWidth());
                     mTextStreamAnimator.setScrollViewWidth((infoScrollView.getWidth()));
-                    DLog.v(TAG, "View Tree Observer set scrollview width to : " +
+                    Timber.v("View Tree Observer set scrollview width to: %d",
                         infoScrollView.getWidth());
                 }
             });
@@ -776,7 +776,7 @@ public class RadioActivity extends AppCompatActivity {
             int scrollViewWidth = displayMetrics.widthPixels - padding;
             mTextSwapAnimator.setScrollViewWidth(scrollViewWidth);
             mTextStreamAnimator.setScrollViewWidth(scrollViewWidth);
-            DLog.v(TAG, "Display Metrics set width to:  " + scrollViewWidth);
+            Timber.v("Display Metrics set width to: %d", scrollViewWidth);
         }
 
         mRadioSettingsDialog.restoreValues();

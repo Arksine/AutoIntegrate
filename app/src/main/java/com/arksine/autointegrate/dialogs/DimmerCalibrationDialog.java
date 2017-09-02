@@ -5,7 +5,6 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
-import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -30,6 +29,8 @@ import com.arksine.autointegrate.utilities.UtilityFunctions;
 import com.orhanobut.dialogplus.DialogPlus;
 import com.orhanobut.dialogplus.ViewHolder;
 
+import timber.log.Timber;
+
 // TODO: Either disable save button during the wizard, or replace it with Continue/Finish and navigate
 //       actions that way
 
@@ -38,7 +39,6 @@ import com.orhanobut.dialogplus.ViewHolder;
  */
 
 public class DimmerCalibrationDialog {
-    private static String TAG = "DimmerCalibrationDialog";
 
     private static class WizardPage {
         final static int NONE = 0;
@@ -231,7 +231,7 @@ public class DimmerCalibrationDialog {
                         setAnalogReadingTextView("0", R.id.txt_dimmer_reading_analog_low);
                         break;
                     default:
-                        Log.i(TAG, "Invalid dimmer mode selected");
+                        Timber.w("Invalid dimmer mode selected");
                 }
 
                 mDimmerViewAnimator.showNext();
@@ -370,7 +370,7 @@ public class DimmerCalibrationDialog {
             mode = Settings.System.getInt(mContext.getContentResolver(),
                     Settings.System.SCREEN_BRIGHTNESS_MODE);
         } catch (Exception e) {
-            e.printStackTrace();
+            Timber.e(e);
         }
 
         // change to manual mode if automatic is enabled
@@ -385,7 +385,7 @@ public class DimmerCalibrationDialog {
             mInitialBrightness = Settings.System.getInt(mContext.getContentResolver(),
                     Settings.System.SCREEN_BRIGHTNESS);
         } catch (Exception e) {
-            e.printStackTrace();
+            Timber.e(e);
         }
 
         mBrightnessBar.setProgress(mInitialBrightness);

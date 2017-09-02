@@ -31,8 +31,6 @@ import java.util.ArrayList;
  */
 
 public class ButtonMapDialog {
-
-    private static String TAG = "ButtonMapDialog";
     private Context mContext;
     private LearnedButtonAdapter mLearnedButtonAdapter;
 

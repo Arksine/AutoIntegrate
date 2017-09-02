@@ -9,16 +9,15 @@ import android.preference.PreferenceManager;
 import com.arksine.autointegrate.AutoIntegrate;
 import com.arksine.autointegrate.MainService;
 import com.arksine.autointegrate.interfaces.ServiceControlInterface;
-import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
+
+import timber.log.Timber;
 
 /**
  * Broadcast Reciever to handle boot, power connected, and power disconnected events.  Power
  * related events are only handled if power integration is enabled
  */
 public class PowerEventReceiver extends BroadcastReceiver {
-    private static final String TAG = "PowerEventReceiver";
-
     @Override
     public void onReceive(Context context, Intent intent) {
         boolean powerEnabled = PreferenceManager.getDefaultSharedPreferences(context)
@@ -45,7 +44,7 @@ public class PowerEventReceiver extends BroadcastReceiver {
                 UtilityFunctions.isServiceRunning(MainService.class, context)) {
 
             if (action.equals(Intent.ACTION_POWER_CONNECTED)) {
-                DLog.v(TAG, "Power Reconnected, wake device");
+                Timber.v("Power Reconnected, wake device");
 
                 // Wake service thread
                 ServiceControlInterface serviceControl = AutoIntegrate.getServiceControlInterface();
@@ -55,7 +54,7 @@ public class PowerEventReceiver extends BroadcastReceiver {
 
 
             } else if (action.equals(Intent.ACTION_POWER_DISCONNECTED)) {
-                DLog.v(TAG, "Power Disconnected, attempt sleep");
+                Timber.v("Power Disconnected, attempt sleep");
 
                 // Wake service thread
                 ServiceControlInterface serviceControl = AutoIntegrate.getServiceControlInterface();

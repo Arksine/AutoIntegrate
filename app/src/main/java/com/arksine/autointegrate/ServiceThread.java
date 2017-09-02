@@ -4,7 +4,6 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
 import android.support.v4.content.LocalBroadcastManager;
-import android.util.Log;
 
 import com.arksine.autointegrate.interfaces.McuLearnCallbacks;
 import com.arksine.autointegrate.interfaces.ServiceControlInterface;
@@ -13,7 +12,6 @@ import com.arksine.autointegrate.power.IntegratedPowerManager;
 import com.arksine.autointegrate.preferences.MainSettings;
 import com.arksine.autointegrate.radio.RadioCom;
 import com.arksine.autointegrate.utilities.BackgroundThreadFactory;
-import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
 import com.arksine.hdradiolib.RadioController;
 
@@ -24,12 +22,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import timber.log.Timber;
+
 /**
  * Main Background Thread for service
  */
 
 public class ServiceThread implements Runnable {
-    private static String TAG = "ServiceThread";
 
     private MainService mService;
     private ExecutorService EXECUTOR = Executors.newCachedThreadPool(new BackgroundThreadFactory());
@@ -53,7 +52,7 @@ public class ServiceThread implements Runnable {
         public void wakeUpDevice() {
             if (mServiceSuspended.get()) {
                 EXECUTOR.execute(wakeUpDevice);
-                Log.i(TAG, "Service resumed.");
+                Timber.v("Service resumed.");
             }
         }
 
@@ -66,7 +65,7 @@ public class ServiceThread implements Runnable {
 
         @Override
         public void refreshMcuConnection(boolean learningMode, McuLearnCallbacks cbs) {
-            DLog.v(TAG, "Refresh MicroController Connection");
+            Timber.v("Refresh MicroController Connection");
             mLearningMode.set(learningMode);
             mMcuLearnCallbacks.set(cbs);
             EXECUTOR.execute(stopMicroControllerConnection);
@@ -74,7 +73,7 @@ public class ServiceThread implements Runnable {
 
         @Override
         public void refreshRadioConnection() {
-            DLog.v(TAG, "Refresh Radio Thread");
+            Timber.v("Refresh Radio Thread");
             EXECUTOR.execute(stopHdRadioConnection);
         }
     };
@@ -108,10 +107,10 @@ public class ServiceThread implements Runnable {
                     mIsWaiting.set(true);
                     wait();
                 } catch (InterruptedException e) {
-                    Log.w(TAG, e.getMessage());
+                    Timber.w(e);
                 } finally {
                     if (mIsWaiting.compareAndSet(true, false)) {
-                        Log.i(TAG, "Wait interrupted");
+                        Timber.v("Wait for root access interrupted");
                     }
                 }
             }
@@ -127,20 +126,20 @@ public class ServiceThread implements Runnable {
                     mMicroController.set(new MicroControllerCom(mService, mLearningMode.get(),
                             mMcuLearnCallbacks.get()));
                     if (mMicroController.get().connect()) {
-                        DLog.v(TAG, "Micro Controller connection established");
+                        Timber.v("Micro Controller connection established");
 
                         // update Radio Driver if Radio is Connected
                         if (mHdRadio.get() != null && mHdRadio.get().isConnected()) {
                             mHdRadio.get().updateDriver();
                         }
                     } else {
-                        DLog.v(TAG, "Error connecting to Micro Controller: Connection Attempt " + connectionAttempts);
+                        Timber.v("Error connecting to Micro Controller: Connection Attempt " + connectionAttempts);
                         AutoIntegrate.setMcuControlInterface(null);
                         mMicroController.set(null);
                     }
                 }
             } else {
-                Log.i(TAG, "Micro Controller Integration Disabled");
+                Timber.v("Micro Controller Integration Disabled");
             }
 
 
@@ -154,14 +153,14 @@ public class ServiceThread implements Runnable {
 
                     mHdRadio.set(new RadioCom(mService));
                     if (mHdRadio.get().connect()) {
-                        DLog.v(TAG, "HD Radio Connection Set Up");
+                        Timber.v("HD Radio Connection Set Up");
                     } else {
-                        DLog.v(TAG, "Error Setting up HD Radio: Attempt " + connectionAttempts);
+                        Timber.v("Error Setting up HD Radio: Attempt " + connectionAttempts);
                         mHdRadio.set(null);
                     }
                 }
             } else {
-                Log.i(TAG, "HD Radio Integration Disabled");
+                Timber.v("HD Radio Integration Disabled");
             }
 
 
@@ -182,10 +181,10 @@ public class ServiceThread implements Runnable {
                         // sleep for 100ms to make sure settings and vars are updated
                         Thread.sleep(100);
                     } catch (InterruptedException e) {
-                        Log.w(TAG, e.getMessage());
+                        Timber.w(e);
                     } finally {
                         if (mIsWaiting.compareAndSet(true, false)) {
-                            Log.i(TAG, "Wait interrupted");
+                            Timber.i("Wait for service thread interrupted");
                         }
                     }
                 }
@@ -195,7 +194,7 @@ public class ServiceThread implements Runnable {
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {
-                    Log.w(TAG, e.getMessage());
+                    Timber.w(e);
                 }
             }
 
@@ -209,7 +208,7 @@ public class ServiceThread implements Runnable {
 
 
         mServiceThreadRunning.set(false);
-        DLog.v(TAG, "Service Thread finished executing");
+        Timber.v("Service Thread finished executing");
 
     }
 
@@ -224,7 +223,7 @@ public class ServiceThread implements Runnable {
             connected = (connected && (mHdRadio.get() != null && mHdRadio.get().isConnected()));
         }
 
-        DLog.i(TAG, "All connected status: " + connected);
+        Timber.v("All connected status: " + connected);
 
         return connected;
     }
@@ -273,7 +272,7 @@ public class ServiceThread implements Runnable {
             EXECUTOR.awaitTermination(10, TimeUnit.SECONDS);
         } catch (InterruptedException e){
             // Thread interrupted, return
-            Log.w(TAG, e.getMessage());
+            Timber.w(e);
             return;
         }
 
@@ -327,19 +326,19 @@ public class ServiceThread implements Runnable {
                     // Use get with a timeout to see if the thread dies
                     mMainThreadFuture.get(10, TimeUnit.SECONDS);
                 } catch (Exception e) {
-                    Log.w(TAG, e.getMessage());
+                    Timber.w(e.getMessage());
                 }
 
                 // if the thread is still alive, kill it
                 if (!mMainThreadFuture.isDone()) {
-                    DLog.i(TAG, "Main Thread did not properly shut down.");
+                    Timber.w("Main Thread did not properly shut down.");
                     mMainThreadFuture.cancel(true);
                 }
 
                 mMainThreadFuture = null;
                 AutoIntegrate.setServiceControlInterface(null);
 
-                DLog.v(TAG, "Main Thead Stopped");
+                Timber.v("Main Thead Stopped");
             }
         }
     };
@@ -355,7 +354,7 @@ public class ServiceThread implements Runnable {
             }
             // make sure the service thread isn't waiting
             notifyServiceThread();
-            DLog.v(TAG, "Micro Controller Disconnected");
+            Timber.v("Micro Controller Disconnected");
         }
     };
 
@@ -369,7 +368,7 @@ public class ServiceThread implements Runnable {
 
             notifyServiceThread();
 
-            DLog.v(TAG, "Hd Radio Disconnected");
+            Timber.v("Hd Radio Disconnected");
         }
     };
 
@@ -382,7 +381,7 @@ public class ServiceThread implements Runnable {
             try {
                 Thread.sleep(2000);
             } catch (InterruptedException e) {
-                Log.w(TAG, e.getMessage());
+                Timber.w(e);
             }
             mServiceSuspended.set(false);
             startServiceThread();

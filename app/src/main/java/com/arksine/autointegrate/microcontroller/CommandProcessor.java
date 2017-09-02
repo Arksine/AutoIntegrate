@@ -9,7 +9,6 @@ import android.preference.PreferenceManager;
 import android.provider.Settings;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.ArrayMap;
-import android.util.Log;
 import android.view.KeyEvent;
 
 import com.arksine.autointegrate.AutoIntegrate;
@@ -17,7 +16,6 @@ import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.activities.BrightnessChangeActivity;
 import com.arksine.autointegrate.activities.CameraActivity;
 import com.arksine.autointegrate.interfaces.MCUControlInterface;
-import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.autointegrate.utilities.TaskerIntent;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
 import com.arksine.autointegrate.microcontroller.MCUDefs.*;
@@ -30,6 +28,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import eu.chainfire.libsuperuser.Shell;
+import timber.log.Timber;
 
 // TODO: Create a preference to show status toasts, then create an invisble activity that
 // shows them if enabled
@@ -40,7 +39,6 @@ import eu.chainfire.libsuperuser.Shell;
  */
 
 public class CommandProcessor {
-    private static final String TAG = CommandProcessor.class.getSimpleName();
 
     public static class DimmerMode {
         private DimmerMode(){}
@@ -169,7 +167,7 @@ public class CommandProcessor {
                             Settings.System.putInt(mContext.getContentResolver(),
                                     Settings.System.SCREEN_BRIGHTNESS_MODE,
                                     Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL);
-                            DLog.v(TAG, "Auto Brightness off ");
+                            Timber.v("Auto Brightness off ");
                         }
                     }
 
@@ -181,7 +179,7 @@ public class CommandProcessor {
                             Settings.System.putInt(mContext.getContentResolver(),
                                     Settings.System.SCREEN_BRIGHTNESS_MODE,
                                     Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC);
-                            DLog.v(TAG, "Auto Brightness on ");
+                            Timber.v("Auto Brightness on ");
                         }
                     }
 
@@ -195,12 +193,12 @@ public class CommandProcessor {
                     Settings.System.putInt(mContext.getContentResolver(),
                             Settings.System.SCREEN_BRIGHTNESS_MODE,
                             Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL);
-                    DLog.v(TAG, "Auto Brightness off ");
+                    Timber.v("Auto Brightness off ");
                 }
 
                 final int onBrightness = defaultPrefs.getInt("dimmer_pref_key_high_brightness",100);
                 if (onBrightness <= 0) {
-                    DLog.i(TAG, "Dimmer Mode Digital not calibated");
+                    Timber.i("Digital Dimmer Mode not calibated");
                     mBrightnessControl = emptyBC;
                     break;
                 }
@@ -235,7 +233,7 @@ public class CommandProcessor {
                     Settings.System.putInt(mContext.getContentResolver(),
                             Settings.System.SCREEN_BRIGHTNESS_MODE,
                             Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL);
-                    DLog.v(TAG, "Auto Brightness off ");
+                    Timber.v("Auto Brightness off ");
                 }
 
                 final int highReading = defaultPrefs.getInt("dimmer_pref_key_high_reading", 1000);
@@ -245,7 +243,7 @@ public class CommandProcessor {
 
                 if ((highReading <= 0) || (lowReading <= 0) ||
                         (highBrightness <= 0) || (lowBrightness <= 0)) {
-                    DLog.i(TAG, "Dimmer Mode Analog not calibated");
+                    Timber.i("Analog Dimmer Mode not calibated");
                     mBrightnessControl = emptyBC;
                     break;
                 }
@@ -284,14 +282,14 @@ public class CommandProcessor {
                         }
                         float readingCoef = (float) offsetReading / readingDiff;
                         int brightness = Math.round(readingCoef * brightDiff) + lowBrightness;
-                        DLog.i(TAG, "Calculated Brightness: " + brightness);
+                        Timber.d("Analog Calculated Brightness: %d", brightness);
 
                         launchBrightnessChangeActivity(brightness);
                     }
                 };
                 break;
             default:
-                DLog.i(TAG, "Invalid Dimmer Mode");
+                Timber.w("Invalid Dimmer Mode");
                 // Dimmer is invalid, so control functions are empty
                 mBrightnessControl = emptyBC;
         }
@@ -346,7 +344,7 @@ public class CommandProcessor {
                 break;
 
             default:        // Unknown command
-                Log.wtf(TAG, "Unknown Camera Setting, this shouldnt happen");
+                Timber.wtf("Unknown Camera Setting, this shouldnt happen");
         }
     }
 
@@ -357,7 +355,7 @@ public class CommandProcessor {
             mode = Settings.System.getInt(mContext.getContentResolver(),
                     Settings.System.SCREEN_BRIGHTNESS_MODE);
         } catch (Exception e) {
-            e.printStackTrace();
+            Timber.e(e);
         }
 
         /* change to manual mode if automatic is enabled */
@@ -371,7 +369,7 @@ public class CommandProcessor {
 
         } catch (Exception e) {
             mInitialBrightness = 200;
-            e.printStackTrace();
+            Timber.e(e);
         }
     }
 
@@ -396,14 +394,14 @@ public class CommandProcessor {
         mActions.put("Volume Up", new ActionRunnable() {
             @Override
             public void run() {
-                DLog.v(TAG, "Send Volume Up Command");
+                Timber.v("Volume Up Command recd");
                 do {
                     mAudioManger.adjustStreamVolume(AudioManager.STREAM_MUSIC,
                             AudioManager.ADJUST_RAISE, volumeUiFlag);
                     try {
                         Thread.sleep(VOLUME_KEY_DELAY);
                     } catch (InterruptedException e) {
-                        Log.w(TAG, e.getMessage());
+                        Timber.w(e);
                     }
 
                 } while (mIsHoldingBtn.get());
@@ -412,14 +410,14 @@ public class CommandProcessor {
         mActions.put("Volume Down", new ActionRunnable() {
             @Override
             public void run() {
-                DLog.v(TAG, "Send Volume Down Command");
+                Timber.v("Volume Down Command recd");
                 do {
                     mAudioManger.adjustStreamVolume(AudioManager.STREAM_MUSIC,
                             AudioManager.ADJUST_LOWER, volumeUiFlag);
                     try {
                         Thread.sleep(VOLUME_KEY_DELAY);
                     } catch (InterruptedException e) {
-                        Log.w(TAG, e.getMessage());
+                        Timber.w(e);
                     }
                 } while (mIsHoldingBtn.get());
             }
@@ -427,7 +425,7 @@ public class CommandProcessor {
         mActions.put("Mute", new ActionRunnable() {
             @Override
             public void run() {
-                DLog.v(TAG, "Send Mute Command");
+                Timber.v("Send Mute Command recd");
 
                 int vol = mAudioManger.getStreamVolume(AudioManager.STREAM_MUSIC);
                 if (vol > 0) {
@@ -444,7 +442,7 @@ public class CommandProcessor {
         // Media Keys
         mActions.put("Play/Pause", new ActionRunnable() {
             public void run() {
-                DLog.v(TAG, "Send Media, Play/Pause Command");
+                Timber.v( "Media, Play/Pause Command recd");
 
                 Intent mediaIntent = new Intent(Intent.ACTION_MEDIA_BUTTON);
                 mediaIntent.putExtra(Intent.EXTRA_KEY_EVENT,
@@ -454,7 +452,7 @@ public class CommandProcessor {
                 try {
                     Thread.sleep(500);
                 } catch (InterruptedException e) {
-                    Log.w(TAG, e.getMessage());
+                    Timber.w(e);
                 }
 
                 mediaIntent = new Intent(Intent.ACTION_MEDIA_BUTTON);
@@ -480,15 +478,15 @@ public class CommandProcessor {
                     if (mCameraIntent != null) {
                         mCameraIsOn = true;
                         mContext.startActivity(mCameraIntent);
-                        DLog.v(TAG, "Send Launch Camera Command");
+                        Timber.v("Launch Camera Command recd");
                     } else {
-                        DLog.i(TAG, "Camera app not set");
+                        Timber.i("Camera app not set");
                     }
                 } else {
                     if (mReverseExitListener != null) {
                         mCameraIsOn = false;
                         mReverseExitListener.OnReverseOff();
-                        DLog.v(TAG, "Send Close Camera Command");
+                        Timber.v("Close Camera Command recd");
                     }
                 }
             }
@@ -498,7 +496,7 @@ public class CommandProcessor {
             public void run() {
                 if (mCameraIntent == null) {
                     // TODO: Show Invisible toast
-                    DLog.v(TAG, "Camera app not set");
+                    Timber.i("Camera app not set");
                     return;
                 }
 
@@ -509,7 +507,7 @@ public class CommandProcessor {
                     mCameraIsOn = false;
                     mReverseExitListener.OnReverseOff();
                 }
-                DLog.v(TAG, "Send Toggle Camera Command");
+                Timber.v("Toggle Camera Command recd");
             }
         });
         mActions.put("Dimmer", new ActionRunnable() {
@@ -529,7 +527,7 @@ public class CommandProcessor {
                 if (mDimmerMode == DimmerMode.ANALOG) {
                     mBrightnessControl.DimmerChange((int) data);
                 } else {
-                    Log.w(TAG, "Dimmer is set to digital mode, not expecting analog data");
+                    Timber.w("Dimmer is set to digital mode, not expecting analog data");
                 }
             }
         });
@@ -552,13 +550,13 @@ public class CommandProcessor {
         mActions.put("Application", new ActionRunnable() {
             @Override
             public void run() {
-                DLog.v(TAG, "Sending Application Intent");
+                Timber.v("Sending Application Intent");
                 Intent appIntent = mContext.getPackageManager().getLaunchIntentForPackage((String)this.data);
                 if (appIntent != null) {
                     appIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                     mContext.startActivity(appIntent);
                 } else {
-                    Log.i(TAG, "Invalid application, Cannot Launch");
+                    Timber.w("Invalid application, Cannot Launch");
                 }
             }
         });
@@ -568,7 +566,7 @@ public class CommandProcessor {
             public void run() {
                 // TODO: currently using tasker's external access api to execute.  Can create
                 //       Locale/Tasker plugin that should also work with macrodroid.
-                DLog.v(TAG, "Execute Tasker Task");
+                Timber.v("Execute Tasker Task");
                 if ( TaskerIntent.testStatus(mContext).equals(TaskerIntent.Status.OK) ) {
                     TaskerIntent i = new TaskerIntent((String)this.data);
                     mContext.sendBroadcast( i );
@@ -610,7 +608,7 @@ public class CommandProcessor {
                                     null);
                             break;
                         default:
-                            Log.i(TAG, "Unknown Audio Source: " + data);
+                            Timber.w("Unknown Audio Source: %s", data);
                     }
                 }
             }
@@ -636,7 +634,7 @@ public class CommandProcessor {
                     try {
                         Thread.sleep(500);
                     } catch (InterruptedException e) {
-                        Log.w(TAG, e.getMessage());
+                        Timber.w(e);
                     }
 
                     // send key up event
@@ -650,7 +648,7 @@ public class CommandProcessor {
                             Thread.sleep(MEDIA_KEY_DELAY);
 
                         } catch (InterruptedException e) {
-                            Log.w(TAG, e.getMessage());
+                            Timber.w(e);
                         }
                     }
 
@@ -676,7 +674,7 @@ public class CommandProcessor {
                     try {
                         Thread.sleep(200);
                     } catch (InterruptedException e) {
-                        Log.w(TAG, e.getMessage());
+                        Timber.w(e);
                     }
 
                 } while (mIsHoldingBtn.get());
@@ -721,7 +719,7 @@ public class CommandProcessor {
             }
         }
 
-        DLog.i(TAG, "Button is not mapped.");
+        Timber.i("Button is not mapped for value: %d", id);
         return null;
     }
 
@@ -731,7 +729,7 @@ public class CommandProcessor {
         switch (message.command) {
             case STARTED:
                 // connection established, initialize
-                Log.i(TAG, "MCU Started successfully");
+                Timber.v("MCU Started successfully");
 
                 if (mDimmerMode == DimmerMode.ANALOG) {
                     mMcuControlInterface.sendMcuCommand(McuOutputCommand.SET_DIMMER_ANALOG, null);
@@ -790,7 +788,7 @@ public class CommandProcessor {
                         return;
                     }
 
-                    DLog.v(TAG, "Broacasting custom command: " + message.command);
+                    Timber.d("Broacasting custom command: %s", message.command.toString());
 
                     // First byte is the command
                     Intent customIntent = new Intent(mContext.getString(R.string.ACTION_CUSTOM_DATA_RECIEVED));
@@ -806,7 +804,7 @@ public class CommandProcessor {
                 }
                 break;
             default:
-                Log.i(TAG, "Unknown command Received");
+                Timber.i("Unknown command Received: %s", message.command.toString());
         }
 
         if (action != null) {

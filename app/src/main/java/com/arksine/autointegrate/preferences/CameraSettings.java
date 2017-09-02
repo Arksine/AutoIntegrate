@@ -10,23 +10,22 @@ import android.preference.ListPreference;
 import android.preference.Preference;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceScreen;
-import android.util.Log;
 
 import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.activities.CameraActivity;
-import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import timber.log.Timber;
+
 /**
  * Manages lifecycle of the Integrated Camera Preference Fragment
  */
 
 public class CameraSettings extends PreferenceFragment {
-    private final static String TAG = "CameraSettings";
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -84,18 +83,18 @@ public class CameraSettings extends PreferenceFragment {
                 CharSequence name = "UVC Capture Device";
                 CharSequence value;
 
-                DLog.v(TAG, "UVC Camera Device found: " + name);
-                DLog.v(TAG, "Device ID: " + uDevice.getDeviceId());
-                DLog.v(TAG, "Device Name: " + uDevice.getDeviceName());
-                DLog.v(TAG, "Vendor: ID " + uDevice.getVendorId());
-                DLog.v(TAG, "Product ID: " + uDevice.getProductId());
-                DLog.v(TAG, "Class: " + uDevice.getDeviceClass());
-                DLog.v(TAG, "SubClass: " + uDevice.getDeviceSubclass());
-                DLog.v(TAG, "Protocol: " + uDevice.getDeviceProtocol());
+                Timber.d("UVC Camera Device found:");
+                Timber.d("Device ID: %d", uDevice.getDeviceId());
+                Timber.d("Device Name: %s", uDevice.getDeviceName());
+                Timber.d("Vendor ID: %#x", uDevice.getVendorId());
+                Timber.d("Product ID: %#x", uDevice.getProductId());
+                Timber.d("Class: %#x", uDevice.getDeviceClass());
+                Timber.d("SubClass: %#x", uDevice.getDeviceSubclass());
+                Timber.d("Protocol: %#x", uDevice.getDeviceProtocol());
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    DLog.v(TAG, "Manufacturer: " + uDevice.getManufacturerName());
-                    DLog.v(TAG, "Serial Number: " + uDevice.getSerialNumber());
+                    Timber.d("Manufacturer: %s", uDevice.getManufacturerName());
+                    Timber.d("Serial Number: %s", uDevice.getSerialNumber());
                 }
 
 
@@ -120,7 +119,7 @@ public class CameraSettings extends PreferenceFragment {
         }
 
         if (entries.isEmpty()) {
-            Log.i(TAG, "No compatible devices found on system");
+            Timber.i("No compatible devices found on system");
             entries.add("No device found");
             entryValues.add("NO_DEVICE");
 

@@ -4,22 +4,20 @@ import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
-import android.util.Log;
 
 import com.arksine.autointegrate.interfaces.McuLearnCallbacks;
-import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.autointegrate.microcontroller.MCUDefs.*;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+
+import timber.log.Timber;
 
 /**
  * Handler to parse incoming packets from the Micro Controller and process its events
  */
 
 public class ControllerInputHandler extends Handler {
-
-    private static final String TAG = "ControllerInputHandler";
 
     private Context mContext = null;
     private CommandProcessor mCommandProcessor;
@@ -36,7 +34,7 @@ public class ControllerInputHandler extends Handler {
                 switch (ctrlMsg.command) {
                     case STARTED:
                         // invoke Mcu OnStarted Callback with Id
-                        Log.i(TAG, "Successfully started in Learning mode");
+                        Timber.i("MCU Restarted in Learning mode");
                         mMcuEvents.OnStarted((String)ctrlMsg.data);
                         break;
                     case CLICK:
@@ -49,10 +47,11 @@ public class ControllerInputHandler extends Handler {
                         mMcuLearnCallbacks.onDimmerLevelChanged((int)ctrlMsg.data);
                         break;
                     default:
-                        Log.i(TAG, "Incorrect data type for calibration received");
+                        Timber.v("Incorrect command type for calibration received: %s",
+                                ctrlMsg.command.toString());
                 }
             } else {
-                Log.w(TAG, "Error, device in learning mode but no callbacks are set");
+                Timber.w("Error, device in learning mode but no callbacks are set");
             }
 
         }
@@ -101,7 +100,7 @@ public class ControllerInputHandler extends Handler {
                 mPacketLength = 0;
                 mChecksum = 0xF1;
             } else if (!mIsValidPacket) {
-                DLog.i(TAG, "Invalid byte received: " + b);
+                Timber.d("Invalid byte received: %#x", b);
             } else if (b == (byte) 0x1A && !mIsEscapedByte) {
                 mIsEscapedByte = true;
             } else {
@@ -127,7 +126,7 @@ public class ControllerInputHandler extends Handler {
                         parsePacket();
 
                     } else {
-                        Log.i(TAG, "Invalid checksum, discarding packet");
+                        Timber.d("Invalid checksum, discarding packet");
                     }
 
                     // The next byte received must be 0xF1, regardless of what happened here
@@ -144,19 +143,19 @@ public class ControllerInputHandler extends Handler {
     // Reads a message from the Micro Controller and parses it
     private boolean parsePacket() {
 
-        DLog.i(TAG, "MCU Packet Length: " + mReceivedBuffer.limit());
+        Timber.d("MCU Packet Length: %d", mReceivedBuffer.limit());
 
         if(mReceivedBuffer.limit() < 2) {
-            Log.e(TAG, "Invalid data packet, must at least be 2 bytes long");
+            Timber.w("Invalid data packet, must at least be 2 bytes long");
             return false;
         }
 
         ControllerMessage ctrlMsg = new ControllerMessage();
 
         ctrlMsg.command = McuInputCommand.getCommandFromByte(mReceivedBuffer.get());
-        DLog.v(TAG, "MCU Command Recd: " + ctrlMsg.command.toString());
+        Timber.d("MCU Command Recd: %s", ctrlMsg.command.toString());
         if (ctrlMsg.command == McuInputCommand.NONE) {
-            Log.e(TAG, "Invalid Command Received");
+            Timber.w("Invalid Command Received");
             return false;
         } else if (ctrlMsg.command == McuInputCommand.RADIO_DATA) {
             byte[] radioBytes = new byte[mReceivedBuffer.remaining()];
@@ -166,7 +165,7 @@ public class ControllerInputHandler extends Handler {
         }
 
         if (!mReceivedBuffer.hasRemaining()) {
-            Log.i(TAG, "Invalid Packet, end of buffer reached before data received");
+            Timber.w("Invalid Packet, end of buffer reached before data received");
             //  TODO: In the future it may be possible to receive a command that has no payload.
             //  In that case, we would need to send it here and not return false
             return false;
@@ -175,7 +174,7 @@ public class ControllerInputHandler extends Handler {
         switch (ctrlMsg.command.getDataType()) {
             case SHORT:
                 if (mReceivedBuffer.remaining() < 2) {
-                    Log.i(TAG, "Invalid Short data size: " + mReceivedBuffer.remaining());
+                    Timber.d("Invalid Short data size: %d", mReceivedBuffer.remaining());
                     return false;
                 }
 
@@ -187,13 +186,13 @@ public class ControllerInputHandler extends Handler {
                 if (mReceivedBuffer.remaining() == 2) {
                     // 8-bit MCU integer is two bytes
                     ctrlMsg.data = mReceivedBuffer.getShort();
-                    DLog.v(TAG, "8-bit MCU Integer received");
+                    Timber.v("8-bit MCU Integer received");
                 } else if (mReceivedBuffer.remaining() >= 4) {
                     // 32-bit AVR integer is 4 bytes
                     ctrlMsg.data = mReceivedBuffer.getInt();
-                    DLog.v(TAG, "32-bit MCU Integer received");
+                    Timber.v("32-bit MCU Integer received");
                 } else {
-                    Log.i(TAG, "Invalid Integer data size: " + mReceivedBuffer.remaining());
+                    Timber.d("Invalid Integer data size: %d", mReceivedBuffer.remaining());
                     return false;
                 }
 
@@ -213,22 +212,23 @@ public class ControllerInputHandler extends Handler {
                 ctrlMsg.data = arrayBytes;
                 break;
             default:
-                Log.e(TAG, "Invalid Data Type Received: " + ctrlMsg.command.getDataType().toString());
+                Timber.w("Invalid Data Type Received: %s", ctrlMsg.command.getDataType().toString());
                 return false;
         }
 
         if (mReceivedBuffer.hasRemaining()) {
-            Log.w(TAG, "There is data remaining in the buffer after structured parsing");
+            Timber.d("Bytes remaining in the buffer after parsing: %d",
+                    mReceivedBuffer.hasRemaining());
 
         }
 
 
         // send the parsed message for processing
         if (ctrlMsg.command == McuInputCommand.LOG) {
-            Log.i("Micro Controller", (String) ctrlMsg.data);
+            Timber.tag("MCU Log").i((String) ctrlMsg.data);
 
         } else {
-            DLog.v(TAG, ctrlMsg.command + " " + ctrlMsg.data);
+            Timber.v("%s %s", ctrlMsg.command, ctrlMsg.data);
             mInputMode.ProcessInput(ctrlMsg);
         }
 
@@ -237,11 +237,11 @@ public class ControllerInputHandler extends Handler {
 
     void setMode(boolean isLearningMode, McuLearnCallbacks cbs) {
         if (isLearningMode) {
-            DLog.v(TAG, "Controller is in Learning Mode.");
+            Timber.v("Controller is in Learning Mode.");
             mInputMode = mLearningMode;
             mMcuLearnCallbacks = cbs;
         } else {
-            DLog.v(TAG, "Controller is in Execution Mode.");
+            Timber.v("Controller is in Execution Mode.");
             mInputMode = mExecutionMode;
         }
     }

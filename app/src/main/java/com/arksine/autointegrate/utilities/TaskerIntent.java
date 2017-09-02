@@ -28,7 +28,8 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.PatternMatcher;
 import android.os.Process;
-import android.util.Log;
+
+import timber.log.Timber;
 
 public class TaskerIntent extends Intent {
 
@@ -110,8 +111,6 @@ public class TaskerIntent extends Intent {
 	public static enum Status { NotInstalled, NoPermission, NotEnabled, AccessBlocked, NoReceiver, OK };
 
 	// -------------------------- PRIVATE VARS ---------------------------- //
-
-	private final static String TAG = "TaskerIntent";
 
 	private final static String	EXTRA_INTENT_VERSION_NUMBER = "version_number";
 	private final static String	INTENT_VERSION_NUMBER = "1.1";
@@ -269,7 +268,7 @@ public class TaskerIntent extends Intent {
 		if ( validatePriority( priority ) )
 			putExtra( EXTRA_TASK_PRIORITY, priority );
 		else
-			Log.e( TAG, "priority out of range: " + MIN_PRIORITY + ":" + MAX_PRIORITY );
+			Timber.e("priority out of range: %s:%s", MIN_PRIORITY, MAX_PRIORITY );
 		
 		return this;
 	}
@@ -282,7 +281,7 @@ public class TaskerIntent extends Intent {
 		if ( getExtras().containsKey( EXTRA_VAR_NAMES_LIST ) ) 
 			index = getExtras().getStringArrayList( EXTRA_VAR_NAMES_LIST ).size() + 1;
 			
-		Log.d(TAG, "index: " + index );
+		Timber.d("index: %s", index );
 		
 		addLocalVariable( "%" + PARAM_VAR_NAME_PREFIX + index, value );
 		
@@ -405,14 +404,14 @@ public class TaskerIntent extends Intent {
 		Bundle toReturn = null;
 		
 		if ( argCount > MAX_NO_ARGS )			
-			Log.e( TAG, "maximum number of arguments exceeded (" + MAX_NO_ARGS + ")" );
+			Timber.e("maximum number of arguments exceeded (%d)", MAX_NO_ARGS);
 		else {
 			String key = EXTRA_ACTION_INDEX_PREFIX + Integer.toString( actionCount );
 
 			if ( this.hasExtra( key ) ) 
 				toReturn = getBundleExtra( key );
 			else
-				Log.e( TAG, "no actions added yet" );
+				Timber.e("no actions added yet" );
 		}
 		
 		return toReturn;
@@ -434,7 +433,7 @@ public class TaskerIntent extends Intent {
 		boolean acceptingFlag = false;
 		
 		if ( c == null )
-			Log.w( TAG, "no cursor for " + TASKER_PREFS_URI );
+			Timber.w( "no cursor for %s", TASKER_PREFS_URI );
 		else {
 			c.moveToFirst();
 			

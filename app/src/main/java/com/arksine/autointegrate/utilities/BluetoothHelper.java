@@ -9,7 +9,6 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.ParcelUuid;
 import android.support.v4.content.LocalBroadcastManager;
-import android.util.Log;
 import android.widget.Toast;
 
 import com.arksine.autointegrate.R;
@@ -26,13 +25,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import timber.log.Timber;
+
 
 /**
  * Class BluetoothHelper - Handles basic bluetooth tasks, implements async read/write
  */
 public class BluetoothHelper extends SerialHelper {
-
-    private static String TAG = "BluetoothHelper";
 
     private final Object WRITELOCK = new Object();
 
@@ -109,7 +108,7 @@ public class BluetoothHelper extends SerialHelper {
             try {
                EXECUTOR.awaitTermination(10, TimeUnit.SECONDS);
             } catch (Exception e) {
-                Log.w(TAG, e.getMessage());
+                Timber.w(e);
             }
 
             if (!EXECUTOR.isTerminated()) {
@@ -154,7 +153,7 @@ public class BluetoothHelper extends SerialHelper {
                 //       device profiles supported
                 ParcelUuid[] features = device.getUuids();
                 for (ParcelUuid uuid : features) {
-                    DLog.v(TAG, uuid.toString());
+                    Timber.v(uuid.toString());
                 }
 
                 // Add the name and address to an array adapter to show in a ListView
@@ -190,7 +189,7 @@ public class BluetoothHelper extends SerialHelper {
                     mIsWaiting = true;
                     wait(10000);
                 } catch (InterruptedException e) {
-                    e.printStackTrace();
+                    Timber.e(e);
                 }
             }
         }
@@ -234,7 +233,7 @@ public class BluetoothHelper extends SerialHelper {
                 mSocket.close();
             }
             catch (IOException e) {
-                Log.w(TAG, "Unable to onDisconnect Socket", e);
+                Timber.w("Unable to onDisconnect Socket", e);
             }
         }
     }
@@ -256,7 +255,7 @@ public class BluetoothHelper extends SerialHelper {
                     try {
                         serialOut.write(data);
                     } catch (IOException e) {
-                        Log.w(TAG, "Error writing to device\n", e);
+                        Timber.w("Error writing to device\n", e);
                         mSerialHelperCallbacks.OnDeviceError();
                     }
                 }
@@ -303,7 +302,7 @@ public class BluetoothHelper extends SerialHelper {
             mBtDevice = mBluetoothAdapter.getRemoteDevice(macAddr);
             if (mBtDevice == null) {
                 // device does not exist
-                Log.i(TAG, "Unable to open bluetooth device at " + macAddr);
+                Timber.i( "Unable to open bluetooth device at %s", macAddr);
                 deviceConnected = false;
                 mSerialHelperCallbacks.OnDeviceReady(false);
                 return;
@@ -316,7 +315,7 @@ public class BluetoothHelper extends SerialHelper {
                 mSocket = mBtDevice.createInsecureRfcommSocketToServiceRecord(MY_UUID);
             }
             catch (IOException e) {
-                Log.i (TAG, "Unable to retrieve bluetooth socket for device " + macAddr);
+                Timber.i ("Unable to retrieve bluetooth socket for device %s", macAddr);
                 mSocket = null;
                 deviceConnected = false;
                 mSerialHelperCallbacks.OnDeviceReady(false);
@@ -331,12 +330,12 @@ public class BluetoothHelper extends SerialHelper {
                 mSocket.connect();
             } catch (IOException connectException) {
 
-                Log.i (TAG, "Unable to connect to bluetooth socket for device " + macAddr);
+                Timber.i ("Unable to connect to bluetooth socket for device %s", macAddr);
                 // Unable to connect; onDisconnect the socket and get out
                 try {
                     mSocket.close();
                 } catch (IOException closeException) {
-                    Log.i(TAG, "Error closing bluetooth socket", closeException);
+                    Timber.w(closeException);
                 }
 
                 mSocket = null;
@@ -376,7 +375,7 @@ public class BluetoothHelper extends SerialHelper {
                             } catch (IOException e) {
                                 // connection was closed before the device was disconnected
                                 if (deviceConnected) {
-                                    DLog.i(TAG, "Error reading from bluetooth device", e);
+                                    Timber.w(e);
                                     mSerialHelperCallbacks.OnDeviceError();
                                 }
                                 return;

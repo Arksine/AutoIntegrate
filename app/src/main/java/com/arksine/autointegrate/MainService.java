@@ -15,20 +15,17 @@ import android.os.Build;
 import android.os.IBinder;
 import android.os.RemoteCallbackList;
 import android.provider.Settings;
-import android.util.Log;
 import android.widget.Toast;
 
 import com.arksine.autointegrate.activities.MainActivity;
-import com.arksine.autointegrate.interfaces.MCUControlInterface;
-import com.arksine.autointegrate.interfaces.ServiceControlInterface;
 import com.arksine.autointegrate.radio.RemoteRadioEvents;
-import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.hdradiolib.RadioController;
+
+import timber.log.Timber;
 
 
 public class MainService extends Service {
 
-    private static String TAG = "MainService";
     private Notification mNotification;
     private final IBinder mBinder = new LocalBinder();
 
@@ -132,7 +129,7 @@ public class MainService extends Service {
         if (!mHasWritePermission) {
             Toast.makeText(this, "Write Settings Permission not granted, cannot start service",
                     Toast.LENGTH_SHORT).show();
-            Log.e(TAG, "Permission WRITE_SETTINGS not granted, exiting service");
+            Timber.e("Permission WRITE_SETTINGS not granted, exiting service");
             return START_NOT_STICKY;
         }
 
@@ -140,7 +137,7 @@ public class MainService extends Service {
         if (!mServiceThread.isServiceThreadRunning()) {
             mServiceThread.startServiceThread();
         } else {
-            DLog.i(TAG, "Attempt to start service when already running");
+            Timber.w("Attempt to start service when already running");
         }
 
         startForeground(R.integer.ONGOING_NOTIFICATION_ID, mNotification);

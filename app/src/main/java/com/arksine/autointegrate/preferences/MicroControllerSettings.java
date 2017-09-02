@@ -13,7 +13,6 @@ import android.preference.PreferenceFragment;
 import android.preference.PreferenceManager;
 import android.preference.PreferenceScreen;
 import android.support.v4.content.LocalBroadcastManager;
-import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -28,7 +27,6 @@ import com.arksine.autointegrate.interfaces.ServiceControlInterface;
 import com.arksine.autointegrate.utilities.SerialHelper;
 import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.utilities.AppItem;
-import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
 import com.arksine.autointegrate.utilities.BluetoothHelper;
 import com.arksine.autointegrate.utilities.UsbHelper;
@@ -37,13 +35,14 @@ import com.orhanobut.dialogplus.OnItemClickListener;
 
 import java.util.ArrayList;
 
+import timber.log.Timber;
+
 /**
  * Preference Fragment containing Settings for Microcontroller Serial Connection
  */
 
 public class MicroControllerSettings extends PreferenceFragment {
 
-    private static String TAG = "MicroControllerSettings";
 
     SerialHelper mSerialHelper;
     private String mDeviceType;
@@ -215,7 +214,7 @@ public class MicroControllerSettings extends PreferenceFragment {
     @Override
     public void onStop() {
         super.onStop();
-        DLog.v(TAG, "Stopped");
+        Timber.v("Activity Stopped");
 
         LocalBroadcastManager.getInstance(getActivity()).unregisterReceiver(deviceListReciever);
     }
@@ -291,7 +290,7 @@ public class MicroControllerSettings extends PreferenceFragment {
         CharSequence[] entryValues;
 
         if (devList == null || devList.isEmpty()) {
-            Log.i(TAG, "No compatible devices found on system");
+            Timber.i("No compatible devices found on system");
             entries = new CharSequence[1];
             entryValues = new CharSequence[1];
 

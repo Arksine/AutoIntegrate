@@ -11,17 +11,17 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 
 import com.arksine.autointegrate.R;
-import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.hdradiolib.enums.RadioCommand;
 import com.orhanobut.dialogplus.DialogPlus;
 import com.orhanobut.dialogplus.ViewHolder;
+
+import timber.log.Timber;
 
 /**
  * Dialog to control HD Radio Volume, Bass, and Treble
  */
 
 public class RadioSettingsDialog {
-    private static final String TAG = RadioSettingsDialog.class.getSimpleName();
 
     public interface SeekBarListener {
         void OnSeekBarChanged(RadioCommand key, int value);
@@ -143,7 +143,7 @@ public class RadioSettingsDialog {
                 mTrebleSeekbar.setProgress(progress);
                 break;
             default:
-                DLog.v(TAG, "Invalid command, cannot set seekbar progress");
+                Timber.v("Invalid command, cannot set seekbar progress");
         }
     }
 
@@ -156,7 +156,7 @@ public class RadioSettingsDialog {
             case TREBLE:
                 return mTrebleSeekbar.getProgress();
             default:
-                DLog.v(TAG, "Invalid command, cannot set seekbar progress");
+                Timber.v("Invalid command, cannot get seekbar progress");
                 return 0;
         }
     }

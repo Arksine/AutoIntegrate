@@ -13,7 +13,6 @@ import android.preference.PreferenceManager;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -25,12 +24,13 @@ import android.widget.FrameLayout;
 import android.widget.Toast;
 
 import com.arksine.autointegrate.R;
-import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.autointegrate.utilities.HardwareReceiver;
 import com.serenegiant.usb.USBMonitor;
 import com.serenegiant.usb.UVCCamera;
 
 import java.util.HashMap;
+
+import timber.log.Timber;
 
 /**
  * TODO: UPDATE:11/5/2016: Building with NDK Toolchain 4.9 seems to reduce dropped frames on Nexus 7 2012.
@@ -40,7 +40,6 @@ import java.util.HashMap;
  */
 
 public class CameraActivity extends AppCompatActivity {
-    private final static String TAG = "CameraActivity";
 
     private SurfaceView mCameraView = null;
     private SurfaceHolder mSurfaceHolder = null;
@@ -99,13 +98,13 @@ public class CameraActivity extends AppCompatActivity {
     private final SurfaceHolder.Callback mCameraViewCallback = new SurfaceHolder.Callback() {
         @Override
         public void surfaceCreated(final SurfaceHolder holder) {
-            DLog.v(TAG, "surfaceCreated:");
+            Timber.v("Camera surfaceCreated:");
         }
 
         @Override
         public void surfaceChanged(final SurfaceHolder holder, final int format, final int width, final int height) {
             if ((width == 0) || (height == 0)) return;
-            DLog.v(TAG, "surfaceChanged:");
+            Timber.v("Camera surfaceChanged:");
             mPreviewSurface = holder.getSurface();
             synchronized (mCamLock) {
                 if (mIsActive && !mIsPreviewing) {
@@ -118,7 +117,7 @@ public class CameraActivity extends AppCompatActivity {
 
         @Override
         public void surfaceDestroyed(final SurfaceHolder holder) {
-            DLog.v(TAG, "surfaceDestroyed:");
+            Timber.v("Camera surfaceDestroyed:");
             synchronized (mCamLock) {
                 if (mUVCCamera != null) {
                     mUVCCamera.stopPreview();
@@ -150,7 +149,7 @@ public class CameraActivity extends AppCompatActivity {
                 public void run() {
                     mUVCCamera = new UVCCamera();
                     mUVCCamera.open(ctrlBlock);
-                    DLog.i(TAG, "supportedSize:" + mUVCCamera.getSupportedSize());
+                    Timber.d("Supported Size: %d", mUVCCamera.getSupportedSize());
 
                     // TODO: Get camera variables from shared prefs, but for initial testing
                     //       we'll use base format (default width, height, YUYV frames
@@ -165,10 +164,10 @@ public class CameraActivity extends AppCompatActivity {
                         mUVCCamera = null;
                         Toast.makeText(CameraActivity.this, "Unable to start camera",
                                 Toast.LENGTH_SHORT).show();
-                        e.printStackTrace();
+                        Timber.e(e);
                     }
                     if ((mUVCCamera != null) && (mPreviewSurface != null)) {
-                        DLog.i(TAG, "Preview Starting");
+                        Timber.v("Preview Starting");
                         mIsActive = true;
                         mUVCCamera.setPreviewDisplay(mPreviewSurface);
                         mUVCCamera.startPreview();
@@ -331,7 +330,7 @@ public class CameraActivity extends AppCompatActivity {
 
         if (prefSelectDevice.equals("NO_DEVICE")){
             String text = "No device selected in preferences";
-            Log.w(TAG, text);
+            Timber.w(text);
             Toast.makeText(this, text, Toast.LENGTH_SHORT).show();
 
         } else {
@@ -341,7 +340,7 @@ public class CameraActivity extends AppCompatActivity {
 
             if (uDevice == null) {
                 String text = "No usb device matching selection found";
-                Log.w(TAG, text);
+                Timber.w(text);
                 Toast.makeText(this, text, Toast.LENGTH_SHORT).show();
 
             } else if (mUVCCamera != null && mUVCCamera.getDevice().equals(uDevice)) {
@@ -372,7 +371,7 @@ public class CameraActivity extends AppCompatActivity {
                                     }
                                 } else {
                                     String text = "Failed to receive permission to access USB Capture Device";
-                                    DLog.w(TAG, text);
+                                    Timber.w(text);
                                     Toast.makeText(getApplicationContext(), text, Toast.LENGTH_SHORT).show();
                                 }
                             }
@@ -398,7 +397,7 @@ public class CameraActivity extends AppCompatActivity {
             correctFormat = devIds.length == 2;
         }
         if (!correctFormat) {
-            Log.i(TAG, "Invalid USB entry: " + devIds);
+            Timber.i("Invalid USB entry: %s", deviceEntry);
             return null;
         }
 
@@ -407,7 +406,8 @@ public class CameraActivity extends AppCompatActivity {
         boolean found;
 
         for (UsbDevice dev : usbDeviceList.values()) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP &&
+                    dev.getSerialNumber() != null) {
                 found = dev.getVendorId() == Integer.parseInt(devIds[0]) &&
                         dev.getProductId() == Integer.parseInt(devIds[1]) &&
                         dev.getSerialNumber().equals(devIds[2]);
@@ -454,6 +454,6 @@ public class CameraActivity extends AppCompatActivity {
 
         }
 
-        DLog.i(TAG, "Current view size: " + mCameraView.getWidth() + "x" + mCameraView.getHeight());
+        Timber.v("Current view size %d x %d: ", mCameraView.getWidth(), mCameraView.getHeight());
     }
 }

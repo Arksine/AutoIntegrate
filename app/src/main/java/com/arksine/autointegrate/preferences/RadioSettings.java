@@ -18,7 +18,6 @@ import com.arksine.autointegrate.interfaces.ServiceControlInterface;
  */
 
 public class RadioSettings extends PreferenceFragment {
-    private static String TAG = "RadioSettings";
 
     @Override
     public void onCreate(Bundle savedInstanceState) {

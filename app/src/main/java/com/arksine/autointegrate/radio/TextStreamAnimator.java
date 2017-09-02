@@ -9,14 +9,14 @@ import android.view.ViewGroup;
 import android.view.animation.LinearInterpolator;
 import android.widget.TextView;
 
-import com.arksine.autointegrate.utilities.DLog;
+import timber.log.Timber;
+
 
 /**
  * Appends streaming text received to a TextView using a scroll/translate animation
  */
 
 public class TextStreamAnimator {
-    private static final String TAG = TextStreamAnimator.class.getSimpleName();
 
     private TextView mTextView;
     private int mScrollViewWidth;
@@ -50,7 +50,7 @@ public class TextStreamAnimator {
             @Override
             public void onAnimationStart(Animator animation) {
                 super.onAnimationStart(animation);
-                DLog.i(TAG, "Current RDS Streaming Text:\n" + mTextView.getText());
+                Timber.d("Current RDS Streaming Text:\n%s", mTextView.getText());
             }
 
             @Override
@@ -58,8 +58,8 @@ public class TextStreamAnimator {
                 super.onAnimationEnd(animation);
                 // If text is longer than the view, we need to start chopping it off.
                 removeExcessText();
-                DLog.v(TAG, "Current X: " + mTextView.getX() +
-                        "\nCurrent Translate X: " + mTextView.getTranslationX());
+                Timber.d("Current X: %d\nCurrent Translate X: %d",
+                        mTextView.getX(), mTextView.getTranslationX());
             }
         });
     }

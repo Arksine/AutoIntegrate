@@ -7,7 +7,6 @@ import android.content.IntentFilter;
 import android.hardware.usb.UsbDevice;
 import android.os.RemoteException;
 import android.preference.PreferenceManager;
-import android.util.Log;
 
 import com.arksine.autointegrate.AutoIntegrate;
 import com.arksine.autointegrate.MainService;
@@ -15,7 +14,6 @@ import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.interfaces.MCUControlInterface;
 import com.arksine.autointegrate.interfaces.ServiceControlInterface;
 import com.arksine.autointegrate.microcontroller.McuRadioDriver;
-import com.arksine.autointegrate.utilities.DLog;
 import com.arksine.autointegrate.utilities.HardwareReceiver;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
 import com.arksine.hdradiolib.HDRadio;
@@ -28,14 +26,14 @@ import com.arksine.hdradiolib.enums.RadioError;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import timber.log.Timber;
+
 
 /**
  * HD Radio Serial Communications class.
  *
  */
 public class RadioCom {
-
-    private static final String TAG = RadioCom.class.getSimpleName();
 
     private MainService mService;
     private AtomicBoolean mConnected = new AtomicBoolean(false);
@@ -85,7 +83,7 @@ public class RadioCom {
                             }
                             break;
                         default:
-                            Log.i(TAG, "Unknown radio command: " + radioCmd);
+                            Timber.i("Unknown radio command: %s", radioCmd);
                     }
                 }
             }
@@ -100,7 +98,7 @@ public class RadioCom {
         mRadioEvents = new HDRadioEvents() {
             @Override
             public void onOpened(boolean b, RadioController radioController) {
-                DLog.v(TAG, "onOpened Callback triggered");
+                Timber.v("Radio onOpened Callback triggered");
                 RadioCom.this.mConnected.set(b);
 
                 // Radio successfully connected
@@ -116,7 +114,7 @@ public class RadioCom {
                     }
 
                 } else {
-                    Log.e(TAG, "Error connecting to device");
+                    Timber.e("Error connecting to HD Radio device");
                 }
 
 
@@ -126,7 +124,7 @@ public class RadioCom {
 
             @Override
             public void onClosed() {
-                DLog.v(TAG, "onClosed Callback triggered");
+                Timber.v("Radio onClosed Callback triggered");
                 RadioCom.this.mConnected.set(false);
 
                 int cbCount = mService.mRadioCallbacks.beginBroadcast();
@@ -134,7 +132,7 @@ public class RadioCom {
                     try {
                         mService.mRadioCallbacks.getBroadcastItem(i).onClosed();
                     } catch (RemoteException e) {
-                        e.printStackTrace();
+                        Timber.e(e);
                     }
                 }
                 mService.mRadioCallbacks.finishBroadcast();
@@ -145,14 +143,14 @@ public class RadioCom {
 
             @Override
             public void onDeviceError(RadioError radioError) {
-                Log.e(TAG, "Device Error: " + radioError.toString());
+                Timber.e("Device Error: %s", radioError.toString());
 
                 int cbCount = mService.mRadioCallbacks.beginBroadcast();
                 for (int i = 0; i < cbCount; i++) {
                     try {
                         mService.mRadioCallbacks.getBroadcastItem(i).onError();
                     } catch (RemoteException e) {
-                        e.printStackTrace();
+                        Timber.e(e);
                     }
                 }
                 mService.mRadioCallbacks.finishBroadcast();
@@ -166,13 +164,13 @@ public class RadioCom {
 
             @Override
             public void onRadioPowerOn() {
-                DLog.v(TAG, "onRadioPowerOn Callback triggered");
+                Timber.v("Radio onRadioPowerOn Callback triggered");
                 int cbCount = mService.mRadioCallbacks.beginBroadcast();
                 for (int i = 0; i < cbCount; i++) {
                     try {
                         mService.mRadioCallbacks.getBroadcastItem(i).onPowerOn();
                     } catch (RemoteException e) {
-                        e.printStackTrace();
+                        Timber.e(e);
                     }
                 }
                 mService.mRadioCallbacks.finishBroadcast();
@@ -180,13 +178,13 @@ public class RadioCom {
 
             @Override
             public void onRadioPowerOff() {
-                DLog.v(TAG, "onRadioPowerOff Callback triggered");
+                Timber.v("Radio onRadioPowerOff Callback triggered");
                 int cbCount = mService.mRadioCallbacks.beginBroadcast();
                 for (int i = 0; i < cbCount; i++) {
                     try {
                         mService.mRadioCallbacks.getBroadcastItem(i).onPowerOff();
                     } catch (RemoteException e) {
-                        e.printStackTrace();
+                        Timber.e(e);
                     }
                 }
                 mService.mRadioCallbacks.finishBroadcast();
@@ -199,7 +197,7 @@ public class RadioCom {
                     try {
                         mService.mRadioCallbacks.getBroadcastItem(i).onRadioMute(b);
                     } catch (RemoteException e) {
-                        e.printStackTrace();
+                        Timber.e(e);
                     }
                 }
                 mService.mRadioCallbacks.finishBroadcast();
@@ -212,7 +210,7 @@ public class RadioCom {
                     try {
                         mService.mRadioCallbacks.getBroadcastItem(i).onRadioSignalStrength(signalStrength);
                     } catch (RemoteException e) {
-                        e.printStackTrace();
+                        Timber.e(e);
                     }
                 }
                 mService.mRadioCallbacks.finishBroadcast();
@@ -225,7 +223,7 @@ public class RadioCom {
                     try {
                         mService.mRadioCallbacks.getBroadcastItem(i).onRadioTune(tuneInfo);
                     } catch (RemoteException e) {
-                        e.printStackTrace();
+                        Timber.e(e);
                     }
                 }
                 mService.mRadioCallbacks.finishBroadcast();
@@ -238,7 +236,7 @@ public class RadioCom {
                     try {
                         mService.mRadioCallbacks.getBroadcastItem(i).onRadioSeek(tuneInfo);
                     } catch (RemoteException e) {
-                        e.printStackTrace();
+                        Timber.e(e);
                     }
                 }
                 mService.mRadioCallbacks.finishBroadcast();
@@ -251,7 +249,7 @@ public class RadioCom {
                     try {
                         mService.mRadioCallbacks.getBroadcastItem(i).onRadioHdActive(b);
                     } catch (RemoteException e) {
-                        e.printStackTrace();
+                        Timber.e(e);
                     }
                 }
                 mService.mRadioCallbacks.finishBroadcast();
@@ -264,7 +262,7 @@ public class RadioCom {
                     try {
                         mService.mRadioCallbacks.getBroadcastItem(i).onRadioHdStreamLock(b);
                     } catch (RemoteException e) {
-                        e.printStackTrace();
+                        Timber.e(e);
                     }
                 }
                 mService.mRadioCallbacks.finishBroadcast();
@@ -277,7 +275,7 @@ public class RadioCom {
                     try {
                         mService.mRadioCallbacks.getBroadcastItem(i).onRadioHdSignalStrength(hdSignal);
                     } catch (RemoteException e) {
-                        e.printStackTrace();
+                        Timber.e(e);
                     }
                 }
                 mService.mRadioCallbacks.finishBroadcast();
@@ -290,7 +288,7 @@ public class RadioCom {
                     try {
                         mService.mRadioCallbacks.getBroadcastItem(i).onRadioHdSubchannel(subchannel);
                     } catch (RemoteException e) {
-                        e.printStackTrace();
+                        Timber.e(e);
                     }
                 }
                 mService.mRadioCallbacks.finishBroadcast();
@@ -303,7 +301,7 @@ public class RadioCom {
                     try {
                         mService.mRadioCallbacks.getBroadcastItem(i).onRadioHdSubchannelCount(count);
                     } catch (RemoteException e) {
-                        e.printStackTrace();
+                        Timber.e(e);
                     }
                 }
                 mService.mRadioCallbacks.finishBroadcast();
@@ -316,7 +314,7 @@ public class RadioCom {
                     try {
                         mService.mRadioCallbacks.getBroadcastItem(i).onRadioHdTitle(hdSongInfo);
                     } catch (RemoteException e) {
-                        e.printStackTrace();
+                        Timber.e(e);
                     }
                 }
                 mService.mRadioCallbacks.finishBroadcast();
@@ -329,7 +327,7 @@ public class RadioCom {
                     try {
                         mService.mRadioCallbacks.getBroadcastItem(i).onRadioHdArtist(hdSongInfo);
                     } catch (RemoteException e) {
-                        e.printStackTrace();
+                        Timber.e(e);
                     }
                 }
                 mService.mRadioCallbacks.finishBroadcast();
@@ -342,7 +340,7 @@ public class RadioCom {
                     try {
                         mService.mRadioCallbacks.getBroadcastItem(i).onRadioHdCallsign(s);
                     } catch (RemoteException e) {
-                        e.printStackTrace();
+                        Timber.e(e);
                     }
                 }
                 mService.mRadioCallbacks.finishBroadcast();
@@ -355,7 +353,7 @@ public class RadioCom {
                     try {
                         mService.mRadioCallbacks.getBroadcastItem(i).onRadioHdStationName(s);
                     } catch (RemoteException e) {
-                        e.printStackTrace();
+                        Timber.e(e);
                     }
                 }
                 mService.mRadioCallbacks.finishBroadcast();
@@ -368,7 +366,7 @@ public class RadioCom {
                     try {
                         mService.mRadioCallbacks.getBroadcastItem(i).onRadioRdsEnabled(b);
                     } catch (RemoteException e) {
-                        e.printStackTrace();
+                        Timber.e(e);
                     }
                 }
                 mService.mRadioCallbacks.finishBroadcast();
@@ -381,7 +379,7 @@ public class RadioCom {
                     try {
                         mService.mRadioCallbacks.getBroadcastItem(i).onRadioRdsGenre(s);
                     } catch (RemoteException e) {
-                        e.printStackTrace();
+                        Timber.e(e);
                     }
                 }
                 mService.mRadioCallbacks.finishBroadcast();
@@ -394,7 +392,7 @@ public class RadioCom {
                     try {
                         mService.mRadioCallbacks.getBroadcastItem(i).onRadioRdsProgramService(s);
                     } catch (RemoteException e) {
-                        e.printStackTrace();
+                        Timber.e(e);
                     }
                 }
                 mService.mRadioCallbacks.finishBroadcast();
@@ -407,7 +405,7 @@ public class RadioCom {
                     try {
                         mService.mRadioCallbacks.getBroadcastItem(i).onRadioRdsRadioText(s);
                     } catch (RemoteException e) {
-                        e.printStackTrace();
+                        Timber.e(e);
                     }
                 }
                 mService.mRadioCallbacks.finishBroadcast();
@@ -420,7 +418,7 @@ public class RadioCom {
                     try {
                         mService.mRadioCallbacks.getBroadcastItem(i).onRadioVolume(volume);
                     } catch (RemoteException e) {
-                        e.printStackTrace();
+                        Timber.e(e);
                     }
                 }
                 mService.mRadioCallbacks.finishBroadcast();
@@ -433,7 +431,7 @@ public class RadioCom {
                     try {
                         mService.mRadioCallbacks.getBroadcastItem(i).onRadioBass(bass);
                     } catch (RemoteException e) {
-                        e.printStackTrace();
+                        Timber.e(e);
                     }
                 }
                 mService.mRadioCallbacks.finishBroadcast();
@@ -446,7 +444,7 @@ public class RadioCom {
                     try {
                         mService.mRadioCallbacks.getBroadcastItem(i).onRadioTreble(treble);
                     } catch (RemoteException e) {
-                        e.printStackTrace();
+                        Timber.e(e);
                     }
                 }
                 mService.mRadioCallbacks.finishBroadcast();
@@ -459,7 +457,7 @@ public class RadioCom {
                     try {
                         mService.mRadioCallbacks.getBroadcastItem(i).onRadioCompression(compression);
                     } catch (RemoteException e) {
-                        e.printStackTrace();
+                        Timber.e(e);
                     }
                 }
                 mService.mRadioCallbacks.finishBroadcast();
@@ -469,7 +467,7 @@ public class RadioCom {
     }
 
     private boolean initRadioInstance() {
-        DLog.i(TAG, "Creating HD Radio instance");
+        Timber.v("Creating HD Radio instance");
 
         // Find the correct driver
         int driverVal = Integer.parseInt(PreferenceManager
@@ -490,11 +488,11 @@ public class RadioCom {
                     mHdRadio = new HDRadio(mService, mRadioEvents, mMcuRadioDriver);
                     return true;
                 } else {
-                    Log.e(TAG, "Cannot use Integrated MCU Driver, MCU not connected");
+                    Timber.w("Cannot use Integrated MCU Driver, MCU not connected");
                     return false;
                 }
             default:
-                Log.e(TAG, "Unknown Radio Driver Selection");
+                Timber.w("Unknown Radio Driver Selection");
                 return false;
         }
 
@@ -524,7 +522,7 @@ public class RadioCom {
             return false;
         }
 
-        DLog.i(TAG, "Attempting to open connection to Directed HD Radio");
+        Timber.v("Attempting to open connection to Directed HD Radio");
         mHdRadio.open();
 
         // Wait with a 10 second timeout for the onConnected Callback
@@ -533,10 +531,10 @@ public class RadioCom {
                 mIsWaiting.set(true);
                 wait(10000);
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                Timber.w(e);
             } finally {
                 if (mIsWaiting.compareAndSet(true, false)) {
-                    Log.i(TAG, "Connection attempt timed out");
+                    Timber.i("Radio Connection attempt timed out");
                 }
             }
         }
@@ -562,10 +560,10 @@ public class RadioCom {
                         mIsWaiting.set(true);
                         wait(10000);
                     } catch (InterruptedException e) {
-                        e.printStackTrace();
+                        Timber.w(e);
                     } finally {
                         if (mIsWaiting.compareAndSet(true, false)) {
-                            Log.i(TAG, "Connection attempt timed out");
+                            Timber.i("Radio disconnect attempt timed out");
                         }
                     }
                 }

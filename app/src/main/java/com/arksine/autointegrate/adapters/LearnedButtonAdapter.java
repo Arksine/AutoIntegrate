@@ -9,18 +9,17 @@ import android.widget.TextView;
 
 import com.arksine.autointegrate.microcontroller.ResistiveButton;
 import com.arksine.autointegrate.R;
-import com.arksine.autointegrate.utilities.DLog;
 
 import java.util.Collections;
 import java.util.List;
+
+import timber.log.Timber;
 
 /**
  * RecyclerView adapter for the RecyclerView used in the ButtonLearningActivity
  */
 
 public class LearnedButtonAdapter extends RecyclerView.Adapter<LearnedButtonAdapter.ViewHolder> {
-
-    private static String TAG = "LearnedButtonAdapter";
 
     private Context mContext;
     private List<ResistiveButton> mButtonList;
@@ -95,7 +94,7 @@ public class LearnedButtonAdapter extends RecyclerView.Adapter<LearnedButtonAdap
                 int pos = holder.getAdapterPosition();
                 mItemClickCallback.OnItemClick(mButtonList.get(pos), pos);
 
-                DLog.v(TAG, "Clicked on position: " + pos);
+                Timber.v("Clicked on position: %d", pos);
             }
         });
 
