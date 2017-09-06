@@ -12,19 +12,22 @@ import android.support.v4.content.LocalBroadcastManager;
 import android.widget.Toast;
 
 import com.arksine.autointegrate.R;
-import com.felhr.deviceids.CH34xIds;
-import com.felhr.deviceids.CP210xIds;
-import com.felhr.deviceids.FTDISioIds;
-import com.felhr.deviceids.PL2303Ids;
-import com.felhr.deviceids.XdcVcpIds;
-import com.felhr.usbserial.CDCSerialDevice;
-import com.felhr.usbserial.UsbSerialDevice;
-import com.felhr.usbserial.UsbSerialInterface;
+import com.arksine.deviceids.CH34xIds;
+import com.arksine.deviceids.CP210xIds;
+import com.arksine.deviceids.FTDISioIds;
+import com.arksine.deviceids.PL2303Ids;
+import com.arksine.deviceids.XdcVcpIds;
+import com.arksine.usbserialex.CDCSerialDevice;
+import com.arksine.usbserialex.UsbSerialDevice;
+import com.arksine.usbserialex.UsbSerialInterface;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 
 import timber.log.Timber;
+
+// TODO: Use my USBSerialEx in place of current USBSerial library.  The primary difference
+// is that it can set DTR/RTS to LOW on connection, rather than default to HIGH.
 
 //TODO: The USBSerial library doesnt seem to have any way to handle errors.  Temporarily handle disconnections
 //      with a broadcast receiver.Will have to research
@@ -155,7 +158,6 @@ public class UsbHelper extends SerialHelper {
              *
              * MJS Cable - VID 0x0403 (1027), PID 0x9378 (37752)
              *
-             *  TODO: I bet the 3rd ID (sub pid ) is 937C
               */
             if ((uDevice.getVendorId() == 1027) && (uDevice.getProductId() ==  37752)) {
                 Timber.v("MJS Cable found, skipping from list");

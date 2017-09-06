@@ -205,7 +205,7 @@ public class ButtonLearningActivity extends AppCompatActivity {
         // Set MCU to execution mode
         MCUControlInterface mcuControl = AutoIntegrate.getmMcuControlInterface();
         if (mcuControl != null && mcuControl.isConnected()) {
-            mcuControl.updateButtonMap();       // update CommandProcessor Button Map
+            mcuControl.updateButtonMap(btnList);       // update CommandProcessor Button Map
             mcuControl.setMode(false, null);
         } else {
             // Attempt to reconnect via refresh

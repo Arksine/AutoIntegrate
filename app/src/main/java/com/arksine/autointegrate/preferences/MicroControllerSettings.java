@@ -117,11 +117,6 @@ public class MicroControllerSettings extends PreferenceFragment {
                 int index = list.findIndexOfValue((String)newValue);
                 preference.setSummary(entries[index]);
 
-                // Refresh the MCU connection whenever the device is changed
-                ServiceControlInterface serviceControl = AutoIntegrate.getServiceControlInterface();
-                if (serviceControl != null) {
-                    serviceControl.refreshMcuConnection(false, null);
-                }
                 return true;
             }
         });
@@ -185,12 +180,14 @@ public class MicroControllerSettings extends PreferenceFragment {
                             return false;
                         }
                         break;
+                    case "2":
+                        // The dialog updates the reverse map, so return here
+                        return true;
                 }
 
-                // Update CommandProcessor settings
                 MCUControlInterface controlInterface = AutoIntegrate.getmMcuControlInterface();
                 if (controlInterface != null) {
-                    controlInterface.updateReverseMap();
+                    controlInterface.updateReverseMap(value, "N/A");
                 }
 
                 return true;
@@ -237,7 +234,7 @@ public class MicroControllerSettings extends PreferenceFragment {
         //       implemented so user can type name of app
         int horizontalMargin = Math.round(getResources().getDimension(R.dimen.dialog_horizontal_margin));
         int verticalMargin = Math.round(getResources().getDimension(R.dimen.dialog_vertical_margin));
-        AppListAdapter adapter = new AppListAdapter(getActivity(),
+        final AppListAdapter adapter = new AppListAdapter(getActivity(),
                 android.R.layout.simple_list_item_1, android.R.layout.simple_dropdown_item_1line);
         mCameraAppDialog = DialogPlus.newDialog(getActivity())
                 .setAdapter(adapter)
@@ -245,6 +242,8 @@ public class MicroControllerSettings extends PreferenceFragment {
                     @Override
                     public void onItemClick(DialogPlus dialog, Object item, View view, int position) {
                         AppItem appItem = (AppItem) item;
+                        Timber.d("Camera App Set to: %s : %s",
+                                appItem.getItemName(), appItem.getPackageName());
                         String summary = "Launch App: " + appItem.getItemName();
                         listPref.setSummary(summary);
                         globalPrefs.edit()
@@ -255,7 +254,7 @@ public class MicroControllerSettings extends PreferenceFragment {
                         // Update MCU CommandProcessor
                         MCUControlInterface controlInterface = AutoIntegrate.getmMcuControlInterface();
                         if (controlInterface != null) {
-                            controlInterface.updateReverseMap();
+                            controlInterface.updateReverseMap("2", appItem.getPackageName());
                         }
                         dialog.dismiss();
                     }

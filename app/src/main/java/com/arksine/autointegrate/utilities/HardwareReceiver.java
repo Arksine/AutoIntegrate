@@ -168,7 +168,8 @@ public class HardwareReceiver extends BroadcastReceiver {
         catch(Exception e)
         {
             Timber.i("SignatureOrSystem permission not available, " +
-                    "cannot assign automatic usb permission : " + usbDevice.getDeviceName());
+                            " cannot assign automatic usb permission : %s",
+                            usbDevice.getDeviceName());
             Timber.w(e);
             return false;
         }

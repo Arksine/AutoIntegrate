@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
 import android.support.v4.content.LocalBroadcastManager;
+import android.widget.Toast;
 
 import com.arksine.autointegrate.interfaces.McuLearnCallbacks;
 import com.arksine.autointegrate.interfaces.ServiceControlInterface;
@@ -13,7 +14,8 @@ import com.arksine.autointegrate.preferences.MainSettings;
 import com.arksine.autointegrate.radio.RadioCom;
 import com.arksine.autointegrate.utilities.BackgroundThreadFactory;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
-import com.arksine.hdradiolib.RadioController;
+import com.arksine.hdradiolib.*;
+import com.arksine.hdradiolib.BuildConfig;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -29,6 +31,9 @@ import timber.log.Timber;
  */
 
 public class ServiceThread implements Runnable {
+
+    private static final int MAXIMUM_CONNECTION_ATTEMPTS = 10;
+    private static final int CONNECTION_ATTEMPT_DELAY = 1000;
 
     private MainService mService;
     private ExecutorService EXECUTOR = Executors.newCachedThreadPool(new BackgroundThreadFactory());
@@ -98,7 +103,10 @@ public class ServiceThread implements Runnable {
     @Override
     public void run() {
         SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(mService);
-        int connectionAttempts = 1;
+        int mcuConnectionAttempts = 0;
+        int radioConnectionAttempts = 0;
+        boolean mcuEnabled;
+        boolean radioEnabled;
 
         // Check to see if root is initialized.  If not, we will wait until notified by the RootCallback
         synchronized (this) {
@@ -118,8 +126,14 @@ public class ServiceThread implements Runnable {
 
         while (mServiceThreadRunning.get()) {
 
+            mcuEnabled = sharedPrefs.getBoolean("main_pref_key_toggle_controller", false);
+            radioEnabled = sharedPrefs.getBoolean("main_pref_key_toggle_radio", false);
+
+            Timber.v("MCU Integration Enabled Status: %b", mcuEnabled);
+            Timber.v("Radio Integration Enabled Status: %b", radioEnabled);
+
             // Check to see if MicroController Integration is enabled
-            if (sharedPrefs.getBoolean("main_pref_key_toggle_controller", false)) {
+            if (mcuEnabled && mcuConnectionAttempts < MAXIMUM_CONNECTION_ATTEMPTS) {
 
                 // If the MicroController connection hasn't been established, do so.
                 if (mMicroController.get() == null || !mMicroController.get().isConnected()) {
@@ -133,19 +147,18 @@ public class ServiceThread implements Runnable {
                             mHdRadio.get().updateDriver();
                         }
                     } else {
-                        Timber.v("Error connecting to Micro Controller: Connection Attempt " + connectionAttempts);
+                        Timber.v("Error connecting to Micro Controller: Connection Attempt " + mcuConnectionAttempts);
                         AutoIntegrate.setMcuControlInterface(null);
                         mMicroController.set(null);
                     }
+                    mcuConnectionAttempts++;
                 }
-            } else {
-                Timber.v("Micro Controller Integration Disabled");
             }
 
 
             // Check for HD Radio Integration, we do this second because it is possible that
             // the driver relies on the MCU
-            if (sharedPrefs.getBoolean("main_pref_key_toggle_radio", false)) {
+            if (radioEnabled && radioConnectionAttempts < MAXIMUM_CONNECTION_ATTEMPTS) {
 
                 // If the HD Radio Object is either not set or not connected to its driver,
                 // attempt connection
@@ -155,22 +168,32 @@ public class ServiceThread implements Runnable {
                     if (mHdRadio.get().connect()) {
                         Timber.v("HD Radio Connection Set Up");
                     } else {
-                        Timber.v("Error Setting up HD Radio: Attempt " + connectionAttempts);
+                        Timber.v("Error Setting up HD Radio: Attempt " + mcuConnectionAttempts);
                         mHdRadio.set(null);
                     }
+                    radioConnectionAttempts++;
                 }
-            } else {
-                Timber.v("HD Radio Integration Disabled");
             }
 
 
-            if (allConnected() || (connectionAttempts > 9)) {
-                // TODO: should I send a toast indicating to the user max number of connection attempts
-                // has been reached?  Should I track connection attempts per connection type?
+            if (allConnected(mcuEnabled, radioEnabled) ||
+                    ((mcuConnectionAttempts >= MAXIMUM_CONNECTION_ATTEMPTS) &&
+                            (radioConnectionAttempts >= MAXIMUM_CONNECTION_ATTEMPTS))) {
 
+                if (mcuConnectionAttempts >= MAXIMUM_CONNECTION_ATTEMPTS) {
+                    Toast.makeText(mService, "Maximum MCU connection attempts reached",
+                            Toast.LENGTH_SHORT).show();
+                }
 
-                // reset connection attempts
-                connectionAttempts = 1;
+                if (radioConnectionAttempts >= MAXIMUM_CONNECTION_ATTEMPTS) {
+                    Toast.makeText(mService, "Maximum Radio connection attempts reached",
+                            Toast.LENGTH_SHORT).show();
+                }
+
+                // The thread will now sleep, so reset connection attempts for when
+                // it is refreshed.
+                mcuConnectionAttempts = 0;
+                radioConnectionAttempts = 0;
 
                 // Pause execution of this thread until some event requires it to wake up (ie:
                 // someone changed a setting or the device has had power applied
@@ -189,10 +212,9 @@ public class ServiceThread implements Runnable {
                     }
                 }
             } else {
-                connectionAttempts++;
                 // sleep for 1 second between connection attempts
                 try {
-                    Thread.sleep(1000);
+                    Thread.sleep(CONNECTION_ATTEMPT_DELAY);
                 } catch (InterruptedException e) {
                     Timber.w(e);
                 }
@@ -212,14 +234,19 @@ public class ServiceThread implements Runnable {
 
     }
 
-    private boolean allConnected() {
+    private boolean allConnected(boolean mcuEnabled, boolean radioEnabled) {
+        if (!mcuEnabled && !radioEnabled) {
+            // both are disabled, so technically when neither is connected they all are
+            // connected
+            return true;
+        }
+
         boolean connected = true;
-        SharedPreferences globalPrefs = PreferenceManager.getDefaultSharedPreferences(mService);
-        if (globalPrefs.getBoolean("main_pref_key_toggle_controller", false)) {
+        if (mcuEnabled) {
             connected = (mMicroController.get() != null && mMicroController.get().isConnected());
         }
 
-        if (globalPrefs.getBoolean("main_pref_key_toggle_radio", false)) {
+        if (radioEnabled) {
             connected = (connected && (mHdRadio.get() != null && mHdRadio.get().isConnected()));
         }
 

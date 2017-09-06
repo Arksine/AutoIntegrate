@@ -1,6 +1,6 @@
 package com.arksine.autointegrate.utilities;
 
-import com.felhr.usbserial.UsbSerialInterface;
+import com.arksine.usbserialex.UsbSerialInterface;
 
 /**
  * Settings for Usb Serial Port

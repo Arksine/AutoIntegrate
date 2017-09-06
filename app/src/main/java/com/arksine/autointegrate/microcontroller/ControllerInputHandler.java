@@ -10,6 +10,7 @@ import com.arksine.autointegrate.microcontroller.MCUDefs.*;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.List;
 
 import timber.log.Timber;
 
@@ -246,16 +247,17 @@ public class ControllerInputHandler extends Handler {
         }
     }
 
-    public void updateButtonMap() {
-        mCommandProcessor.updateButtons();
+    public void updateButtonMap(List<ResistiveButton> buttonList) {
+        mCommandProcessor.updateButtons(buttonList);
     }
 
-    public void updateDimmerMap() {
-        mCommandProcessor.updateDimmer();
+    public void updateDimmerMap(int mode, final int highReading, final int lowReading,
+                                final int highBrightness, final int lowBrightness) {
+        mCommandProcessor.updateDimmer(mode, highReading, lowReading, highBrightness, lowBrightness);
     }
 
-    public void updateReverseCameraMap() {
-        mCommandProcessor.updateReverseCommand();
+    public void updateReverseCameraMap(String camSetting, String appPackage) {
+        mCommandProcessor.updateReverseCommand(camSetting, appPackage);
     }
 
 

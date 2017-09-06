@@ -49,10 +49,6 @@ public class RadioSettings extends PreferenceFragment {
                 int index = pref.findIndexOfValue((String)o);
                 preference.setSummary(entries[index]);
 
-                ServiceControlInterface serviceControl = AutoIntegrate.getServiceControlInterface();
-                if (serviceControl != null) {
-                    serviceControl.refreshRadioConnection();
-                }
                 return true;
             }
         });

@@ -26,6 +26,7 @@ import com.arksine.autointegrate.microcontroller.MCUDefs.*;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -258,19 +259,22 @@ public class MicroControllerCom extends SerialCom {
         }
 
         @Override
-        public void updateButtonMap() {
-            mInputHandler.updateButtonMap();
+        public void updateButtonMap(List<ResistiveButton> buttonList) {
+            mInputHandler.updateButtonMap(buttonList);
         }
 
         @Override
-        public void updateDimmerMap() {
-            mInputHandler.updateDimmerMap();
+        public void updateDimmerMap(int mode, int highReading, int lowReading,
+                                    int highBrightness, int lowBrightness) {
+            mInputHandler.updateDimmerMap(mode, highReading, lowReading,
+                    highBrightness, lowBrightness);
         }
 
         @Override
-        public void updateReverseMap() {
-            mInputHandler.updateReverseCameraMap();
+        public void updateReverseMap(String camSetting, String appPackage) {
+            mInputHandler.updateReverseCameraMap(camSetting, appPackage);
         }
+
     };
 
     // Broadcast receiver to listen for write commands.
@@ -278,7 +282,6 @@ public class MicroControllerCom extends SerialCom {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
-            // TODO: need actions for toggling the audio source between HD_Radio and Aux
             if (mService.getString(R.string.ACTION_CUSTOM_MCU_COMMAND).equals(action)) {
                 // Custom command received to be sent to the microcontroller
                 byte command = intent.getByteExtra(mService.getString(R.string.EXTRA_COMMAND), (byte)0x00);

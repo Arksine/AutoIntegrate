@@ -53,6 +53,8 @@ public class AutoIntegrate extends Application {
                 return;
             }
 
+            // TODO: Instead of using Log to output to logcat, use a custom library to output
+            // to my own file.  Will make finding problems easier.
             Log.e(tag, message);
 
             if (t != null) {

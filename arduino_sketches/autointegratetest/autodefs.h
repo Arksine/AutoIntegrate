@@ -4,6 +4,8 @@
 // TODO: There should already be flags defined that I can use to easily
 // determine the architecture
 #define ARCH_32BIT
+#define BLUE_PILL
+//#define MAPLE_MINI
 
 #define SMOOTH 20
 #define REVERSE_DELAY 500
@@ -14,14 +16,24 @@
 // a new reading it should be much lower for 10-bit ADCs.
 #define ANALOG_DIMMER_VARIANCE 100
 
+#if defined(MAPLE_MINI)
 #define LED_PIN             PB1             // LED Pin for Maple Mini
+#define LED_ON              HIGH
+#define LED_OFF             LOW
 #define RADIO_DTR_PIN       PB7
 #define RADIO_RTS_PIN       PB6
+#elif defined(BLUE_PILL)
+#define LED_PIN             PC13            // LED Pin for Maple Mini
+#define LED_ON              LOW
+#define LED_OFF             HIGH
+#define RADIO_DTR_PIN       PB3
+#define RADIO_RTS_PIN       PB4
+#endif
 
 // Set this to the serial port interfacing with the radio, or comment out if you
 // do
 // not want to use radio control
-#define HDRadioSerial Serial3
+//#define HDRadioSerial Serial3
 
 // Outgoing Command Definitions (sent to host)
 #define CMD_STARTED 0x01

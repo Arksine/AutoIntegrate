@@ -301,7 +301,9 @@ public class DimmerCalibrationDialog {
                 writePrefs();
                 MCUControlInterface mcuControl = AutoIntegrate.getmMcuControlInterface();
                 if (mcuControl != null) {
-                    mcuControl.updateDimmerMap();
+                    mcuControl.updateDimmerMap(mDimmerVals.dimmerMode, mDimmerVals.highReading,
+                            mDimmerVals.lowReading, mDimmerVals.highBrightness,
+                            mDimmerVals.lowBrightness);
                 }
                 mDimmerDialog.dismiss();
             }
@@ -317,6 +319,15 @@ public class DimmerCalibrationDialog {
                 mDimmerControlTypeSpinner.setSelection(mDimmerVals.dimmerMode);
                 updateDialogViews();
 
+                // reset dimmer mode back to original
+                MCUControlInterface mcuControl = AutoIntegrate.getmMcuControlInterface();
+                if (mcuControl != null) {
+                    if (mDimmerVals.dimmerMode == DimmerMode.ANALOG) {
+                        mcuControl.sendMcuCommand(MCUDefs.McuOutputCommand.SET_DIMMER_ANALOG, null);
+                    } else {
+                        mcuControl.sendMcuCommand(MCUDefs.McuOutputCommand.SET_DIMMER_DIGITAL, null);
+                    }
+                }
                 mDimmerDialog.dismiss();
             }
         });

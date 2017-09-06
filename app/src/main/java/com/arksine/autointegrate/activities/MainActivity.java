@@ -22,7 +22,9 @@ import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.Toast;
 
+import com.arksine.autointegrate.AutoIntegrate;
 import com.arksine.autointegrate.MainService;
+import com.arksine.autointegrate.interfaces.ServiceControlInterface;
 import com.arksine.autointegrate.preferences.MainSettings;
 import com.arksine.autointegrate.preferences.MicroControllerSettings;
 import com.arksine.autointegrate.preferences.CameraSettings;
@@ -44,9 +46,44 @@ public class MainActivity extends AppCompatActivity {
     private CharSequence mDrawerTitle;
     private CharSequence mTitle;
 
+    // This listener is called after a shared preference is applied (not before like with
+    // Preference::OnPreferenceChangeListener).  This makes sure that all preferences
+    // are set before executing, which is required to refresh the service thread.
+    private final SharedPreferences.OnSharedPreferenceChangeListener mPreferenceListener
+            = new SharedPreferences.OnSharedPreferenceChangeListener() {
+        @Override
+        public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+            switch (key) {
+                case "controller_pref_key_select_device": {
+                    // MCU Device has been changed, refresh the connection
+                    ServiceControlInterface serviceControl =
+                            AutoIntegrate.getServiceControlInterface();
+                    if (serviceControl != null) {
+                        serviceControl.refreshMcuConnection(false, null);
+                    }
+                    break;
+                }
+                case "radio_pref_key_select_driver": {
+                    // Radio driver has been changed, refresh the connection
+                    ServiceControlInterface serviceControl =
+                            AutoIntegrate.getServiceControlInterface();
+                    if (serviceControl != null) {
+                        serviceControl.refreshRadioConnection();
+                    }
+                    break;
+                }
+                default:
+                    Timber.v("Preference Changed: %s", key);
+            }
+        }
+    };
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        prefs.registerOnSharedPreferenceChangeListener(mPreferenceListener);
 
         setLayout();
 
@@ -113,6 +150,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         UtilityFunctions.destroyAppList();
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        prefs.unregisterOnSharedPreferenceChangeListener(mPreferenceListener);
     }
 
     @Override

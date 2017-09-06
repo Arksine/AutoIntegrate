@@ -406,7 +406,7 @@ public class IntegratedPowerManager {
             try {
                 reader = new BufferedReader(new FileReader(settingsFile));
             } catch (FileNotFoundException e) {
-                Timber.w("File not found: " + filePath);
+                Timber.w("File not found: %s", filePath);
                 return "0";
             }
 
@@ -414,7 +414,7 @@ public class IntegratedPowerManager {
             try {
                 fileValue = reader.readLine().trim();
             } catch (IOException e) {
-                Timber.w("Error reading file: " + filePath);
+                Timber.w("Error reading file: %s", filePath);
                 fileValue = "0";
             }
 
@@ -427,7 +427,7 @@ public class IntegratedPowerManager {
             return fileValue;
 
         } else {
-            Timber.w("File does not exist: " + filePath);
+            Timber.w("File does not exist: %s", filePath);
             return "0";
         }
     }

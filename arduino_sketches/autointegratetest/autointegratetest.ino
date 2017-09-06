@@ -34,7 +34,8 @@ bool    isEscaped     = false;
 
 void setup() {
   #ifdef LED_PIN
-  pinMode(PB1, OUTPUT);
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, LED_OFF);
   #endif // ifdef LED_PIN
 
   #if defined(HDRadioSerial)
@@ -291,7 +292,7 @@ void processStartCommand() {
   Serial1.println("MCU Started and Connected");
 
   #ifdef LED_PIN
-  digitalWrite(LED_PIN, HIGH);
+  digitalWrite(LED_PIN, LED_ON);
   #endif // ifdef LED_PIN
 }
 
@@ -307,7 +308,7 @@ void processStopCommand() {
 
   Serial1.println("MCU Stopped");
   #ifdef LED_PIN
-  digitalWrite(LED_PIN, LOW);
+  digitalWrite(LED_PIN, LED_OFF);
   #endif // ifdef LED_PIN
 }
 

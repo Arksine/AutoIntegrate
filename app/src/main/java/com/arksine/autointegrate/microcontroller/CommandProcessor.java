@@ -75,9 +75,11 @@ public class CommandProcessor {
         abstract public void run();
     }
 
-    // TODO: In the future, if we want to capture audio focus we will need a TABLET audio source
     public enum AudioSource {HD_RADIO, AUX}
     private AudioSource mCurrentSource = AudioSource.HD_RADIO;
+    private boolean mRadioOn = false;  // TODO: this variable tracks the radio.  If the AudioSource
+                                        // if HD Radio and the radio is on, capture audio focuse
+                                        // and forward media keys to control the HD Radio
 
     // TODO: might want to make these a preference
     // Delay between repetitive media keys when holding (in ms)
@@ -136,11 +138,26 @@ public class CommandProcessor {
         mMappedButtons = gson.fromJson(json, collectionType);
     }
 
+    public void updateButtons(List<ResistiveButton> buttonList) {
+        mMappedButtons = buttonList;
+    }
+
     public void updateDimmer() {
         final SharedPreferences defaultPrefs = PreferenceManager.getDefaultSharedPreferences(mContext);
-
-        mDimmerMode = defaultPrefs.getInt("dimmer_pref_key_mode", 0);
         mInitialBrightness = defaultPrefs.getInt("dimmer_pref_key_initial_brightness", 200);
+
+        final int mode = defaultPrefs.getInt("dimmer_pref_key_mode", 0);
+        final int highReading = defaultPrefs.getInt("dimmer_pref_key_high_reading", 1000);
+        final int lowReading = defaultPrefs.getInt("dimmer_pref_key_low_reading", 100);
+        final int highBrightness = defaultPrefs.getInt("dimmer_pref_key_high_brightness", 200);
+        final int lowBrightness = defaultPrefs.getInt("dimmer_pref_key_low_brightness", 100);
+
+        updateDimmer(mode, highReading, lowReading, highBrightness, lowBrightness);
+    }
+
+    public void updateDimmer(int mode, final int highReading, final int lowReading,
+                             final int highBrightness, final int lowBrightness) {
+        mDimmerMode = mode;
 
         BrightnessControl emptyBC = new BrightnessControl() {
             @Override
@@ -196,8 +213,7 @@ public class CommandProcessor {
                     Timber.v("Auto Brightness off ");
                 }
 
-                final int onBrightness = defaultPrefs.getInt("dimmer_pref_key_high_brightness",100);
-                if (onBrightness <= 0) {
+                if (highBrightness <= 0) {
                     Timber.i("Digital Dimmer Mode not calibated");
                     mBrightnessControl = emptyBC;
                     break;
@@ -219,7 +235,7 @@ public class CommandProcessor {
                         if (!mDimmerOn) {
                             mDimmerOn = true;
                             setInitialBrightness();
-                            launchBrightnessChangeActivity(onBrightness);
+                            launchBrightnessChangeActivity(highBrightness);
                         }
                     }
 
@@ -235,11 +251,6 @@ public class CommandProcessor {
                             Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL);
                     Timber.v("Auto Brightness off ");
                 }
-
-                final int highReading = defaultPrefs.getInt("dimmer_pref_key_high_reading", 1000);
-                final int lowReading = defaultPrefs.getInt("dimmer_pref_key_low_reading", 100);
-                final int highBrightness = defaultPrefs.getInt("dimmer_pref_key_high_brightness", 200);
-                final int lowBrightness = defaultPrefs.getInt("dimmer_pref_key_low_brightness", 100);
 
                 if ((highReading <= 0) || (lowReading <= 0) ||
                         (highBrightness <= 0) || (lowBrightness <= 0)) {
@@ -293,12 +304,17 @@ public class CommandProcessor {
                 // Dimmer is invalid, so control functions are empty
                 mBrightnessControl = emptyBC;
         }
-
     }
 
     public void updateReverseCommand() {
         SharedPreferences globalPrefs = PreferenceManager.getDefaultSharedPreferences(mContext);
         String camSetting = globalPrefs.getString("controller_pref_key_select_camera_app", "0");
+        String appPkg = globalPrefs.getString("controller_pref_key_camera_ex_app", "0");
+        updateReverseCommand(camSetting, appPkg);
+    }
+
+
+    public void updateReverseCommand(String camSetting, String appPackage) {
 
         switch (camSetting) {
             case "0":       // No App set
@@ -317,29 +333,33 @@ public class CommandProcessor {
                 };
                 break;
             case "2":       // Custom App
-                String appPkg = globalPrefs.getString("controller_pref_key_camera_ex_app", "0");
-                mCameraIntent = mContext.getPackageManager().getLaunchIntentForPackage(appPkg);
-                mCameraIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                // With a custom app we will exit with a back button press if Signature Permissions
-                // or Root access is available
-                if (UtilityFunctions.hasPermission(mContext, "android.permission.INJECT_EVENTS")) {
-                    // System level permission granted
-                    mReverseExitListener = new ReverseExitListener() {
-                        @Override
-                        public void OnReverseOff() {
-                            Instrumentation inst = new Instrumentation();
-                            inst.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK);
-                        }
-                    };
-                } else if (UtilityFunctions.isRootAvailable()) {
-                    // Root granted
-                    mReverseExitListener = new ReverseExitListener() {
-                        @Override
-                        public void OnReverseOff() {
-                            String command = "input keyevent " + String.valueOf(KeyEvent.KEYCODE_BACK);
-                            Shell.SU.run(command);
-                        }
-                    };
+                Timber.d("Setting Camera App to package: %s", appPackage);
+                mCameraIntent = mContext.getPackageManager().getLaunchIntentForPackage(appPackage);
+                if (mCameraIntent != null) {
+                    mCameraIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    // With a custom app we will exit with a back button press if Signature Permissions
+                    // or Root access is available
+                    if (UtilityFunctions.hasPermission(mContext, "android.permission.INJECT_EVENTS")) {
+                        // System level permission granted
+                        mReverseExitListener = new ReverseExitListener() {
+                            @Override
+                            public void OnReverseOff() {
+                                Instrumentation inst = new Instrumentation();
+                                inst.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK);
+                            }
+                        };
+                    } else if (UtilityFunctions.isRootAvailable()) {
+                        // Root granted
+                        mReverseExitListener = new ReverseExitListener() {
+                            @Override
+                            public void OnReverseOff() {
+                                String command = "input keyevent " + String.valueOf(KeyEvent.KEYCODE_BACK);
+                                Shell.SU.run(command);
+                            }
+                        };
+                    }
+                } else {
+                    Timber.e("Error setting camera app");
                 }
                 break;
 
