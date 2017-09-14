@@ -87,6 +87,9 @@ public class HardwareReceiver extends BroadcastReceiver {
                       Library in that hardware disconnections do not trigger any kind of callback
                       or errors.
                     */
+
+                    // TODO: I should probably implement this post-delayed, so the power manager
+                    // has a chance to shut down first
                     UsbDevice uDev = (UsbDevice) intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
                     Intent devDisconnected = new Intent(context.getString(R.string.ACTION_DEVICE_DISCONNECTED));
                     devDisconnected.putExtra(UsbManager.EXTRA_DEVICE, uDev);

@@ -44,12 +44,16 @@ public class PowerEventReceiver extends BroadcastReceiver {
                 UtilityFunctions.isServiceRunning(MainService.class, context)) {
 
             if (action.equals(Intent.ACTION_POWER_CONNECTED)) {
-                Timber.v("Power Reconnected, wake device");
+                Timber.v("Power Reconnected, wake devadice");
+
+                // TODO: turn on usbhostmode
 
                 // Wake service thread
                 ServiceControlInterface serviceControl = AutoIntegrate.getServiceControlInterface();
                 if (serviceControl != null) {
                     serviceControl.wakeUpDevice();
+                } else {
+                    Timber.w("Error, unable to acquire service control interface");
                 }
 
 
@@ -60,6 +64,8 @@ public class PowerEventReceiver extends BroadcastReceiver {
                 ServiceControlInterface serviceControl = AutoIntegrate.getServiceControlInterface();
                 if (serviceControl != null) {
                     serviceControl.suspendDevice();
+                } else {
+                    Timber.w("Error, unable to acquire service control interface");
                 }
             }
         }

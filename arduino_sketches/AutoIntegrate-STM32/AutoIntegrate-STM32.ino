@@ -17,6 +17,8 @@ enum AudioInput { HD_RADIO, AUX };
 
 Average<unsigned int> ave(SMOOTH);
 
+
+// TODO: Digital button acts like it is floating, need to check
 ButtonCB button(BUTTON_DIGITAL_PIN, Button::PULL_DOWN, BUTTON_DEBOUNCE_DELAY);
 
 AudioInput audio_input_selection = HD_RADIO;
@@ -75,6 +77,7 @@ void setup() {
   pinMode(BUTTON_ANALOG_PIN, INPUT_ANALOG);
   pinMode(DIMMER_ANALOG_PIN, INPUT_ANALOG);
   pinMode(AUDIO_SOURCE_PIN,  OUTPUT);
+  digitalWrite(AUDIO_SOURCE_PIN, LOW);
 
   #if defined(HDRadioSerial)
   pinMode(RADIO_DTR_PIN,     OUTPUT);
@@ -392,6 +395,9 @@ void processReverse() {
       reverse_start_time = 0;
       sendPacketToPc(CMD_REVERSE, (byte *)&inReverse,
                      sizeof(inReverse));
+  } else {
+    // Reset reverse start time if
+    reverse_start_time = 0;
   }
 }
 

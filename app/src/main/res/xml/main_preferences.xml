@@ -40,4 +40,21 @@
         android:title="@string/main_pref_start_on_boot_title"
         android:persistent="true"
         android:defaultValue="true"/>
+    <PreferenceCategory
+        android:title="@string/main_pref_category_debug">
+        <SwitchPreference
+            android:defaultValue="false"
+            android:title="@string/main_pref_toggle_adb"
+            android:key="main_pref_key_toggle_adb"
+            android:persistent="true"
+            android:summaryOn="@string/main_pref_summ_adb_on"
+            android:summaryOff="@string/main_pref_summ_adb_off"/>
+        <SwitchPreference
+            android:defaultValue="false"
+            android:title="@string/main_pref_toggle_adb_wireless"
+            android:key="main_pref_key_toggle_adb_wireless"
+            android:persistent="true"
+            android:summaryOn="@string/main_pref_summ_wireless_adb_on"
+            android:summaryOff="@string/main_pref_summ_wireless_adb_off"/>
+    </PreferenceCategory>
 </PreferenceScreen>

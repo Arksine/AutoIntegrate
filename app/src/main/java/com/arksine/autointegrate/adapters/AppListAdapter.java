@@ -8,6 +8,7 @@ import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.TextView;
 
+import com.arksine.autointegrate.AutoIntegrate;
 import com.arksine.autointegrate.utilities.AppItem;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
 
@@ -18,12 +19,12 @@ import com.arksine.autointegrate.utilities.UtilityFunctions;
 public class AppListAdapter extends ArrayAdapter<AppItem> {
 
     public AppListAdapter(Context context) {
-        super(context, android.R.layout.simple_spinner_item, UtilityFunctions.getAppItems());
+        super(context, android.R.layout.simple_spinner_item, AutoIntegrate.getAppItems());
         setDropDownViewResource(android.R.layout.simple_dropdown_item_1line);
     }
 
     public AppListAdapter(Context context, int itemLayout, int dropDownLayout) {
-        super(context, itemLayout, UtilityFunctions.getAppItems());
+        super(context, itemLayout, AutoIntegrate.getAppItems());
         setDropDownViewResource(dropDownLayout);
     }
 

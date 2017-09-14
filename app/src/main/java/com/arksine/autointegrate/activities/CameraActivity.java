@@ -54,6 +54,7 @@ public class CameraActivity extends AppCompatActivity {
 
     private boolean mImmersive = true;
     private boolean mIsFullScreen = true;
+    private boolean mAutoShutdown = false;
 
     private Handler mActivityHandler = new Handler();
     private Runnable immersiveMsg = new Runnable() {
@@ -82,14 +83,15 @@ public class CameraActivity extends AppCompatActivity {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
-            if (action.equals(getString(R.string.ACTION_CLOSE_CAMERA))) {
+            if (action.equals(getString(R.string.ACTION_CLOSE_CAMERA))
+                    && mAutoShutdown) {
 
-                mActivityHandler.postDelayed(new Runnable() {
+                mActivityHandler.post(new Runnable() {
                     @Override
                     public void run() {
                         CameraActivity.this.finish();
                     }
-                }, 1000);
+                });
             }
         }
     };
@@ -149,7 +151,7 @@ public class CameraActivity extends AppCompatActivity {
                 public void run() {
                     mUVCCamera = new UVCCamera();
                     mUVCCamera.open(ctrlBlock);
-                    Timber.d("Supported Size: %d", mUVCCamera.getSupportedSize());
+                    Timber.d("Supported Size: %s", mUVCCamera.getSupportedSize());
 
                     // TODO: Get camera variables from shared prefs, but for initial testing
                     //       we'll use base format (default width, height, YUYV frames
@@ -201,8 +203,11 @@ public class CameraActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_camera);
-        mRootLayout = (FrameLayout) findViewById(R.id.activity_camera);
 
+        mAutoShutdown = getIntent()
+                .getBooleanExtra(getString(R.string.LAUNCH_CAMERA_EXTRA), false);
+
+        mRootLayout = (FrameLayout) findViewById(R.id.activity_camera);
         mCameraView = (SurfaceView) findViewById(R.id.camera_view);
         //mCameraView.setFocusable(true);
         //mCameraView.setBackgroundColor(Color.BLACK);

@@ -3,17 +3,18 @@ package com.arksine.autointegrate.utilities;
 import android.app.ActivityManager;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
 
-import java.util.ArrayList;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.util.Collections;
 import java.util.List;
 
-import eu.chainfire.libsuperuser.Shell;
 import timber.log.Timber;
+
 
 /**
  * Static class for various helper functions used throughout service / application
@@ -21,19 +22,12 @@ import timber.log.Timber;
 
 public class UtilityFunctions {
 
-    private final static Object ROOTLOCK = new Object();
-
     private final static String DEVICE_POWER_PERMISSION =
             "android.permission.DEVICE_POWER";
     private final static String WRITE_SECURE_SETTINGS_PERMISSION =
             "android.permission.WRITE_SECURE_SETTINGS";
 
-    private static volatile Boolean mIsRootAvailable = null;
-    public interface RootCallback {
-        void OnRootInitialized(boolean rootStatus);
-    }
 
-    private static volatile List<AppItem> mAppItems = null;
 
     // Empty private constructor so class cannot be instantiated
     private UtilityFunctions() {}
@@ -85,54 +79,6 @@ public class UtilityFunctions {
 
     }
 
-    public static void initAppList(final Context context) {
-
-        Thread appListThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                PackageManager pm = context.getPackageManager();
-                List<ApplicationInfo> apps = pm.getInstalledApplications(0);
-                mAppItems = new ArrayList<>();
-
-                for(ApplicationInfo app : apps) {
-                    //Create App Items for each installed app
-                    AppItem item = new AppItem(pm.getApplicationLabel(app).toString(),
-                            app.packageName, pm.getApplicationIcon(app));
-                    mAppItems.add(item);
-
-                }
-            }
-        });
-        appListThread.start();
-    }
-
-    public static void destroyAppList() {
-        mAppItems = null;
-    }
-
-    public static List<AppItem> getAppItems() {
-        return mAppItems;
-    }
-
-    public static void initRoot(final RootCallback cb) {
-
-        Thread checkSUthread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                synchronized (ROOTLOCK) {
-                    mIsRootAvailable = Shell.SU.available();
-                    Timber.i("Root availability status: %b", mIsRootAvailable);
-                    cb.OnRootInitialized(mIsRootAvailable);
-                }
-            }
-        });
-        checkSUthread.start();
-    }
-
-    public static Boolean isRootAvailable() {
-        return mIsRootAvailable;
-    }
-
     public static boolean hasSignaturePermission(Context context) {
         return (hasPermission(context, DEVICE_POWER_PERMISSION) &&
                 hasPermission(context, WRITE_SECURE_SETTINGS_PERMISSION));
@@ -160,4 +106,53 @@ public class UtilityFunctions {
         return Integer.toHexString(i);
     }
 
+    public static boolean isInteger(String s) {
+        return isInteger(s,10);
+    }
+
+    public static boolean isInteger(String s, int radix) {
+        if(s.isEmpty()) return false;
+        for(int i = 0; i < s.length(); i++) {
+            if(i == 0 && s.charAt(i) == '-') {
+                if(s.length() == 1) return false;
+                else continue;
+            }
+            if(Character.digit(s.charAt(i),radix) < 0) return false;
+        }
+        return true;
+    }
+
+    private static String getWifiIpAddress() {
+        return getHostAddress("wlan0", true);
+    }
+
+    private static String getHostAddress(String netInterface, boolean useIPv4) {
+        try {
+            NetworkInterface intf = NetworkInterface.getByName(netInterface);
+            if (intf != null) {
+                List<InetAddress> addrs = Collections.list(intf.getInetAddresses());
+                for (InetAddress addr : addrs) {
+                    if (!addr.isLoopbackAddress()) {
+                        String sAddr = addr.getHostAddress();
+                        //boolean isIPv4 = InetAddressUtils.isIPv4Address(sAddr);
+                        boolean isIPv4 = sAddr.indexOf(':') < 0;
+
+                        if (useIPv4) {
+                            if (isIPv4)
+                                return sAddr;
+                        } else {
+                            if (!isIPv4) {
+                                int delim = sAddr.indexOf('%'); // drop ip6 zone suffix
+                                return delim < 0 ? sAddr.toUpperCase() : sAddr.substring(0, delim).toUpperCase();
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Timber.v(e);
+        }
+
+        return "";
+    }
 }

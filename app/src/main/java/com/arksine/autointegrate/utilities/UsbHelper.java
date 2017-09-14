@@ -23,11 +23,12 @@ import com.arksine.usbserialex.UsbSerialInterface;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Locale;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import timber.log.Timber;
 
-// TODO: Use my USBSerialEx in place of current USBSerial library.  The primary difference
-// is that it can set DTR/RTS to LOW on connection, rather than default to HIGH.
 
 //TODO: The USBSerial library doesnt seem to have any way to handle errors.  Temporarily handle disconnections
 //      with a broadcast receiver.Will have to research
@@ -38,15 +39,15 @@ import timber.log.Timber;
  */
 public class UsbHelper extends SerialHelper {
 
+    private static final int PERMISSION_TIMEOUT = 20000;
+
     private Context mContext;
     private UsbManager mUsbManager;
-    private volatile UsbDevice mUsbDevice;
-    private UsbSerialDevice mSerialPort;
+    private AtomicReference<UsbDevice> mUsbDevice = new AtomicReference<>(null);
+    private AtomicReference<UsbSerialDevice> mSerialPort = new AtomicReference<>(null);
 
 
     private UsbSerialSettings mUsbSettings;
-
-    private volatile boolean serialPortConnected = false;
     private SerialHelper.Callbacks mSerialHelperCallbacks;
 
     // Broadcast Reciever to handle disconnections (this is temporary)
@@ -57,10 +58,10 @@ public class UsbHelper extends SerialHelper {
             if (action.equals(context.getString(R.string.ACTION_DEVICE_DISCONNECTED))) {
                 synchronized (this) {
                     UsbDevice uDev = (UsbDevice) intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
-                    if (uDev.equals(mUsbDevice)) {
+                    if (uDev.equals(mUsbDevice.get())) {
 
-                        Toast.makeText(mContext, "USB Device Disconnected",
-                                Toast.LENGTH_SHORT).show();
+                        Toast.makeText(mContext, "MCU Disconnected",
+                               Toast.LENGTH_SHORT).show();
 
                         // Disconnect from a new thread so we don't block the UI thread
                         Thread errorThread = new Thread(new Runnable() {
@@ -141,8 +142,8 @@ public class UsbHelper extends SerialHelper {
             } else if (XdcVcpIds.isDeviceSupported(uDevice.getVendorId(), uDevice.getProductId())) {
                 name = "Virtual serial device";
             } else {
-                // not a supported USB Serial device, break
-                break;
+                // not a supported USB Serial device, continue to next
+                continue;
             }
 
             Timber.v("USB comm device found: %s", name);
@@ -161,7 +162,7 @@ public class UsbHelper extends SerialHelper {
               */
             if ((uDevice.getVendorId() == 1027) && (uDevice.getProductId() ==  37752)) {
                 Timber.v("MJS Cable found, skipping from list");
-                break;
+                continue;
             }
 
             String id;
@@ -197,7 +198,7 @@ public class UsbHelper extends SerialHelper {
         // MicroControllerCom class loop through all devices, connecting to them and checking the id
         // until it finds the ID its looking for
 
-        if (serialPortConnected) {
+        if (isDeviceConnected()) {
             disconnect();
         }
 
@@ -238,12 +239,12 @@ public class UsbHelper extends SerialHelper {
 
             if (found) {
                 Timber.v("USB Device Found");
-                mUsbDevice = dev;
+                mUsbDevice.set(dev);
                 break;
             }
         }
 
-        if (mUsbDevice != null) {
+        if (mUsbDevice.get() != null) {
             // valid device, request permission to use
             ConnectionThread mConnectionThread = new ConnectionThread();
             mConnectionThread.start();
@@ -259,9 +260,11 @@ public class UsbHelper extends SerialHelper {
 
     @Override
     public String getConnectedId() {
-        if (serialPortConnected) {
-            return (mUsbDevice.getVendorId() + ":" + mUsbDevice.getProductId() + ":"
-                    + mUsbDevice.getDeviceName());
+        UsbDevice dev = mUsbDevice.get();
+        if (isDeviceConnected() && dev != null) {
+            return String.format(Locale.US, "%d:%d:%s", dev.getVendorId(), dev.getProductId(),
+                    dev.getDeviceName());
+
         }
         return "";
     }
@@ -269,11 +272,10 @@ public class UsbHelper extends SerialHelper {
     @Override
     public void disconnect() {
 
-        if (mSerialPort != null) {
-            mSerialPort.close();
-            mSerialPort = null;
+        if (isDeviceConnected()) {
+            mSerialPort.get().close();
+            mSerialPort.set(null);
         }
-        serialPortConnected = false;
 
         if (mIsDisconnectReceiverRegistered) {
             LocalBroadcastManager.getInstance(mContext).unregisterReceiver(mDisconnectReceiver);
@@ -284,8 +286,8 @@ public class UsbHelper extends SerialHelper {
 
     @Override
     public boolean writeBytes(byte[] data) {
-        if (mSerialPort != null) {
-            mSerialPort.write(data);
+        if (isDeviceConnected()) {
+            mSerialPort.get().write(data);
             return true;
         }
 
@@ -299,27 +301,27 @@ public class UsbHelper extends SerialHelper {
 
     @Override
     public boolean isDeviceConnected() {
-        return serialPortConnected;
+        return mSerialPort.get() != null;
     }
 
     @Override
     public void toggleDTR(boolean state) {
-        if (serialPortConnected) {
-            mSerialPort.setDTR(state);
+        if (isDeviceConnected()) {
+            mSerialPort.get().setDTR(state);
         }
     }
 
     @Override
     public void toggleRTS(boolean state) {
-        if (serialPortConnected) {
-            mSerialPort.setRTS(state);
+        if (isDeviceConnected()) {
+            mSerialPort.get().setRTS(state);
         }
     }
 
     @Override
     public void setBaud(int baud) {
-        if (serialPortConnected) {
-            mSerialPort.setBaudRate(baud);
+        if (isDeviceConnected()) {
+            mSerialPort.get().setBaudRate(baud);
         }
       }
 
@@ -327,59 +329,70 @@ public class UsbHelper extends SerialHelper {
     // This thread opens a usb serial connection on the specified device
     private class ConnectionThread extends Thread {
 
-        private volatile boolean requestApproved = false;
+        private AtomicBoolean mRequestApproved = new AtomicBoolean(false);
+        private AtomicBoolean mIsWating = new AtomicBoolean(false);
 
-
-        public synchronized void resumeConnectionThread() {
-            notify();
+        private synchronized void resumeConnectionThread() {
+            if (mIsWating.compareAndSet(true, false)) {
+                notify();
+            }
         }
 
         @Override
         public void run() {
 
             // check to see if we have permission, if not request it
-            if(!mUsbManager.hasPermission(mUsbDevice)) {
+            if(!mUsbManager.hasPermission(mUsbDevice.get())) {
 
                 // Attempt to grant permission automatically (will only work if installed as system app)
                 // If it fails, request permission the old fashioned way
-                if(!HardwareReceiver.grantAutomaticUsbPermission(mUsbDevice, mContext)) {
+                if(!HardwareReceiver.grantAutomaticUsbPermission(mUsbDevice.get(), mContext)) {
                     HardwareReceiver.UsbCallback callback = new HardwareReceiver.UsbCallback() {
                         @Override
                         public void onUsbPermissionRequestComplete(boolean requestStatus) {
-                            requestApproved = requestStatus;
+                            mRequestApproved.set(requestStatus);
                             resumeConnectionThread();
                         }
                     };
 
-                    HardwareReceiver.requestUsbPermission(mUsbDevice, callback, mContext);
+                    HardwareReceiver.requestUsbPermission(mUsbDevice.get(), callback, mContext);
 
                     synchronized (this) {
                         try {
-                            wait();
+                            mIsWating.set(true);
+                            wait(PERMISSION_TIMEOUT);
                         } catch (InterruptedException e) {
                             Timber.w(e);
                         }
+                        finally {
+                            if (mIsWating.compareAndSet(true, false)) {
+                                Timber.i("Usb Permission Request Interrupted/Timed Out");
+                            }
+                        }
                     }
 
-                    if (!requestApproved) {
+                    if (!mRequestApproved.get()) {
+                        Timber.e("Usb Permission Request Denied");
                         mSerialHelperCallbacks.OnDeviceReady(false);
                         return;
                     }
                 }
             }
 
-            UsbDeviceConnection mUsbConnection = mUsbManager.openDevice(mUsbDevice);
+            UsbDeviceConnection mUsbConnection = mUsbManager.openDevice(mUsbDevice.get());
 
-            mSerialPort = UsbSerialDevice.createUsbSerialDevice(mUsbDevice, mUsbConnection);
-            if (mSerialPort != null) {
-                if (mSerialPort.open()) {
+            UsbSerialDevice serialPort = UsbSerialDevice.createUsbSerialDevice(mUsbDevice.get(),
+                    mUsbConnection);
+            if (serialPort != null) {
+                // TODO: Should I check to see if the serial port is already open?
+                if (serialPort.open()) {
 
-                    mSerialPort.setBaudRate(mUsbSettings.baudRate);
-                    mSerialPort.setDataBits(mUsbSettings.dataBits);
-                    mSerialPort.setStopBits(mUsbSettings.stopBits);
-                    mSerialPort.setParity(mUsbSettings.parity);
-                    mSerialPort.setFlowControl(mUsbSettings.flowControl);
-                    mSerialPort.read(mCallback);
+                    serialPort.setBaudRate(mUsbSettings.baudRate);
+                    serialPort.setDataBits(mUsbSettings.dataBits);
+                    serialPort.setStopBits(mUsbSettings.stopBits);
+                    serialPort.setParity(mUsbSettings.parity);
+                    serialPort.setFlowControl(mUsbSettings.flowControl);
+                    serialPort.read(mCallback);
 
                     // since connection is successful, register the receiver
                     IntentFilter filter = new IntentFilter(mContext.getString(R.string.ACTION_DEVICE_DISCONNECTED));
@@ -388,7 +401,8 @@ public class UsbHelper extends SerialHelper {
 
                     // Some micro controllers need time to initialize before you can communicate.
                     // CH34x is one such device, others need to be tested.
-                    if (CH34xIds.isDeviceSupported(mUsbDevice.getVendorId(), mUsbDevice.getProductId())) {
+                    if (CH34xIds.isDeviceSupported(mUsbDevice.get().getVendorId(),
+                            mUsbDevice.get().getProductId())) {
                         try {
                             Thread.sleep(2000);
                         } catch (InterruptedException e) {
@@ -397,17 +411,19 @@ public class UsbHelper extends SerialHelper {
                     }
 
                     // Device is open and ready
-                    serialPortConnected = true;
+                    mSerialPort.set(serialPort);
                     mSerialHelperCallbacks.OnDeviceReady(true);
                  } else {
                     // Serial port could not be opened
-                    if (mSerialPort instanceof CDCSerialDevice) {
+                    if (serialPort instanceof CDCSerialDevice) {
                         Timber.i("Unable to open CDC Serial device");
                         mSerialHelperCallbacks.OnDeviceReady(false);
                     } else {
                         Timber.i("Unable to open serial device");
                         mSerialHelperCallbacks.OnDeviceReady(false);
                     }
+
+                    serialPort.close();
                 }
             } else {
                 // No driver for given device, even generic CDC driver could not be loaded

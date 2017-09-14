@@ -13,6 +13,7 @@ import com.arksine.autointegrate.power.IntegratedPowerManager;
 import com.arksine.autointegrate.preferences.MainSettings;
 import com.arksine.autointegrate.radio.RadioCom;
 import com.arksine.autointegrate.utilities.BackgroundThreadFactory;
+import com.arksine.autointegrate.utilities.RootManager;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
 import com.arksine.hdradiolib.*;
 import com.arksine.hdradiolib.BuildConfig;
@@ -58,6 +59,8 @@ public class ServiceThread implements Runnable {
             if (mServiceSuspended.get()) {
                 EXECUTOR.execute(wakeUpDevice);
                 Timber.v("Service resumed.");
+            } else {
+                Timber.d("Service not suspended, skipping wake attempt");
             }
         }
 
@@ -88,15 +91,19 @@ public class ServiceThread implements Runnable {
         AutoIntegrate.setServiceControlInterface(this.mServiceInterface);
         mLocalBM = LocalBroadcastManager.getInstance(mService);
 
-
-        UtilityFunctions.RootCallback callback = new UtilityFunctions.RootCallback() {
-            @Override
-            public void OnRootInitialized(boolean rootStatus) {
-                mPowerManager = new IntegratedPowerManager(mService, rootStatus);
-                notifyServiceThread();
-            }
-        };
-        UtilityFunctions.initRoot(callback);
+        if (RootManager.isInitialized()) {
+            boolean rootStatus = RootManager.isRootAvailable();
+            mPowerManager = new IntegratedPowerManager(mService, rootStatus);
+        } else {
+            RootManager.RootCallback callback = new RootManager.RootCallback() {
+                @Override
+                public void OnRootInitialized(boolean rootStatus) {
+                    mPowerManager = new IntegratedPowerManager(mService, rootStatus);
+                    notifyServiceThread();
+                }
+            };
+            RootManager.checkRootWithCallback(callback);
+        }
     }
 
 
@@ -110,15 +117,17 @@ public class ServiceThread implements Runnable {
 
         // Check to see if root is initialized.  If not, we will wait until notified by the RootCallback
         synchronized (this) {
-            if (UtilityFunctions.isRootAvailable() == null) {
+            if (!RootManager.isInitialized()) {
+                Timber.v("Root not initialized, waiting");
+
                 try {
                     mIsWaiting.set(true);
-                    wait();
-                } catch (InterruptedException e) {
-                    Timber.w(e);
+                    wait(10000);
+                } catch (InterruptedException err) {
+                    Timber.w(err);
                 } finally {
                     if (mIsWaiting.compareAndSet(true, false)) {
-                        Timber.v("Wait for root access interrupted");
+                        Timber.v("Wait for root access interrupted / timed out");
                     }
                 }
             }
@@ -168,7 +177,7 @@ public class ServiceThread implements Runnable {
                     if (mHdRadio.get().connect()) {
                         Timber.v("HD Radio Connection Set Up");
                     } else {
-                        Timber.v("Error Setting up HD Radio: Attempt " + mcuConnectionAttempts);
+                        Timber.v("Error Setting up HD Radio: Attempt " + radioConnectionAttempts);
                         mHdRadio.set(null);
                     }
                     radioConnectionAttempts++;
@@ -176,18 +185,20 @@ public class ServiceThread implements Runnable {
             }
 
 
-            if (allConnected(mcuEnabled, radioEnabled) ||
-                    ((mcuConnectionAttempts >= MAXIMUM_CONNECTION_ATTEMPTS) &&
-                            (radioConnectionAttempts >= MAXIMUM_CONNECTION_ATTEMPTS))) {
+            if (threadWaitCheck(mcuEnabled, radioEnabled,
+                    mcuConnectionAttempts, radioConnectionAttempts)) {
 
                 if (mcuConnectionAttempts >= MAXIMUM_CONNECTION_ATTEMPTS) {
-                    Toast.makeText(mService, "Maximum MCU connection attempts reached",
-                            Toast.LENGTH_SHORT).show();
+                    // TODO: Toast needs to be done on UI thread
+                    //Toast.makeText(mService, "Maximum MCU connection attempts reached",
+                     //       Toast.LENGTH_SHORT).show();
+                    Timber.i("Maximum MCU connection attempts reached");
                 }
 
                 if (radioConnectionAttempts >= MAXIMUM_CONNECTION_ATTEMPTS) {
-                    Toast.makeText(mService, "Maximum Radio connection attempts reached",
-                            Toast.LENGTH_SHORT).show();
+                    //Toast.makeText(mService, "Maximum Radio connection attempts reached",
+                    //        Toast.LENGTH_SHORT).show();
+                    Timber.i("Maximum Radio connection attempts reached");
                 }
 
                 // The thread will now sleep, so reset connection attempts for when
@@ -234,25 +245,35 @@ public class ServiceThread implements Runnable {
 
     }
 
-    private boolean allConnected(boolean mcuEnabled, boolean radioEnabled) {
-        if (!mcuEnabled && !radioEnabled) {
-            // both are disabled, so technically when neither is connected they all are
-            // connected
-            return true;
-        }
+    /**
+     * Checks to see if the service thread should enter wait mode.  The thread should enter wait mode
+     * if all enabled modules have either successfully connected or have reached their maximum
+     * connection attempts. If all modules are disabled the thread should wait by default.
+     *
+     * @param mcuEnabled    Status of the MCU module
+     * @param radioEnabled  Status of the Radio module
+     * @param mcuAttempts   Number of attempts the MCU has tried to connect during this cycle
+     * @param radioAttempts Number of attempts the Radio has tried to connect during this cycle
+     *
+     * @return true if the thread should enter wait mode, false if it should continue
+     */
+    private boolean threadWaitCheck(boolean mcuEnabled, boolean radioEnabled,
+                                 int mcuAttempts, int radioAttempts) {
 
-        boolean connected = true;
+        boolean shouldWait = true;
         if (mcuEnabled) {
-            connected = (mMicroController.get() != null && mMicroController.get().isConnected());
+            shouldWait = ((mMicroController.get() != null && mMicroController.get().isConnected()) ||
+                        mcuAttempts >= MAXIMUM_CONNECTION_ATTEMPTS);
         }
 
         if (radioEnabled) {
-            connected = (connected && (mHdRadio.get() != null && mHdRadio.get().isConnected()));
+            shouldWait = ((shouldWait && (mHdRadio.get() != null && mHdRadio.get().isConnected())) ||
+                        radioAttempts >= MAXIMUM_CONNECTION_ATTEMPTS);
         }
 
-        Timber.v("All connected status: " + connected);
+        Timber.v("Thead Wait Status: " + shouldWait);
 
-        return connected;
+        return shouldWait;
     }
 
     boolean isServiceThreadRunning() {
@@ -313,6 +334,9 @@ public class ServiceThread implements Runnable {
         // stop the power manager
         mPowerManager.destroy();
 
+        // Remove the service control interface
+        AutoIntegrate.setServiceControlInterface(null);
+
         // Send intent to status fragment so it knows service status has changed
         Intent statusChangedIntent = new Intent(mService.getString(R.string.ACTION_SERVICE_STATUS_CHANGED));
         statusChangedIntent.setClass(mService, MainSettings.class);
@@ -363,7 +387,6 @@ public class ServiceThread implements Runnable {
                 }
 
                 mMainThreadFuture = null;
-                AutoIntegrate.setServiceControlInterface(null);
 
                 Timber.v("Main Thead Stopped");
             }

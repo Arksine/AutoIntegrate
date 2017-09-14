@@ -30,7 +30,9 @@
     <string name="ACTION_USB_ATTACHED">android.hardware.usb.action.USB_DEVICE_ATTACHED</string>
     <string name="ACTION_USB_DETACHED">android.hardware.usb.action.USB_DEVICE_DETACHED</string>
 
+    <string name="LAUNCH_CAMERA_EXTRA">com.arksine.autointegrate.LAUNCH_CAMERA_EXTRA</string>
     <string name="ACTION_CLOSE_CAMERA">com.arksine.autointegrate.ACTTION_CLOSE_CAMERA</string>
+
 
     <!-- End Intents -->
 
@@ -70,6 +72,14 @@
     <string name="main_pref_toggle_radio_summ_off">HD Radio Integration DISABLED</string>
 
     <string name="main_pref_start_on_boot_title">Start Service on Boot</string>
+
+    <string name="main_pref_category_debug">Debugging (Requires root)</string>
+    <string name="main_pref_toggle_adb">Toggle ADB</string>
+    <string name="main_pref_summ_adb_on">ADB is ENABLED</string>
+    <string name="main_pref_summ_adb_off">ADB is DISABLED</string>
+    <string name="main_pref_toggle_adb_wireless">Wireless ADB</string>
+    <string name="main_pref_summ_wireless_adb_on">Wireless ADB is ENABLED</string>
+    <string name="main_pref_summ_wireless_adb_off">Wireless ADB is DISABLED</string>
 
     <!-- Strings related to Power Settings -->
     <string name="power_category_event">Power Event Settings</string>

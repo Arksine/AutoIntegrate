@@ -15,6 +15,8 @@ import com.arksine.autointegrate.AutoIntegrate;
 import com.arksine.autointegrate.MainService;
 import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.interfaces.ServiceControlInterface;
+import com.arksine.autointegrate.utilities.AdbManager;
+import com.arksine.autointegrate.utilities.RootManager;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
 
 import timber.log.Timber;
@@ -53,27 +55,42 @@ public class MainSettings extends PreferenceFragment {
         }
     };
 
+    private final Preference.OnPreferenceChangeListener mAdbToggleListener
+            = new Preference.OnPreferenceChangeListener() {
+        @Override
+        public boolean onPreferenceChange(Preference preference, Object o) {
+            boolean enabled = (boolean)o;
+
+            AdbManager manager = AdbManager.getInstance(getActivity());
+            manager.toggleAdb(enabled, getActivity());
+
+            return true;
+        }
+    };
+
+    private final Preference.OnPreferenceChangeListener mAdbWirelessListener
+            = new Preference.OnPreferenceChangeListener() {
+        @Override
+        public boolean onPreferenceChange(Preference preference, Object o) {
+            boolean enabled = (boolean)o;
+
+            AdbManager manager = AdbManager.getInstance(getActivity());
+            manager.toggleWirelessAdb(enabled);
+
+            return true;
+        }
+    };
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         addPreferencesFromResource(R.xml.main_preferences);
         PreferenceScreen root = this.getPreferenceScreen();
-        SwitchPreference toggleService = (SwitchPreference) root.findPreference("main_pref_key_toggle_service");
         SwitchPreference togglePower = (SwitchPreference) root.findPreference("main_pref_key_toggle_power");
         SwitchPreference toggleMCU = (SwitchPreference) root.findPreference("main_pref_key_toggle_controller");
         //SwitchPreference toggleCamera = (SwitchPreference) root.findPreference("main_pref_key_toggle_camera");
         SwitchPreference toggleRadio = (SwitchPreference) root.findPreference("main_pref_key_toggle_radio");
-        // Check to see if the service is on and set the toggleService preferences value accordingly
 
-        if (UtilityFunctions.isServiceRunning(MainService.class, getActivity())) {
-            toggleService.setChecked(true);
-            Timber.v("Service is running");
-        } else {
-            toggleService.setChecked(false);
-            Timber.v("Service is not running");
-        }
-
-        toggleService.setOnPreferenceChangeListener(mServiceToggleListener);
 
         toggleMCU.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
             @Override
@@ -106,6 +123,39 @@ public class MainSettings extends PreferenceFragment {
     public void onResume() {
         super.onResume();
 
+        PreferenceScreen root = this.getPreferenceScreen();
+        SwitchPreference toggleService = (SwitchPreference) root
+                .findPreference("main_pref_key_toggle_service");
+        final SwitchPreference toggleAdb = (SwitchPreference) root
+                .findPreference("main_pref_key_toggle_adb");
+        final SwitchPreference toggleAdbWireless = (SwitchPreference) root
+                .findPreference("main_pref_key_toggle_adb_wireless");
+
+        // Check to see if the service is on and set the toggleService preferences value accordingly
+        toggleService.setOnPreferenceChangeListener(null);
+        if (UtilityFunctions.isServiceRunning(MainService.class, getActivity())) {
+            toggleService.setChecked(true);
+            Timber.v("Service is running");
+        } else {
+            toggleService.setChecked(false);
+            Timber.v("Service is not running");
+        }
+        toggleService.setOnPreferenceChangeListener(mServiceToggleListener);
+
+        RootManager.RootCallback initCb = new RootManager.RootCallback() {
+            @Override
+            public void OnRootInitialized(final boolean rootStatus) {
+                getActivity().runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        updateDebuggingOptions(rootStatus);
+                    }
+                });
+
+            }
+        };
+        RootManager.checkRootWithCallback(initCb);
+
         IntentFilter filter = new IntentFilter(getActivity().getString(R.string.ACTION_SERVICE_STATUS_CHANGED));
         LocalBroadcastManager.getInstance(getActivity()).registerReceiver(serverStatusReceiver, filter);
     }
@@ -121,6 +171,34 @@ public class MainSettings extends PreferenceFragment {
     public void onDestroy() {
         super.onDestroy();
     }
+
+    private void updateDebuggingOptions(boolean enabled) {
+
+        PreferenceScreen root = this.getPreferenceScreen();
+        final SwitchPreference toggleAdb = (SwitchPreference) root
+                .findPreference("main_pref_key_toggle_adb");
+        final SwitchPreference toggleAdbWireless = (SwitchPreference) root
+                .findPreference("main_pref_key_toggle_adb_wireless");
+
+        toggleAdb.setEnabled(enabled);
+        toggleAdbWireless.setEnabled(enabled);
+        if (enabled) {
+            toggleAdb.setOnPreferenceChangeListener(null);
+            toggleAdbWireless.setOnPreferenceChangeListener(null);
+
+            AdbManager adbManager = AdbManager.getInstance(getActivity());
+            toggleAdb.setChecked(adbManager.isAdbEnabled(getActivity()));
+            toggleAdbWireless.setChecked(adbManager.isWirelessAdbEnabled());
+
+
+            toggleAdb.setOnPreferenceChangeListener(mAdbToggleListener);
+            toggleAdbWireless.setOnPreferenceChangeListener(mAdbWirelessListener);
+        } else {
+            Timber.i("Neither Root nor Signature permissions available, cannot change" +
+                    "adb settings");
+        }
+    }
+
 
     private void updateServiceStatus(String status) {
         PreferenceScreen root = this.getPreferenceScreen();

@@ -9,6 +9,7 @@ import android.preference.SwitchPreference;
 
 import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.power.IntegratedPowerManager;
+import com.arksine.autointegrate.utilities.RootManager;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
 
 /**
@@ -18,9 +19,33 @@ import com.arksine.autointegrate.utilities.UtilityFunctions;
 
 public class PowerSettings extends PreferenceFragment {
 
-    CheckBoxPreference mApMode;
-    SwitchPreference mFixedInstallMode;
-    SwitchPreference mFastChargeMode;
+    private CheckBoxPreference mApMode;
+    private SwitchPreference mFixedInstallMode;
+    private SwitchPreference mFastChargeMode;
+
+    private SwitchPreference.OnPreferenceChangeListener mFixedInstallListener
+            = new Preference.OnPreferenceChangeListener() {
+        @Override
+        public boolean onPreferenceChange(Preference preference, Object o) {
+            if ((boolean)o) {
+                return IntegratedPowerManager.setFixedInstallMode(true);
+            } else {
+                return IntegratedPowerManager.setFixedInstallMode(false);
+            }
+        }
+    };
+
+    private SwitchPreference.OnPreferenceChangeListener mFastChargeListener
+            = new Preference.OnPreferenceChangeListener() {
+        @Override
+        public boolean onPreferenceChange(Preference preference, Object o) {
+            if ((boolean)o) {
+                return IntegratedPowerManager.setFastchargeMode(true);
+            } else {
+                return IntegratedPowerManager.setFastchargeMode(false);
+            }
+        }
+    };
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -32,53 +57,47 @@ public class PowerSettings extends PreferenceFragment {
         mFixedInstallMode = (SwitchPreference) root.findPreference("power_pref_key_fixed_install");
         mFastChargeMode = (SwitchPreference) root.findPreference("power_pref_key_fast_charging");
 
-        mFixedInstallMode.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
-            @Override
-            public boolean onPreferenceChange(Preference preference, Object o) {
-                if ((boolean)o) {
-                    return IntegratedPowerManager.setFixedInstallMode(true);
-                } else {
-                    return IntegratedPowerManager.setFixedInstallMode(false);
-                }
-            }
-        });
-
-        mFastChargeMode.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
-            @Override
-            public boolean onPreferenceChange(Preference preference, Object o) {
-                if ((boolean)o) {
-                    return IntegratedPowerManager.setFastchargeMode(true);
-                } else {
-                    return IntegratedPowerManager.setFastchargeMode(false);
-                }
-            }
-        });
+        mFixedInstallMode.setOnPreferenceChangeListener(mFixedInstallListener);
+        mFastChargeMode.setOnPreferenceChangeListener(mFastChargeListener);
     }
 
     @Override
     public void onResume() {
         super.onResume();
 
-        Boolean rootAvailable = UtilityFunctions.isRootAvailable();
-        if (rootAvailable == null) {
-            UtilityFunctions.RootCallback callback = new UtilityFunctions.RootCallback() {
+        boolean rootAvailable = RootManager.isRootAvailable();
+        if (RootManager.isInitialized()) {
+            RootManager.RootCallback callback = new RootManager.RootCallback() {
                 @Override
                 public void OnRootInitialized(boolean rootStatus) {
                     initialize(rootStatus);
                 }
             };
-            UtilityFunctions.initRoot(callback);
+            RootManager.checkRootWithCallback(callback);
         } else {
-            initialize(rootAvailable);
+            initialize(RootManager.isRootAvailable());
         }
-
     }
 
     private void initialize(boolean rootAvailable) {
         boolean signaturePermissionsAvailable = UtilityFunctions.hasSignaturePermission(getActivity());
+        boolean kernelSettingsAvailable = IntegratedPowerManager.hasKernelUsbSettings();
         mApMode.setEnabled(rootAvailable || signaturePermissionsAvailable);
 
-        mFixedInstallMode.setEnabled(rootAvailable);
-        mFastChargeMode.setEnabled(rootAvailable);
+        // Initialize switch prefs to reflect current kernel settings
+        if (rootAvailable && kernelSettingsAvailable) {
+            mFixedInstallMode.setEnabled(true);
+            mFixedInstallMode.setOnPreferenceChangeListener(null);
+            mFixedInstallMode.setChecked(IntegratedPowerManager.isFixedInstallEnabled());
+            mFixedInstallMode.setOnPreferenceChangeListener(mFixedInstallListener);
+
+            mFastChargeMode.setEnabled(true);
+            mFastChargeMode.setOnPreferenceChangeListener(null);
+            mFastChargeMode.setChecked(IntegratedPowerManager.isFastChargeEnabled());
+            mFastChargeMode.setOnPreferenceChangeListener(mFastChargeListener);
+        } else {
+            mFixedInstallMode.setEnabled(false);
+            mFastChargeMode.setEnabled(false);
+        }
     }
 }

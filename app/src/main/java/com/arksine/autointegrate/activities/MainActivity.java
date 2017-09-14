@@ -82,6 +82,10 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        // Start App List update early as possible in Activity lifecycle so it is complete when
+        // it is actually needed
+        AutoIntegrate.updateAppList(getApplicationContext());
+
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         prefs.registerOnSharedPreferenceChangeListener(mPreferenceListener);
 
@@ -132,9 +136,6 @@ public class MainActivity extends AppCompatActivity {
             selectItem(0);
         }
 
-        // Store a list of applications installed on the device
-        UtilityFunctions.initAppList(this);
-
         // Make sure we are granted settings permission, launch dialog if necessary
         boolean canWriteSettings = UtilityFunctions.checkSettingsPermission(this);
 
@@ -149,7 +150,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        UtilityFunctions.destroyAppList();
+        AutoIntegrate.destroyAppList();
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         prefs.unregisterOnSharedPreferenceChangeListener(mPreferenceListener);
     }

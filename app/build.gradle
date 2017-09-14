@@ -73,6 +73,9 @@ dependencies {
     })
     compile(name: 'hdradiolib-release', ext: 'aar')
     compile(name: 'libuvccamera-release', ext: 'aar')
+    compile("com.serenegiant:common:1.1.9") {
+        exclude module: 'support-v4'
+    }
     compile(name: 'usbserialex-release', ext: 'aar')
     compile 'com.android.support:appcompat-v7:25.3.1'
     compile 'com.android.support:support-v4:25.3.1'

@@ -13,6 +13,7 @@ import android.widget.Toast;
 
 import com.arksine.autointegrate.R;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -24,6 +25,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import timber.log.Timber;
 
@@ -37,17 +40,17 @@ public class BluetoothHelper extends SerialHelper {
 
     private ExecutorService EXECUTOR = null;
     private Future mReaderThreadFuture = null;
-    private volatile boolean mIsWaiting = false;
+    private AtomicBoolean mIsWaiting = new AtomicBoolean(false);
 
     private Context mContext = null;
 
     private BluetoothAdapter mBluetoothAdapter;
     private BluetoothSocket mSocket;
-    private volatile BluetoothDevice mBtDevice;
+    private AtomicReference<BluetoothDevice> mBtDevice = new AtomicReference<>(null);
+    private AtomicBoolean mReadThreadRunning = new AtomicBoolean(false);
 
-    private volatile boolean deviceConnected = false;
-    private volatile InputStream serialIn;
-    private OutputStream serialOut;
+    private InputStream mSerialIn;
+    private OutputStream mSerialOut;
 
 
     private SerialHelper.Callbacks mSerialHelperCallbacks;
@@ -68,7 +71,6 @@ public class BluetoothHelper extends SerialHelper {
 
     public BluetoothHelper(Context context){
         mContext = context;
-        deviceConnected = false;
         initBluetooth();
     }
 
@@ -99,8 +101,10 @@ public class BluetoothHelper extends SerialHelper {
     @Override
     public void disconnect() {
 
-        deviceConnected = false;
-        closeBluetoothSocket();
+        mReadThreadRunning.set(false);
+        closeItem(mSocket);
+        closeItem(mSerialIn);
+        closeItem(mSerialOut);
 
         if (EXECUTOR != null) {
             EXECUTOR.shutdown();
@@ -117,6 +121,11 @@ public class BluetoothHelper extends SerialHelper {
 
             EXECUTOR = null;
         }
+
+        mBtDevice.set(null);
+        mSocket = null;
+        mSerialIn = null;
+        mSerialOut = null;
 
         if (mIsReceiverRegistered) {
             mIsReceiverRegistered = false;
@@ -172,7 +181,7 @@ public class BluetoothHelper extends SerialHelper {
      */
     @Override
     public boolean connectDevice (String macAddr, SerialHelper.Callbacks cbs) {
-        if (deviceConnected) {
+        if (isDeviceConnected()) {
             disconnect();
         }
 
@@ -186,10 +195,14 @@ public class BluetoothHelper extends SerialHelper {
             synchronized (this) {
                 try {
                     // shouldn't take 10 seconds to turn on
-                    mIsWaiting = true;
+                    mIsWaiting.set(true);
                     wait(10000);
                 } catch (InterruptedException e) {
                     Timber.e(e);
+                } finally {
+                    if (mIsWaiting.compareAndSet(true, false)) {
+                        Timber.e("Attempt to turn on BT adapter interruped/timed out");
+                    }
                 }
             }
         }
@@ -211,35 +224,34 @@ public class BluetoothHelper extends SerialHelper {
     }
 
     private synchronized void notifyThread() {
-        if (mIsWaiting) {
-            mIsWaiting = false;
+        if (mIsWaiting.compareAndSet(true, false)) {
             notify();
         }
     }
 
     @Override
     public String getConnectedId() {
-        if (deviceConnected) {
-            return mBtDevice.getAddress();
+        if (isDeviceConnected()) {
+            return mBtDevice.get().getAddress();
         }
 
         return "";
     }
 
-    public void closeBluetoothSocket() {
 
-        if (mSocket != null) {
+    private void closeItem(Closeable item) {
+        if (item != null) {
             try {
-                mSocket.close();
+                item.close();
             }
             catch (IOException e) {
-                Timber.w("Unable to onDisconnect Socket", e);
+                Timber.w(e);
             }
         }
     }
 
     public boolean isDeviceConnected() {
-        return deviceConnected;
+        return mBtDevice.get() != null;
     }
 
     @Override
@@ -253,7 +265,7 @@ public class BluetoothHelper extends SerialHelper {
 
                 synchronized (WRITELOCK) {
                     try {
-                        serialOut.write(data);
+                        mSerialOut.write(data);
                     } catch (IOException e) {
                         Timber.w("Error writing to device\n", e);
                         mSerialHelperCallbacks.OnDeviceError();
@@ -299,11 +311,10 @@ public class BluetoothHelper extends SerialHelper {
         @Override
         public void run() {
 
-            mBtDevice = mBluetoothAdapter.getRemoteDevice(macAddr);
-            if (mBtDevice == null) {
+            BluetoothDevice btDevice = mBluetoothAdapter.getRemoteDevice(macAddr);
+            if (btDevice == null) {
                 // device does not exist
                 Timber.i( "Unable to open bluetooth device at %s", macAddr);
-                deviceConnected = false;
                 mSerialHelperCallbacks.OnDeviceReady(false);
                 return;
             }
@@ -312,12 +323,11 @@ public class BluetoothHelper extends SerialHelper {
             // add an option for a secure connection, as this is subject to a man
             // in the middle attack.
             try {
-                mSocket = mBtDevice.createInsecureRfcommSocketToServiceRecord(MY_UUID);
+                mSocket = btDevice.createInsecureRfcommSocketToServiceRecord(MY_UUID);
             }
             catch (IOException e) {
                 Timber.i ("Unable to retrieve bluetooth socket for device %s", macAddr);
                 mSocket = null;
-                deviceConnected = false;
                 mSerialHelperCallbacks.OnDeviceReady(false);
                 return;
             }
@@ -332,49 +342,44 @@ public class BluetoothHelper extends SerialHelper {
 
                 Timber.i ("Unable to connect to bluetooth socket for device %s", macAddr);
                 // Unable to connect; onDisconnect the socket and get out
-                try {
-                    mSocket.close();
-                } catch (IOException closeException) {
-                    Timber.w(closeException);
-                }
+                closeItem(mSocket);
 
                 mSocket = null;
-                deviceConnected = false;
                 mSerialHelperCallbacks.OnDeviceReady(false);
                 return;
             }
 
             // Get input stream
             try {
-                serialIn = mSocket.getInputStream();
+                mSerialIn = mSocket.getInputStream();
             } catch (IOException e) {
-                serialIn = null;
+                mSerialIn = null;
             }
 
             // Get output stream
             try {
-                serialOut = mSocket.getOutputStream();
+                mSerialOut = mSocket.getOutputStream();
             } catch (IOException e) {
-                serialOut = null;
+                mSerialOut = null;
             }
 
-            deviceConnected = serialOut != null && serialIn != null;
-
             // start reader thread if connection is established
-            if (deviceConnected) {
+            if (mSerialOut != null && mSerialIn != null) {
+                mReadThreadRunning.set(true);
+                mBtDevice.set(btDevice);
                 mReaderThreadFuture = EXECUTOR.submit(new Runnable() {
                     @Override
                     public void run() {
                         int available = 0;
                         byte[] buffer = new byte[256];
-                        while (deviceConnected) {
+                        while (mReadThreadRunning.get()) {
                             try {
-                                available = serialIn.read(buffer);
+                                available = mSerialIn.read(buffer);
                                 mSerialHelperCallbacks.OnDataReceived(Arrays.copyOfRange(buffer, 0, available));
 
                             } catch (IOException e) {
                                 // connection was closed before the device was disconnected
-                                if (deviceConnected) {
+                                if (mReadThreadRunning.get()) {
                                     Timber.w(e);
                                     mSerialHelperCallbacks.OnDeviceError();
                                 }
@@ -383,9 +388,13 @@ public class BluetoothHelper extends SerialHelper {
                         }
                     }
                 });
+            } else {
+                closeItem(mSocket);
+                closeItem(mSerialIn);
+                closeItem(mSerialOut);
             }
 
-            mSerialHelperCallbacks.OnDeviceReady(deviceConnected);
+            mSerialHelperCallbacks.OnDeviceReady(isDeviceConnected());
         }
     }
 }

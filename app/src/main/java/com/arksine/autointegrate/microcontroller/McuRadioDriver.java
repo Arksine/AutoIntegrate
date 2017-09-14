@@ -5,6 +5,7 @@ import android.support.annotation.NonNull;
 import com.arksine.autointegrate.AutoIntegrate;
 import com.arksine.autointegrate.interfaces.MCUControlInterface;
 import com.arksine.hdradiolib.drivers.RadioDriver;
+import com.arksine.hdradiolib.enums.RadioError;
 
 import java.util.ArrayList;
 
@@ -33,6 +34,12 @@ public class McuRadioDriver extends RadioDriver {
     public void updateMcuInterface() {
         this.mControlInterface = AutoIntegrate.getmMcuControlInterface();
     }
+
+    public void flagConnectionError() {
+        this.mIsOpen = false;
+        this.mDriverEvents.onError(RadioError.CONNECTION_ERROR);
+    }
+
 
     @Override
     public <T> ArrayList<T> getDeviceList(Class<T> aClass) {

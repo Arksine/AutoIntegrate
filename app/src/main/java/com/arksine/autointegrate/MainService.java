@@ -171,6 +171,10 @@ public class MainService extends Service {
     // the HD Radio functionality.  It is the only functionality that needs such a binder, everything
     // can only be accessed package wide, through static functions in the Application class
 
+    // TODO: make this a remote binder (using AIDL).  The binder will need to implement functions
+    // for the entire radio interface, as well as any other remote functionality we want to expose
+    // to clients (such as the ability to send information to the MCU)
+
     public class LocalBinder extends Binder {
         public RadioController getRadioInterface() {
             return mServiceThread.getRadioInterface();

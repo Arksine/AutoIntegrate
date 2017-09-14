@@ -2,6 +2,8 @@ package com.arksine.autointegrate.utilities;
 
 import com.arksine.autointegrate.MainService;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
  * Abstract class for Serial Communcations handling.  Children must override connect and
  * disconnect functions.
@@ -9,11 +11,11 @@ import com.arksine.autointegrate.MainService;
 
 public abstract class SerialCom {
 
-    protected volatile boolean mConnected = false;
+    protected AtomicBoolean mConnected = new AtomicBoolean(false);
     protected MainService mService;
 
-    protected volatile boolean mIsWaiting = false;
-    protected volatile boolean mDeviceError = false;
+    protected AtomicBoolean mIsWaiting = new AtomicBoolean(false);
+    protected AtomicBoolean mDeviceError = new AtomicBoolean(false);
 
     protected SerialHelper mSerialHelper;
     protected SerialHelper.Callbacks mCallbacks;
@@ -23,8 +25,7 @@ public abstract class SerialCom {
     }
 
     protected synchronized void resumeThread() {
-        if (mIsWaiting) {
-            mIsWaiting = false;
+        if (mIsWaiting.compareAndSet(true, false)) {
             notify();
         }
     }
@@ -33,6 +34,6 @@ public abstract class SerialCom {
     abstract public void disconnect();
 
     public boolean isConnected() {
-        return mConnected;
+        return mConnected.get();
     }
 }

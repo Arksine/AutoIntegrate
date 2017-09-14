@@ -229,7 +229,7 @@ public class ControllerInputHandler extends Handler {
             Timber.tag("MCU Log").i((String) ctrlMsg.data);
 
         } else {
-            Timber.v("%s %s", ctrlMsg.command, ctrlMsg.data);
+            Timber.d("%s %s", ctrlMsg.command, ctrlMsg.data);
             mInputMode.ProcessInput(ctrlMsg);
         }
 

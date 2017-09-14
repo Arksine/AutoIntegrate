@@ -71,6 +71,11 @@ public class RadioActivity extends AppCompatActivity {
     private ToggleButton mSeekAllButton;
     private ToggleButton mBandButton;
 
+    // TODO: Need to handle disconnect events better (May need to do that in the radio driver)
+    // TODO: Need to set the audio source to HD Radio in onResume
+    // TODO: After an error, need to re-aquire the radio interface
+    // TODO: Radio can be on when activity is started/resumed, need to handle correctly
+
     private final RemoteRadioEvents mRadioEvents = new RemoteRadioEvents() {
         @Override
         public void onError() throws RemoteException {

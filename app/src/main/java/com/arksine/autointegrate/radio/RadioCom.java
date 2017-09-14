@@ -155,6 +155,8 @@ public class RadioCom {
                 }
                 mService.mRadioCallbacks.finishBroadcast();
 
+                // TODO: If using MCU, I need to set DTR/RTS off
+
                 // Close and attempt to reopen connection
                 ServiceControlInterface serviceControl = AutoIntegrate.getServiceControlInterface();
                 if (serviceControl != null) {

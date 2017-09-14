@@ -14,6 +14,8 @@ import android.preference.PreferenceManager;
 import android.provider.Settings;
 import android.view.KeyEvent;
 
+import com.arksine.autointegrate.utilities.AdbManager;
+import com.arksine.autointegrate.utilities.RootManager;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
 
 import java.io.BufferedReader;
@@ -23,6 +25,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.Locale;
 
 import eu.chainfire.libsuperuser.Shell;
 import timber.log.Timber;
@@ -131,7 +134,7 @@ public class IntegratedPowerManager {
                         @Override
                         public void run() {
                             String command = "input keyevent " + String.valueOf(KeyEvent.KEYCODE_POWER);
-                            Shell.SU.run(command);
+                            RootManager.runCommand(command);
                         }
                     };
 
@@ -143,14 +146,22 @@ public class IntegratedPowerManager {
                 public void toggleAirplaneMode(boolean status) {
                     String value = status ? "1" : "0";
                     String[] commands = new String[2];
-                    commands[0] = ("settings put global airplane_mode_on " + value + "\n");
-                    commands[1] = ("am broadcast -a android.intent.action.AIRPLANE_MODE --ez state "
-                            + String.valueOf(status));
+                    commands[0] = String.format(Locale.US,
+                            "settings put global airplane_mode_on %s\n", value);
+                    commands[1] = String.format(Locale.US,
+                            "am broadcast -a android.intent.action.AIRPLANE_MODE --ez state %b",
+                            status);
 
-                    List<String> output = Shell.SU.run(commands);
-                    for (String o: output) {
-                        Timber.d("%s \n", o);
-                    }
+                    RootManager.SuFinishedCallback outCb = new RootManager.SuFinishedCallback() {
+                        @Override
+                        public void onSuComplete(List<String> output) {
+                            for (String o: output) {
+                                Timber.d("%s \n", o);
+                            }
+                        }
+                    };
+                    RootManager.runCommand(commands, outCb);
+
                 }
             };
         } else {
@@ -201,6 +212,7 @@ public class IntegratedPowerManager {
     // TODO: add black screen with countdown similar to Power event manager
     // This is blocking, do not call from UI thread
     public void goToSleep() {
+        // TODO: attempt to toggle usbhost off
         if (mSystemFunctions == null) {
             Timber.w("Power System Functions not set.");
             return;
@@ -249,6 +261,12 @@ public class IntegratedPowerManager {
         if (mDefaultPrefs.getBoolean("power_pref_key_use_airplane_mode", false)) {
             mSystemFunctions.toggleAirplaneMode(false);
         }
+
+        // TODO: if wireless Adb is enabled, restart it?  Not sure if necessary yet
+        /*AdbManager adbManager = AdbManager.getInstance(mContext);
+        if (adbManager.isAdbEnabled(mContext)) {
+            adbManager.restartAdb();
+        }*/
     }
 
 
@@ -347,15 +365,8 @@ public class IntegratedPowerManager {
         String num = enabled ? "1" : "0";
         final String command = "echo " + num + " > " + FIXED_INSTALL_SETTINGS_FILE;
 
-        if (UtilityFunctions.isRootAvailable()) {
-            Thread rootThread = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    Shell.SU.run(command);
-                }
-            });
-            rootThread.start();
-
+        if (RootManager.isRootAvailable()) {
+            RootManager.runCommand(command);
             return true;
         } else {
             Timber.w("Error setting fixed install mode, Root not available");
@@ -368,14 +379,8 @@ public class IntegratedPowerManager {
         String num = enabled ? "1" : "0";
         final String command = "echo " + num + " > " + FAST_CHARGE_SETTINGS_FILE;
 
-        if (UtilityFunctions.isRootAvailable()) {
-            Thread rootThread = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    Shell.SU.run(command);
-                }
-            });
-            rootThread.start();
+        if (RootManager.isRootAvailable()) {
+            RootManager.runCommand(command);
             return true;
         } else {
             Timber.w("Error setting fast charge, Root not available");
@@ -397,6 +402,13 @@ public class IntegratedPowerManager {
     public static boolean isFastChargeEnabled() {
         String fileValue = getValueFromFile(FAST_CHARGE_SETTINGS_FILE);
         return fileValue.equals(SETTING_ENABLED);
+    }
+
+    public static boolean hasKernelUsbSettings() {
+        File fixedInstallFile = new File(FIXED_INSTALL_SETTINGS_FILE);
+        File fastChargeFile = new File(FAST_CHARGE_SETTINGS_FILE);
+
+        return fixedInstallFile.exists() && fastChargeFile.exists();
     }
 
     private static String getValueFromFile(String filePath) {

@@ -16,6 +16,7 @@ import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.activities.BrightnessChangeActivity;
 import com.arksine.autointegrate.activities.CameraActivity;
 import com.arksine.autointegrate.interfaces.MCUControlInterface;
+import com.arksine.autointegrate.utilities.RootManager;
 import com.arksine.autointegrate.utilities.TaskerIntent;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
 import com.arksine.autointegrate.microcontroller.MCUDefs.*;
@@ -323,6 +324,7 @@ public class CommandProcessor {
             case "1":       // Integrated Cam Activity
                 mCameraIntent = new Intent(mContext, CameraActivity.class);
                 mCameraIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                mCameraIntent.putExtra(mContext.getString(R.string.LAUNCH_CAMERA_EXTRA), true);
                 mReverseExitListener = new ReverseExitListener() {
                     @Override
                     public void OnReverseOff() {
@@ -348,13 +350,20 @@ public class CommandProcessor {
                                 inst.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK);
                             }
                         };
-                    } else if (UtilityFunctions.isRootAvailable()) {
+                    } else if (RootManager.isRootAvailable()) {
                         // Root granted
                         mReverseExitListener = new ReverseExitListener() {
                             @Override
                             public void OnReverseOff() {
                                 String command = "input keyevent " + String.valueOf(KeyEvent.KEYCODE_BACK);
-                                Shell.SU.run(command);
+                                RootManager.runCommand(command);
+                            }
+                        };
+                    } else {
+                        mReverseExitListener = new ReverseExitListener() {
+                            @Override
+                            public void OnReverseOff() {
+                                // Neither have signature nor root permissions, do nothing
                             }
                         };
                     }
@@ -753,15 +762,19 @@ public class CommandProcessor {
 
                 if (mDimmerMode == DimmerMode.ANALOG) {
                     mMcuControlInterface.sendMcuCommand(McuOutputCommand.SET_DIMMER_ANALOG, null);
+                    Timber.v("Initial Dimmer Mode set to ANALOG");
                 } else {
                     mMcuControlInterface.sendMcuCommand( McuOutputCommand.SET_DIMMER_DIGITAL, null);
+                    Timber.v("Initial Dimmer Mode set to DIGITAL");
                 }
 
                 // set the current audio source for external devices
                 if (mCurrentSource == AudioSource.AUX) {
                     mMcuControlInterface.sendMcuCommand(McuOutputCommand.AUDIO_SOURCE_AUX, null);
+                    Timber.v("Initial Audio Source set to AUX");
                 } else {
                     mMcuControlInterface.sendMcuCommand(McuOutputCommand.AUDIO_SOURCE_HD, null);
+                    Timber.v("Initial AUDIO SOURCE set to HD RADIO");
                 }
 
                 // invoke Mcu OnStarted Callback with Id
@@ -771,12 +784,16 @@ public class CommandProcessor {
                 mMcuEvents.OnIdReceived((String)message.data);
                 break;
             case CLICK:
-                mIsHoldingBtn.set(false);
                 action = getButtonAction(message.data, true);
+                if (action != null) {
+                    mIsHoldingBtn.set(false);
+                }
                 break;
             case HOLD:
-                mIsHoldingBtn.set(true);
                 action = getButtonAction(message.data, false);
+                if (action != null) {
+                    mIsHoldingBtn.set(true);
+                }
                 break;
             case RELEASE:
                 mIsHoldingBtn.set(false);

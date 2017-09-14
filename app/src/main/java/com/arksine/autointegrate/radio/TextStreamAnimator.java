@@ -58,7 +58,7 @@ public class TextStreamAnimator {
                 super.onAnimationEnd(animation);
                 // If text is longer than the view, we need to start chopping it off.
                 removeExcessText();
-                Timber.d("Current X: %d\nCurrent Translate X: %d",
+                Timber.d("Current X: %f \nCurrent Translate X: %f",
                         mTextView.getX(), mTextView.getTranslationX());
             }
         });

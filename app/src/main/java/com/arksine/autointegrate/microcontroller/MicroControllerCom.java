@@ -40,9 +40,12 @@ import timber.log.Timber;
  */
 public class MicroControllerCom extends SerialCom {
 
+    private static final int CONNECTION_TIMEOUT = 60000;
+    private static final int DEVICE_RESP_TIMEOUT = 5000;
+
     private String mMcuId = "NOT SET";
     private AtomicReference<McuRadioDriver> mMcuRadioDriver = new AtomicReference<>(null);
-    private volatile boolean mRadioStatus = false;
+    private AtomicBoolean mRadioStatus = new AtomicBoolean(false);
 
     interface McuEvents {
         void OnStarted(String idStarted);
@@ -65,7 +68,7 @@ public class MicroControllerCom extends SerialCom {
 
         @Override
         public void OnRadioStatusReceived(boolean status) {
-            mRadioStatus = status;
+            mRadioStatus.set(status);
             mControlInterface.resumeFromWait();
         }
 
@@ -225,32 +228,33 @@ public class MicroControllerCom extends SerialCom {
                 synchronized (this) {
                     try {
                         mControlWait.set(true);
-                        this.wait(10000);
+                        this.wait(DEVICE_RESP_TIMEOUT);
                     } catch (InterruptedException e) {
                         Timber.w(e);
                     } finally {
                         // Error, response from MCU Timed out
                         if (mControlWait.compareAndSet(true, false)) {
-                            mRadioStatus = false;
+                            Timber.e("Radio Enabled request timed out");
+                            mRadioStatus.set(false);
                             mMcuRadioDriver.set(null);
                         }
                     }
 
-                    if (mRadioStatus) {
+                    if (mRadioStatus.get()) {
                         mMcuRadioDriver.set(radioDriver);
                     }
                 }
             } else {
                 // Radio Driver is disabled
-                mRadioStatus = false;
+                mRadioStatus.set(false);
                 mMcuRadioDriver.set(null);
             }
-            return mRadioStatus;
+            return mRadioStatus.get();
         }
 
         @Override
         public boolean isConnected() {
-            return mConnected;
+            return mConnected.get();
         }
 
         @Override
@@ -318,7 +322,7 @@ public class MicroControllerCom extends SerialCom {
         mCallbacks = new SerialHelper.Callbacks() {
             @Override
             public void OnDeviceReady(boolean deviceReadyStatus) {
-                mConnected = deviceReadyStatus;
+                mConnected.set(deviceReadyStatus);
                 resumeThread();
             }
 
@@ -334,7 +338,12 @@ public class MicroControllerCom extends SerialCom {
             @Override
             public void OnDeviceError() {
                 Timber.i("Device Error, disconnecting");
-                mDeviceError = true;
+                mDeviceError.set(true);
+
+                if (mMcuRadioDriver.get() != null) {
+                    mMcuRadioDriver.get().flagConnectionError();
+                }
+
                 ServiceControlInterface serviceControl = AutoIntegrate.getServiceControlInterface();
                 if (serviceControl != null) {
                     serviceControl.refreshMcuConnection(false, null);
@@ -379,54 +388,56 @@ public class MicroControllerCom extends SerialCom {
         }
 
         /**
-         * Attept to connect to the device.  If we the prerequisites are met to attempt connection,
+         * Attept to connect to the device.  If  the prerequisites are met to attempt connection,
          * we'll wait until the connection thread notifies it is done.
           */
         Timber.d("Attempting connection to device:\n%s", devId);
-        if (mSerialHelper.connectDevice(devId, mCallbacks)) {
+        synchronized (this) {
+            if (mSerialHelper.connectDevice(devId, mCallbacks)) {
 
-            // wait until the connection is finished with a timeout of 10 seconds
-            synchronized (this) {
+                // wait until the connection is finished with a timeout of 60 seconds
+
                 try {
-                    mIsWaiting = true;
-                    wait(10000);
+                    mIsWaiting.set(true);
+                    wait(CONNECTION_TIMEOUT);
                 } catch (InterruptedException e) {
                     Timber.w(e);
                 } finally {
                     // Error, response from MCU Timed out
-                    if (mIsWaiting) {
-                        mIsWaiting = false;
-                        mConnected = false;
+                    if (mIsWaiting.compareAndSet(true, false)) {
+                        Timber.d("Connection attempt interrupted");
+                        mConnected.set(false);
                     }
                 }
+
+            } else {
+                mConnected.set(false);
             }
-        } else {
-            mConnected = false;
         }
 
-        if (mConnected) {
-            mDeviceError = false;
+        if (mConnected.get()) {
+            mDeviceError.set(false);
 
-            // Tell the Arudino that it is time to start
-            mControlInterface.sendMcuCommand(McuOutputCommand.START, null);
-
-            // wait until the MCU returns its ID from the attempt to start
             synchronized (this) {
+                // Tell the Arudino that it is time to start
+                mControlInterface.sendMcuCommand(McuOutputCommand.START, null);
+
+                // wait until the MCU returns its ID from the attempt to start
                 try {
-                    mIsWaiting = true;
-                    wait(10000);
+                    mIsWaiting.set(true);
+                    wait(DEVICE_RESP_TIMEOUT);
                 } catch (InterruptedException e) {
                     Timber.w(e);
                 } finally {
                     // Error, response from MCU Timed out
-                    if (mIsWaiting) {
-                        mIsWaiting = false;
-                        mDeviceError = true;
+                    if (mIsWaiting.compareAndSet(true, false)) {
+                        Timber.e("START request timed out");
+                        mDeviceError.set(true);
                     }
                 }
             }
 
-            if (mDeviceError) {
+            if (mDeviceError.get()) {
                 // If the response timed out, disconnect from device
                 disconnect();
 
@@ -444,13 +455,13 @@ public class MicroControllerCom extends SerialCom {
             mSerialHelper = null;
         }
 
-        return mConnected;
+        return mConnected.get();
 
     }
 
     @Override
     public void disconnect() {
-        mConnected = false;
+        mConnected.set(false);
 
         // if the Radio Driver is enabled, close it.
         if (mMcuRadioDriver.get() != null) {
@@ -460,7 +471,7 @@ public class MicroControllerCom extends SerialCom {
         if (mSerialHelper!= null) {
             mInputHandler.close();
             // If there was a device error then we cannot write to it
-            if (!mDeviceError) {
+            if (!mDeviceError.get()) {
                 mControlInterface.sendMcuCommand(McuOutputCommand.STOP, null);
 
                 // If we disconnect too soon after writing "stop", an exception will be thrown
