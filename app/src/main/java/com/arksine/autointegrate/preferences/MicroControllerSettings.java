@@ -23,7 +23,6 @@ import com.arksine.autointegrate.activities.ButtonLearningActivity;
 import com.arksine.autointegrate.adapters.AppListAdapter;
 import com.arksine.autointegrate.dialogs.ListPreferenceEx;
 import com.arksine.autointegrate.interfaces.MCUControlInterface;
-import com.arksine.autointegrate.interfaces.ServiceControlInterface;
 import com.arksine.autointegrate.utilities.SerialHelper;
 import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.utilities.AppItem;
@@ -34,6 +33,7 @@ import com.orhanobut.dialogplus.DialogPlus;
 import com.orhanobut.dialogplus.OnItemClickListener;
 
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicReference;
 
 import timber.log.Timber;
 
@@ -48,6 +48,7 @@ public class MicroControllerSettings extends PreferenceFragment {
     private String mDeviceType;
 
     private DialogPlus mCameraAppDialog;
+    private AtomicReference<MCUControlInterface> mMcuControlRef;
 
 
     private final BroadcastReceiver deviceListReciever = new BroadcastReceiver() {
@@ -63,6 +64,8 @@ public class MicroControllerSettings extends PreferenceFragment {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        mMcuControlRef = AutoIntegrate.getMcuInterfaceRef();
 
         // Load the microcontroller_preferences from an XML resource
         addPreferencesFromResource(R.xml.microcontroller_preferences);
@@ -125,7 +128,7 @@ public class MicroControllerSettings extends PreferenceFragment {
             @Override
             public boolean onPreferenceChange(Preference preference, Object newValue) {
                 preference.setSummary((String)newValue);
-                MCUControlInterface controlInterface = AutoIntegrate.getmMcuControlInterface();
+                MCUControlInterface controlInterface = mMcuControlRef.get();
                 if (controlInterface != null) {
                     controlInterface.updateBaud(Integer.parseInt((String)newValue));
                 }
@@ -185,7 +188,7 @@ public class MicroControllerSettings extends PreferenceFragment {
                         return true;
                 }
 
-                MCUControlInterface controlInterface = AutoIntegrate.getmMcuControlInterface();
+                MCUControlInterface controlInterface = mMcuControlRef.get();
                 if (controlInterface != null) {
                     controlInterface.updateReverseMap(value, "N/A");
                 }
@@ -252,7 +255,7 @@ public class MicroControllerSettings extends PreferenceFragment {
                                 .apply();
 
                         // Update MCU CommandProcessor
-                        MCUControlInterface controlInterface = AutoIntegrate.getmMcuControlInterface();
+                        MCUControlInterface controlInterface = mMcuControlRef.get();
                         if (controlInterface != null) {
                             controlInterface.updateReverseMap("2", appItem.getPackageName());
                         }

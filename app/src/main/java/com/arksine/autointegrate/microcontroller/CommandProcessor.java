@@ -28,7 +28,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import eu.chainfire.libsuperuser.Shell;
 import timber.log.Timber;
 
 // TODO: Create a preference to show status toasts, then create an invisble activity that
@@ -108,7 +107,7 @@ public class CommandProcessor {
     CommandProcessor(Context context, MicroControllerCom.McuEvents mcuEvents) {
         mContext = context;
         mMcuEvents = mcuEvents;
-        mMcuControlInterface = AutoIntegrate.getmMcuControlInterface();
+        mMcuControlInterface = AutoIntegrate.getMcuInterfaceRef().get();
         mAudioManger = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
 
         mBroadcastCustomCommands = PreferenceManager.getDefaultSharedPreferences(mContext)

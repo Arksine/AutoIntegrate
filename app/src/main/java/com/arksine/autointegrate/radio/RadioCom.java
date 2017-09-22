@@ -484,9 +484,9 @@ public class RadioCom {
                 mHdRadio = new HDRadio(mService, mRadioEvents, HDRadio.DriverType.ARDUINO_DRIVER);
                 break;
             case 2:     // Integrated MCU Driver Selected
-                MCUControlInterface controlInterface =  AutoIntegrate.getmMcuControlInterface();
+                MCUControlInterface controlInterface =  AutoIntegrate.getMcuInterfaceRef().get();
                 if (controlInterface != null) {
-                    mMcuRadioDriver = new McuRadioDriver(controlInterface);
+                    mMcuRadioDriver = new McuRadioDriver();
                     mHdRadio = new HDRadio(mService, mRadioEvents, mMcuRadioDriver);
                     return true;
                 } else {

@@ -29,6 +29,8 @@ import com.arksine.autointegrate.utilities.UtilityFunctions;
 import com.orhanobut.dialogplus.DialogPlus;
 import com.orhanobut.dialogplus.ViewHolder;
 
+import java.util.concurrent.atomic.AtomicReference;
+
 import timber.log.Timber;
 
 // TODO: Either disable save button during the wizard, or replace it with Continue/Finish and navigate
@@ -61,6 +63,7 @@ public class DimmerCalibrationDialog {
     private DimmerValues mDimmerVals;
 
     private Context mContext;
+    private AtomicReference<MCUControlInterface> mMcuInterfaceRef;
     private int mInitialBrightness = 1;
     private int mCurrentBrightness = 1;
 
@@ -78,6 +81,7 @@ public class DimmerCalibrationDialog {
 
     public DimmerCalibrationDialog(Context context) {
         mContext = context;
+        mMcuInterfaceRef = AutoIntegrate.getMcuInterfaceRef();
         mDimmerVals = new DimmerValues();
         mDimmerHelp = new HelpDialog(mContext, R.layout.dialog_help_dimmer);
         getStoredPrefs();       // retreived stored preferences
@@ -158,7 +162,7 @@ public class DimmerCalibrationDialog {
                 mDimmerVals.dimmerMode = position;
 
                 // Change the MCU setting so the correct information is sent
-                MCUControlInterface mcuControl = AutoIntegrate.getmMcuControlInterface();
+                MCUControlInterface mcuControl = mMcuInterfaceRef.get();
                 if (mcuControl != null) {
                     if (mDimmerVals.dimmerMode == DimmerMode.ANALOG) {
                         mcuControl.sendMcuCommand(MCUDefs.McuOutputCommand.SET_DIMMER_ANALOG, null);
@@ -299,7 +303,7 @@ public class DimmerCalibrationDialog {
             @Override
             public void onClick(View v) {
                 writePrefs();
-                MCUControlInterface mcuControl = AutoIntegrate.getmMcuControlInterface();
+                MCUControlInterface mcuControl = mMcuInterfaceRef.get();
                 if (mcuControl != null) {
                     mcuControl.updateDimmerMap(mDimmerVals.dimmerMode, mDimmerVals.highReading,
                             mDimmerVals.lowReading, mDimmerVals.highBrightness,
@@ -320,7 +324,7 @@ public class DimmerCalibrationDialog {
                 updateDialogViews();
 
                 // reset dimmer mode back to original
-                MCUControlInterface mcuControl = AutoIntegrate.getmMcuControlInterface();
+                MCUControlInterface mcuControl = mMcuInterfaceRef.get();
                 if (mcuControl != null) {
                     if (mDimmerVals.dimmerMode == DimmerMode.ANALOG) {
                         mcuControl.sendMcuCommand(MCUDefs.McuOutputCommand.SET_DIMMER_ANALOG, null);

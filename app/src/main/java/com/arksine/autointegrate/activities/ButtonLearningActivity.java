@@ -29,6 +29,7 @@ import com.google.gson.reflect.TypeToken;
 
 import java.lang.reflect.Type;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 import timber.log.Timber;
 
@@ -36,6 +37,7 @@ public class ButtonLearningActivity extends AppCompatActivity {
 
     private RecyclerView mButtonsRecyclerView;
     private LearnedButtonAdapter mAdapter;
+    private AtomicReference<MCUControlInterface> mMcuControlRef;
 
     ButtonMapDialog mButtonMapDialog;
     DimmerCalibrationDialog mDimmerCalDialog;
@@ -106,6 +108,7 @@ public class ButtonLearningActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_button_learning);
+        mMcuControlRef = AutoIntegrate.getMcuInterfaceRef();
 
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -175,7 +178,7 @@ public class ButtonLearningActivity extends AppCompatActivity {
     protected void onStart() {
         super.onStart();
         // Set the arduino connection to Learning mode
-        MCUControlInterface mcuControl = AutoIntegrate.getmMcuControlInterface();
+        MCUControlInterface mcuControl = mMcuControlRef.get();
         if (mcuControl != null && mcuControl.isConnected()) {
             mcuControl.setMode(true, mcuEvents);
         } else {
@@ -203,7 +206,7 @@ public class ButtonLearningActivity extends AppCompatActivity {
         gsonFile.edit().putString("ButtonList", json).apply();
 
         // Set MCU to execution mode
-        MCUControlInterface mcuControl = AutoIntegrate.getmMcuControlInterface();
+        MCUControlInterface mcuControl = mMcuControlRef.get();
         if (mcuControl != null && mcuControl.isConnected()) {
             mcuControl.updateButtonMap(btnList);       // update CommandProcessor Button Map
             mcuControl.setMode(false, null);

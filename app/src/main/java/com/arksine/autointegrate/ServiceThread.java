@@ -212,8 +212,6 @@ public class ServiceThread implements Runnable {
                     try {
                         mIsWaiting.set(true);
                         wait();
-                        // sleep for 100ms to make sure settings and vars are updated
-                        Thread.sleep(100);
                     } catch (InterruptedException e) {
                         Timber.w(e);
                     } finally {
@@ -222,15 +220,15 @@ public class ServiceThread implements Runnable {
                         }
                     }
                 }
-            } else {
-                // sleep for 1 second between connection attempts
-                try {
-                    Thread.sleep(CONNECTION_ATTEMPT_DELAY);
-                } catch (InterruptedException e) {
-                    Timber.w(e);
-                }
             }
 
+            // sleep for 1 second between connection attempts.  This gives the service
+            // time to apply new settings between attempts
+            try {
+                Thread.sleep(CONNECTION_ATTEMPT_DELAY);
+            } catch (InterruptedException e) {
+                Timber.w(e);
+            }
         }
 
         // Clean up all spawned threads.  Stop the HD Radio first in the event that it uses

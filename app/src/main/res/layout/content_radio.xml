@@ -25,17 +25,20 @@
 
         <ToggleButton
             android:id="@+id/btn_radio_power"
-            android:textOff="Power"
-            android:textOn="Power"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"/>
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:background="@drawable/power_button"
+            android:text=""
+            android:textOff=""
+            android:textOn=""/>
 
         <ToggleButton
             android:id="@+id/btn_radio_mute"
-            android:textOff="Mute"
-            android:textOn="Mute"
+            style="?android:attr/buttonStyleToggle"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"/>
+            android:layout_height="wrap_content"
+            android:textOff="Mute"
+            android:textOn="Mute"/>
 
         <ToggleButton
             android:id="@+id/btn_radio_seekall"

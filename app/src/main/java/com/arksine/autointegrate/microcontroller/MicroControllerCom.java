@@ -242,6 +242,8 @@ public class MicroControllerCom extends SerialCom {
 
                     if (mRadioStatus.get()) {
                         mMcuRadioDriver.set(radioDriver);
+                    } else {
+                        mMcuRadioDriver.set(null);
                     }
                 }
             } else {

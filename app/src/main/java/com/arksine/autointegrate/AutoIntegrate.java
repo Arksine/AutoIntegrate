@@ -13,6 +13,7 @@ import com.arksine.autointegrate.utilities.RootManager;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 import timber.log.Timber;
 
@@ -27,8 +28,10 @@ public class AutoIntegrate extends Application {
     private static final Object APP_LIST_LOCK = new Object();
 
     private static ServiceControlInterface mServiceControlInterface = null;
-    private static MCUControlInterface mMcuControlInterface = null;
+    private static AtomicReference<MCUControlInterface> mMcuControlInterface
+            = new AtomicReference<>(null);
 
+    // TODO: add reference for radio interface
 
     @Override
     public void onCreate() {
@@ -86,14 +89,14 @@ public class AutoIntegrate extends Application {
     }
 
     public static void setMcuControlInterface(MCUControlInterface mcuInterface) {
-        mMcuControlInterface = mcuInterface;
+        mMcuControlInterface.set(mcuInterface);
     }
 
     public static ServiceControlInterface getServiceControlInterface() {
         return mServiceControlInterface;
     }
 
-    public static MCUControlInterface getmMcuControlInterface() {
+    public static AtomicReference<MCUControlInterface> getMcuInterfaceRef() {
         return mMcuControlInterface;
     }
 

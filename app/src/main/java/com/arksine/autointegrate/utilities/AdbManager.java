@@ -40,13 +40,18 @@ public class AdbManager {
     private boolean mWirelessEnabled;
     private AccessType mAccessType;
     private PropertyFunctions mPropertyFuncs;
-    private Class<?> mSystemProperties;
-    private Method mSysPropGet;
-    private Method mSysPropSet;
+    //private Class<?> mSystemProperties;
+    //private Method mSysPropGet;
+    //private Method mSysPropSet;
 
     private AdbManager(final Context context) {
 
-        if (UtilityFunctions.hasSignaturePermission(context)) {
+        // TODO: Signature Set property isn't working, even with a system signed apk. Am I missing a
+        // permission?  Is it because I am saving the method as a class member?
+        // Regardless, I can't restart ADB without root, so I am commenting
+        // out the option until I can figure out a way to make everything work with signature
+        // permission, but without root
+        /*if (UtilityFunctions.hasSignaturePermission(context)) {
             try {
                 mSystemProperties = Class.forName("android.os.SystemProperties");
                 mSysPropGet = mSystemProperties.getDeclaredMethod("get", String.class);
@@ -65,6 +70,7 @@ public class AdbManager {
                         return value;
                     }
 
+                    // TODO: Set property not working for signature permissions
                     @Override
                     public void setProperty(String key, String value) {
                         try {
@@ -100,7 +106,7 @@ public class AdbManager {
                 mAccessType = AccessType.STANDARD;
             }
 
-        } else if (RootManager.isRootAvailable()) {
+        } else*/ if (RootManager.isRootAvailable()) {
             // TODO: root not initialized in time
             mPropertyFuncs = new PropertyFunctions() {
                 @Override

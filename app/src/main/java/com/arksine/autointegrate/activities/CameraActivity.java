@@ -86,9 +86,10 @@ public class CameraActivity extends AppCompatActivity {
             if (action.equals(getString(R.string.ACTION_CLOSE_CAMERA))
                     && mAutoShutdown) {
 
-                mActivityHandler.post(new Runnable() {
+                runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
+                        mActivityHandler.removeCallbacks(immersiveMsg);
                         CameraActivity.this.finish();
                     }
                 });
@@ -265,6 +266,8 @@ public class CameraActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+
+        mActivityHandler.removeCallbacks(immersiveMsg);
 
         synchronized (mCamLock) {
             if (mUVCCamera != null) {
