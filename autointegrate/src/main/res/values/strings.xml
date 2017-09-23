@@ -30,8 +30,8 @@
     <string name="ACTION_USB_ATTACHED">android.hardware.usb.action.USB_DEVICE_ATTACHED</string>
     <string name="ACTION_USB_DETACHED">android.hardware.usb.action.USB_DEVICE_DETACHED</string>
 
-    <string name="LAUNCH_CAMERA_EXTRA">com.arksine.autointegrate.LAUNCH_CAMERA_EXTRA</string>
-    <string name="ACTION_CLOSE_CAMERA">com.arksine.autointegrate.ACTTION_CLOSE_CAMERA</string>
+    <string name="LAUNCH_CAMERA_EXTRA">com.arksine.autocamera.LAUNCH_CAMERA_EXTRA</string>
+    <string name="ACTION_CLOSE_CAMERA">com.arksine.autocamera.ACTTION_CLOSE_CAMERA</string>
 
 
     <!-- End Intents -->

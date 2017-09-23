@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory
+        android:title="@string/camera_category_device_settings">
+
+        <ListPreference
+            android:key="camera_pref_key_select_device"
+            android:title="@string/camera_pref_select_camera_device"/>
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:title="@string/camera_category_ui_settings">
+        <CheckBoxPreference
+            android:key="camera_pref_key_layout_fullscreen"
+            android:title="@string/camera_pref_fullscreen"
+            android:summary="@string/camera_pref_fullscreen_summ"
+            android:persistent="true"
+            android:defaultValue="true" />
+        <CheckBoxPreference
+            android:key="camera_pref_key_layout_immersive"
+            android:title="@string/camera_pref_immersive"
+            android:summary="@string/camera_pref_immersive_summ"
+            android:persistent="true"
+            android:defaultValue="true" />
+
+    </PreferenceCategory>
+
+
+
+
+</PreferenceScreen>
