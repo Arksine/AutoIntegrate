@@ -50,9 +50,9 @@ android {
             signingConfig signingConfigs.standard
             targetSdkVersion 25
         }
-        signature {
+        system {
             applicationId "com.arksine.autointegrate"
-            versionName "0.1-alpha-signature"
+            versionName "0.1-alpha-system"
             minSdkVersion 19
             signingConfig signingConfigs.andisa
             targetSdkVersion 25
@@ -72,10 +72,6 @@ dependencies {
         exclude group: 'com.android.support', module: 'support-annotations'
     })
     compile(name: 'hdradiolib-release', ext: 'aar')
-    compile(name: 'libuvccamera-release', ext: 'aar')
-    compile("com.serenegiant:common:1.1.9") {
-        exclude module: 'support-v4'
-    }
     compile(name: 'usbserialex-release', ext: 'aar')
     compile 'com.android.support:appcompat-v7:25.3.1'
     compile 'com.android.support:support-v4:25.3.1'
@@ -85,6 +81,7 @@ dependencies {
     compile 'com.android.support:design:25.3.1'
     compile 'com.google.code.gson:gson:2.7'
     compile 'com.orhanobut:dialogplus:1.11@aar'
+    compile 'com.orhanobut:logger:2.1.1'
     compile 'eu.chainfire:libsuperuser:1.0.0+'
     compile 'com.jakewharton.timber:timber:4.5.1'
     testCompile 'junit:junit:4.12'

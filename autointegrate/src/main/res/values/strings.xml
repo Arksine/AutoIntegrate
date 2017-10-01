@@ -31,7 +31,7 @@
     <string name="ACTION_USB_DETACHED">android.hardware.usb.action.USB_DEVICE_DETACHED</string>
 
     <string name="LAUNCH_CAMERA_EXTRA">com.arksine.autocamera.LAUNCH_CAMERA_EXTRA</string>
-    <string name="ACTION_CLOSE_CAMERA">com.arksine.autocamera.ACTTION_CLOSE_CAMERA</string>
+    <string name="ACTION_CLOSE_CAMERA">com.arksine.autocamera.ACTION_CLOSE_CAMERA</string>
 
 
     <!-- End Intents -->
@@ -42,7 +42,6 @@
         <item>Main Settings</item>
         <item>Power Settings</item>
         <item>Controller Settings</item>
-        <item>Camera Settings</item>
         <item>HD Radio Settings</item>
     </string-array>
 
@@ -62,10 +61,6 @@
     <string name="main_pref_toggle_controller">Micro Controller Integration</string>
     <string name="main_pref_toggle_controller_summ_on">Micro Controller Integration ENABLED</string>
     <string name="main_pref_toggle_controller_summ_off">Micro Controller Integration DISABLED</string>
-
-    <string name="main_pref_toggle_camera">Camera Integration</string>
-    <string name="main_pref_toggle_camera_summ_on">Camera Integration ENABLED</string>
-    <string name="main_pref_toggle_camera_summ_off">Camera Integration DISABLED</string>
 
     <string name="main_pref_toggle_radio">HD Radio Integration</string>
     <string name="main_pref_toggle_radio_summ_on">HD Radio Integration ENABLED</string>
@@ -137,10 +132,10 @@
     <string name="controller_pref_custom_commands_summary">Broadcast intent when custom command is received</string>
 
     <string name="controller_pref_reverse_camera">Reverse Camera Command</string>
-    <string name="controller_pref_use_integrated_cam">Use Integrated Camera Activity</string>
+    <string name="controller_pref_use_companion_app">Use Companion Camera Application</string>
     <string-array name="controller_pref_reverse_camera_entries">
         <item>None</item>
-        <item>Launch Integrated Camera Activity</item>
+        <item>Launch Companion Camera Application</item>
         <item>Launch External Camera Application</item>
     </string-array>
     <string-array name="controller_pref_reverse_camera_values">
@@ -152,19 +147,6 @@
 
     <string name="controller_pref_volume_ui">Show Volume UI</string>
 
-    <!-- Strings related to Camera Settings -->
-    <string name="camera_menu_toggle_fullscreen">Toggle Fullscreen</string>
-    <string name="camera_menu_toggle_immersive">Toggle Immersive</string>
-
-    <string name="camera_category_device_settings">Device Settings</string>
-    <string name="camera_category_ui_settings">User Interface Settings</string>
-
-    <string name="camera_pref_start_camera">Start Camera Activity</string>
-    <string name="camera_pref_select_camera_device">Select Device</string>
-    <string name="camera_pref_fullscreen">Fullscreen Mode</string>
-    <string name="camera_pref_fullscreen_summ">Stretch image to fill the entire screen</string>
-    <string name="camera_pref_immersive">Immersive Mode</string>
-    <string name="camera_pref_immersive_summ">Enable to hide action/navigation bars</string>
 
     <string name="pref_start_service">Start Service</string>
     <string name="pref_stop_service">Stop Service</string>
@@ -188,11 +170,7 @@
     </string-array>
 
     <string name="title_activity_button_learning">Map Resistive Buttons</string>
-    <string name="title_activity_camera">Backup Camera</string>
     <string name="title_activity_radio">HD Radio</string>
-
-
-
 
     <!-- DIALOG STRINGS-->
 

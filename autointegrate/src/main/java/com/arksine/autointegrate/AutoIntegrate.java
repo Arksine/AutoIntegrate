@@ -4,13 +4,19 @@ import android.app.Application;
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.os.Environment;
 import android.util.Log;
 
 import com.arksine.autointegrate.interfaces.MCUControlInterface;
 import com.arksine.autointegrate.interfaces.ServiceControlInterface;
 import com.arksine.autointegrate.utilities.AppItem;
+import com.arksine.autointegrate.utilities.LogManager;
 import com.arksine.autointegrate.utilities.RootManager;
+import com.orhanobut.logger.AndroidLogAdapter;
+import com.orhanobut.logger.DiskLogAdapter;
+import com.orhanobut.logger.Logger;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -22,7 +28,7 @@ import timber.log.Timber;
  */
 
 public class AutoIntegrate extends Application {
-    private static final boolean LOG_ALL = true;  // TODO: Change to false for release
+    private static final boolean LOG_VERBOSE_RELEASE = true;  // TODO: Change to false to limit release logs
 
     private static volatile List<AppItem> mAppItems = null;
     private static final Object APP_LIST_LOCK = new Object();
@@ -37,14 +43,12 @@ public class AutoIntegrate extends Application {
     public void onCreate() {
         super.onCreate();
 
+        String logDirectory = Environment.getExternalStorageDirectory().getAbsolutePath() +
+                File.separatorChar + "AutoIntegrate";
+        LogManager.initializeLogs(getApplicationContext(), logDirectory, "autointegrate");
+
         // TODO: might not should do this here
         RootManager.initSuperUser();
-
-        if (BuildConfig.DEBUG || LOG_ALL) {
-            Timber.plant(new Timber.DebugTree());
-        } else {
-            Timber.plant(new CrashReportingTree());
-        }
     }
 
 
@@ -98,23 +102,6 @@ public class AutoIntegrate extends Application {
 
     public static AtomicReference<MCUControlInterface> getMcuInterfaceRef() {
         return mMcuControlInterface;
-    }
-
-    private static class CrashReportingTree extends Timber.Tree {
-        @Override
-        protected void log(int priority, String tag, String message, Throwable t) {
-            if (priority == Log.VERBOSE || priority == Log.DEBUG) {
-                return;
-            }
-
-            // TODO: Instead of using Log to output to logcat, use a custom library to output
-            // to my own file.  Will make finding problems easier.
-            Log.e(tag, message);
-
-            if (t != null) {
-                t.printStackTrace();
-            }
-        }
     }
 
 }

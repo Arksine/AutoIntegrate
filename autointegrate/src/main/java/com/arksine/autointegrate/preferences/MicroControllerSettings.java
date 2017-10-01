@@ -174,14 +174,7 @@ public class MicroControllerSettings extends PreferenceFragment {
                         pref.setSummary(entries[index]);
                         break;
                     case "1":
-                        boolean camEnabled = globalPrefs.getBoolean("main_pref_key_toggle_camera", false);
-                        if (camEnabled) {
-                            pref.setSummary(entries[index]);
-                        } else {
-                            Toast.makeText(getActivity(), "Camera Integraton Not Enabled",
-                                    Toast.LENGTH_SHORT).show();
-                            return false;
-                        }
+                        pref.setSummary(entries[index]);
                         break;
                     case "2":
                         // The dialog updates the reverse map, so return here

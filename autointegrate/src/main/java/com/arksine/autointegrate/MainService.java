@@ -19,6 +19,7 @@ import android.widget.Toast;
 
 import com.arksine.autointegrate.activities.MainActivity;
 import com.arksine.autointegrate.radio.RemoteRadioEvents;
+import com.arksine.autointegrate.utilities.UtilityFunctions;
 import com.arksine.hdradiolib.RadioController;
 
 import timber.log.Timber;
@@ -58,21 +59,9 @@ public class MainService extends Service {
     private final StopReciever mStopReceiver = new StopReciever();
 
     private ServiceThread mServiceThread;
-    private boolean mHasWritePermission;
 
     @Override
     public void onCreate() {
-
-        /**
-         * Make sure that the service has permission to write system settings
-         */
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
-                && !Settings.System.canWrite(this)) {
-            mHasWritePermission = false;
-            return;
-        } else {
-            mHasWritePermission = true;
-        }
 
         // Instantiate the service thread
         mServiceThread = new ServiceThread(this);
@@ -126,7 +115,7 @@ public class MainService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
 
-        if (!mHasWritePermission) {
+        if (!UtilityFunctions.checkSettingsPermission(this)) {
             Toast.makeText(this, "Write Settings Permission not granted, cannot start service",
                     Toast.LENGTH_SHORT).show();
             Timber.e("Permission WRITE_SETTINGS not granted, exiting service");

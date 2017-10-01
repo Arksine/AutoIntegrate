@@ -88,9 +88,7 @@ public class MainSettings extends PreferenceFragment {
         PreferenceScreen root = this.getPreferenceScreen();
         SwitchPreference togglePower = (SwitchPreference) root.findPreference("main_pref_key_toggle_power");
         SwitchPreference toggleMCU = (SwitchPreference) root.findPreference("main_pref_key_toggle_controller");
-        //SwitchPreference toggleCamera = (SwitchPreference) root.findPreference("main_pref_key_toggle_camera");
         SwitchPreference toggleRadio = (SwitchPreference) root.findPreference("main_pref_key_toggle_radio");
-
 
         toggleMCU.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
             @Override

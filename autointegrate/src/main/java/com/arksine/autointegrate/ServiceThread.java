@@ -146,6 +146,7 @@ public class ServiceThread implements Runnable {
 
                 // If the MicroController connection hasn't been established, do so.
                 if (mMicroController.get() == null || !mMicroController.get().isConnected()) {
+                    // TODO: instead of creating a new instance every time, can I just try reconnecting?
                     mMicroController.set(new MicroControllerCom(mService, mLearningMode.get(),
                             mMcuLearnCallbacks.get()));
                     if (mMicroController.get().connect()) {

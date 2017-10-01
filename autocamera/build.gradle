@@ -55,9 +55,9 @@ android {
             signingConfig signingConfigs.standard
             targetSdkVersion 25
         }
-        signature {
+        system {
             applicationId "com.arksine.autocamera"
-            versionName "0.1-alpha-signature"
+            versionName "0.1-alpha-system"
             minSdkVersion 19
             signingConfig signingConfigs.andisa
             targetSdkVersion 25
@@ -81,6 +81,7 @@ dependencies {
         exclude module: 'support-v4'
     }
     compile 'com.jakewharton.timber:timber:4.5.1'
+    compile 'com.orhanobut:logger:2.1.1'
     compile 'com.android.support:appcompat-v7:25.3.1'
     compile 'com.android.support.constraint:constraint-layout:1.0.2'
     testCompile 'junit:junit:4.12'

@@ -1,5 +1,6 @@
 package com.arksine.autocamera;
 
+import android.Manifest;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -13,8 +14,13 @@ import android.hardware.usb.UsbManager;
 import android.os.Build;
 import android.os.Handler;
 import android.preference.PreferenceManager;
+import android.support.annotation.NonNull;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.appcompat.*;
+import android.support.v7.appcompat.BuildConfig;
 import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -25,6 +31,10 @@ import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 
+import com.orhanobut.logger.CsvFormatStrategy;
+import com.orhanobut.logger.DiskLogAdapter;
+import com.orhanobut.logger.FormatStrategy;
+import com.orhanobut.logger.Logger;
 import com.serenegiant.usb.USBMonitor;
 import com.serenegiant.usb.UVCCamera;
 
@@ -38,6 +48,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String ACTION_USB_PERMISSION = "com.arksine.autocamera.USB_PERMISSION";
     public static final String ACTION_USB_ATTACHED = "android.hardware.usb.action.USB_DEVICE_ATTACHED";
     public static final String ACTION_USB_DETACHED = "android.hardware.usb.action.USB_DEVICE_DETACHED";
+    private static final int MY_PERMISSIONS_REQUEST_WRITE_STORAGE = 2008;
 
     private SurfaceView mCameraView = null;
     private SurfaceHolder mSurfaceHolder = null;
@@ -53,6 +64,7 @@ public class MainActivity extends AppCompatActivity {
 
     private boolean mImmersive = true;
     private boolean mIsFullScreen = true;
+    private boolean mAutoShutdown = false;
 
     private Handler mActivityHandler = new Handler();
     private Runnable immersiveMsg = new Runnable() {
@@ -81,7 +93,8 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
-            if (action.equals(getString(R.string.ACTION_CLOSE_CAMERA))) {
+            if (action.equals(getString(R.string.ACTION_CLOSE_CAMERA))
+                    && mAutoShutdown) {
 
                 runOnUiThread(new Runnable() {
                     @Override
@@ -237,9 +250,16 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        Timber.plant(new Timber.DebugTree());
+        // Make sure the application initialized logging.  If not, I need write permissions
+        if (!LogManager.isInitialized()) {
+            LogManager.requestWritePermission(this, MY_PERMISSIONS_REQUEST_WRITE_STORAGE);
+        }
 
         setContentView(R.layout.activity_main);
+
+        // If launched via intent from AutoIntegrate Service, Shutdown via intent is available
+        mAutoShutdown = getIntent()
+                .getBooleanExtra(getString(R.string.LAUNCH_CAMERA_EXTRA), false);
 
         mRootLayout = (FrameLayout) findViewById(R.id.activity_main);
         mCameraView = (SurfaceView) findViewById(R.id.camera_view);
@@ -268,7 +288,6 @@ public class MainActivity extends AppCompatActivity {
 
         SharedPreferences globalPrefs =
                 PreferenceManager.getDefaultSharedPreferences(this);
-
         mImmersive = globalPrefs.getBoolean("camera_pref_key_layout_immersive", true);
         mIsFullScreen = globalPrefs.getBoolean("camera_pref_key_layout_fullscreen", true);
 
@@ -365,6 +384,19 @@ public class MainActivity extends AppCompatActivity {
                 return super.onOptionsItemSelected(item);
         }
         return true;
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        switch (requestCode) {
+            case MY_PERMISSIONS_REQUEST_WRITE_STORAGE:
+                if (grantResults.length > 0
+                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    // Permission Granted, add Logger
+                    LogManager.addDiskLogger();
+                }
+        }
     }
 
     /**

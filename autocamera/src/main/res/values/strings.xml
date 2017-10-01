@@ -2,7 +2,7 @@
     <string name="app_name">AutoCamera</string>
 
     <string name="LAUNCH_CAMERA_EXTRA">com.arksine.autocamera.LAUNCH_CAMERA_EXTRA</string>
-    <string name="ACTION_CLOSE_CAMERA">com.arksine.autocamera.ACTTION_CLOSE_CAMERA</string>
+    <string name="ACTION_CLOSE_CAMERA">com.arksine.autocamera.ACTION_CLOSE_CAMERA</string>
 
     <string name="camera_menu_settings">Camera Settings</string>
     <string name="camera_menu_toggle_fullscreen">Toggle Fullscreen</string>

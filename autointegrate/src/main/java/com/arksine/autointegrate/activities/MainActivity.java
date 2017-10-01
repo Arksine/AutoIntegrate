@@ -3,11 +3,16 @@ package com.arksine.autointegrate.activities;
 import android.app.FragmentManager;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Point;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceManager;
+import android.support.annotation.NonNull;
+import android.support.annotation.RequiresApi;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v4.view.GravityCompat;
 import android.support.v7.app.ActionBar;
@@ -27,18 +32,19 @@ import com.arksine.autointegrate.MainService;
 import com.arksine.autointegrate.interfaces.ServiceControlInterface;
 import com.arksine.autointegrate.preferences.MainSettings;
 import com.arksine.autointegrate.preferences.MicroControllerSettings;
-import com.arksine.autointegrate.preferences.CameraSettings;
 import com.arksine.autointegrate.preferences.PowerSettings;
 import com.arksine.autointegrate.preferences.RadioSettings;
 import com.arksine.autointegrate.R;
+import com.arksine.autointegrate.utilities.LogManager;
 import com.arksine.autointegrate.utilities.UtilityFunctions;
 
 import timber.log.Timber;
 
 
 public class MainActivity extends AppCompatActivity {
+    private static final int MY_PERMISSIONS_REQUEST_WRITE_STORAGE = 400;
+    private static final int MY_PERMISSIONS_REQUEST_WRITE_SETTINGS = 500;
 
-    private String[] mSettingTitles;
     private DrawerLayout mDrawerLayout;
     private ListView mDrawerList;
 
@@ -92,7 +98,7 @@ public class MainActivity extends AppCompatActivity {
         setLayout();
 
         mTitle = mDrawerTitle = getTitle();
-        mSettingTitles = getResources().getStringArray(R.array.drawer_setting_titles);
+        String[] mSettingTitles = getResources().getStringArray(R.array.drawer_setting_titles);
         mDrawerLayout = (DrawerLayout) findViewById(R.id.drawer_layout);
         mDrawerList = (ListView) findViewById(R.id.listview_drawer);
 
@@ -136,15 +142,64 @@ public class MainActivity extends AppCompatActivity {
             selectItem(0);
         }
 
+        // TODO: check external storage permission
+
         // Make sure we are granted settings permission, launch dialog if necessary
         boolean canWriteSettings = UtilityFunctions.checkSettingsPermission(this);
 
-        // Start the service if it isn't started
-        if (canWriteSettings && !UtilityFunctions.isServiceRunning(MainService.class, this)) {
+        if (!canWriteSettings) {
+            Intent intent = new Intent(android.provider.Settings.ACTION_MANAGE_WRITE_SETTINGS);
+            intent.setData(Uri.parse("package:" + getPackageName()));
+            //intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivityForResult(intent, MY_PERMISSIONS_REQUEST_WRITE_SETTINGS);
+        } else if (!LogManager.hasWriteExternalStoragePermission(this)) {
+            LogManager.requestWritePermission(this, MY_PERMISSIONS_REQUEST_WRITE_STORAGE);
+        } else if (!UtilityFunctions.isServiceRunning(MainService.class, this)){
+            // Have all necessary permissions, go ahead and start the service
             Intent startIntent = new Intent(this, MainService.class);
             this.startService(startIntent);
         }
 
+
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == MY_PERMISSIONS_REQUEST_WRITE_SETTINGS) {
+            // Dont worry about result code, it is always canceled
+
+            // Check for Write Permission
+            if (!LogManager.hasWriteExternalStoragePermission(this)) {
+                LogManager.requestWritePermission(this, MY_PERMISSIONS_REQUEST_WRITE_STORAGE);
+            } else if (UtilityFunctions.checkSettingsPermission(this) &&
+                    !UtilityFunctions.isServiceRunning(MainService.class, this)) {
+                // have all permissions, start service
+                Intent startIntent = new Intent(this, MainService.class);
+                this.startService(startIntent);
+            }
+        }
+
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+
+        switch (requestCode) {
+            case MY_PERMISSIONS_REQUEST_WRITE_STORAGE:
+                if (grantResults.length > 0
+                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    // Permission Granted, add Logger
+                    LogManager.addDiskLogger();
+
+                    if (UtilityFunctions.checkSettingsPermission(this) &&
+                            !UtilityFunctions.isServiceRunning(MainService.class, this)) {
+                        // have all permissions, start service
+                        Intent startIntent = new Intent(this, MainService.class);
+                        this.startService(startIntent);
+                    }
+                }
+        }
     }
 
     @Override
@@ -261,17 +316,7 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
                 break;
-            case 3:     // Camera Settings
-                if (sharedPrefs.getBoolean("main_pref_key_toggle_camera", false)) {
-                    fragment = new CameraSettings();
-                    title = "Camera Settings";
-                } else {
-                    Toast.makeText(this, "Camera Integration Disabled",
-                            Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                break;
-            case 4:     // HD Radio Settings
+            case 3:     // HD Radio Settings
                 if (sharedPrefs.getBoolean("main_pref_key_toggle_radio", false)) {
                     fragment = new RadioSettings();
                     title = "HD Radio Settings";

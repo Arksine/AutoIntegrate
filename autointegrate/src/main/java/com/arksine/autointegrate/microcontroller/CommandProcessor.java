@@ -14,7 +14,6 @@ import android.view.KeyEvent;
 import com.arksine.autointegrate.AutoIntegrate;
 import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.activities.BrightnessChangeActivity;
-import com.arksine.autointegrate.activities.CameraActivity;
 import com.arksine.autointegrate.interfaces.MCUControlInterface;
 import com.arksine.autointegrate.utilities.RootManager;
 import com.arksine.autointegrate.utilities.TaskerIntent;
@@ -320,18 +319,24 @@ public class CommandProcessor {
             case "0":       // No App set
                 mCameraIntent = null;
                 break;
-            case "1":       // Integrated Cam Activity
-                mCameraIntent = new Intent(mContext, CameraActivity.class);
-                mCameraIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                mCameraIntent.putExtra(mContext.getString(R.string.LAUNCH_CAMERA_EXTRA), true);
-                mReverseExitListener = new ReverseExitListener() {
-                    @Override
-                    public void OnReverseOff() {
-                        Intent camExitIntent = new Intent(mContext.getString(R.string.ACTION_CLOSE_CAMERA));
-                        camExitIntent.setClass(mContext, CameraActivity.class);
-                        LocalBroadcastManager.getInstance(mContext).sendBroadcast(camExitIntent);
-                    }
-                };
+            case "1":       // Companion Cam Activity
+                mCameraIntent = mContext.getPackageManager()
+                        .getLaunchIntentForPackage("com.arksine.autocamera");
+                if (mCameraIntent != null) {
+                    Timber.v("Companion Camera Intent set");
+                    mCameraIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    // Add extra to tell activity to allow autoshutdown
+                    mCameraIntent.putExtra(mContext.getString(R.string.LAUNCH_CAMERA_EXTRA), true);
+                    mReverseExitListener = new ReverseExitListener() {
+                        @Override
+                        public void OnReverseOff() {
+                            Intent camExitIntent = new Intent(mContext.getString(R.string.ACTION_CLOSE_CAMERA));
+                            mContext.sendBroadcast(camExitIntent);
+                        }
+                    };
+                } else {
+                    Timber.v("Companion Camera Package not installed");
+                }
                 break;
             case "2":       // Custom App
                 Timber.d("Setting Camera App to package: %s", appPackage);

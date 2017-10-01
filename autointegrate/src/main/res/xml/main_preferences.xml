@@ -23,13 +23,6 @@
         android:summaryOff="@string/main_pref_toggle_controller_summ_off"/>
     <SwitchPreference
         android:defaultValue="false"
-        android:title="@string/main_pref_toggle_camera"
-        android:key="main_pref_key_toggle_camera"
-        android:persistent="true"
-        android:summaryOn="@string/main_pref_toggle_camera_summ_on"
-        android:summaryOff="@string/main_pref_toggle_camera_summ_off"/>
-    <SwitchPreference
-        android:defaultValue="false"
         android:title="@string/main_pref_toggle_radio"
         android:key="main_pref_key_toggle_radio"
         android:persistent="true"

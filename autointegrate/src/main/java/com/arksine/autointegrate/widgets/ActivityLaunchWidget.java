@@ -9,7 +9,6 @@ import android.widget.RemoteViews;
 
 import com.arksine.autointegrate.R;
 import com.arksine.autointegrate.activities.ButtonLearningActivity;
-import com.arksine.autointegrate.activities.CameraActivity;
 import com.arksine.autointegrate.activities.MainActivity;
 import com.arksine.autointegrate.activities.RadioActivity;
 
@@ -25,7 +24,6 @@ public class ActivityLaunchWidget extends AppWidgetProvider {
         for (int widgetId : appWidgetIds) {
             PendingIntent settingsPi = getActivityLaunchIntent(context, MainActivity.class);
             PendingIntent resMapPi = getActivityLaunchIntent(context, ButtonLearningActivity.class);
-            PendingIntent cameraPi = getActivityLaunchIntent(context, CameraActivity.class);
             PendingIntent radioPi = getActivityLaunchIntent(context, RadioActivity.class);
 
             // Set the view
@@ -33,8 +31,15 @@ public class ActivityLaunchWidget extends AppWidgetProvider {
                     R.layout.activity_launch_widget_layout);
             views.setOnClickPendingIntent(R.id.widget_btn_settings, settingsPi);
             views.setOnClickPendingIntent(R.id.widget_btn_resistive_map, resMapPi);
-            views.setOnClickPendingIntent(R.id.widget_btn_camera, cameraPi);
             views.setOnClickPendingIntent(R.id.widget_btn_radio, radioPi);
+
+            Intent cameraIntent  = context.getPackageManager()
+                    .getLaunchIntentForPackage("com.arksine.autocamera");
+
+            if (cameraIntent != null) {
+                PendingIntent cameraPi = PendingIntent.getActivity(context, 0, cameraIntent, 0);
+                views.setOnClickPendingIntent(R.id.widget_btn_camera, cameraPi);
+            }
 
             appWidgetManager.updateAppWidget(widgetId, views);
         }
